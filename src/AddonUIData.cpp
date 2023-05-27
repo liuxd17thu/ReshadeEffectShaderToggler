@@ -161,12 +161,12 @@ void AddonUIData::LoadShaderTogglerIniFile(const std::string& fileName)
 {
     // Will assume it's started at the start of the application and therefore no groups are present.
 
-    reshade::log_message(reshade::log_level::info, std::format("Loading config file from \"{}\"", (_basePath / fileName).string()).c_str());
+    reshade::log_message(reshade::log_level::info, std::format("加载配置文件：\"{}\"", (_basePath / fileName).string()).c_str());
 
     CDataFile iniFile;
     if (!iniFile.Load((_basePath / fileName).string()))
     {
-        reshade::log_message(reshade::log_level::info, std::format("Could not find config file at \"{}\"", (_basePath / fileName).string()).c_str());
+        reshade::log_message(reshade::log_level::info, std::format("无法在以下位置找到配置文件：\"{}\"", (_basePath / fileName).string()).c_str());
         // not there
         return;
     }

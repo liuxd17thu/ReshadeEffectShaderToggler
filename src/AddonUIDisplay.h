@@ -45,7 +45,7 @@ static bool key_input_box(const char* name, uint32_t* keys, const effect_runtime
     if (*keys)
         buf[reshade_key_name(*keys).copy(buf, sizeof(buf) - 1)] = '\0';
 
-    ImGui::InputTextWithHint(name, "Click to set keyboard shortcut", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
+    ImGui::InputTextWithHint(name, "点击以设置键盘快捷键", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_NoHorizontalScroll);
 
     if (ImGui::IsItemActive())
     {
@@ -70,7 +70,7 @@ static bool key_input_box(const char* name, uint32_t* keys, const effect_runtime
     }
     else if (ImGui::IsItemHovered())
     {
-        ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+        ImGui::SetTooltip("在字段中单击，然后按任意键，以将其设置为新的快捷键。");
     }
 
     return false;
@@ -89,7 +89,7 @@ static void DisplayIsPartOfToggleGroup()
 {
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
     ImGui::SameLine();
-    ImGui::Text(" Shader is part of this toggle group.");
+    ImGui::Text(" 着色器属于当前切换组。");
     ImGui::PopStyleColor();
 }
 
@@ -109,29 +109,29 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ToggleG
 
     ImGui::SetNextWindowSize({ 500, 300 }, ImGuiCond_Once);
     bool wndOpen = true;
-    if (ImGui::Begin("Technique selection", &wndOpen))
+    if (ImGui::Begin("效果器选择", &wndOpen))
     {
-        if (ImGui::BeginChild("Technique selection##child", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
+        if (ImGui::BeginChild("效果器选择##child", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
         {
             bool allowAll = group->getAllowAllTechniques();
-            ImGui::Checkbox("Catch all techniques", &allowAll);
+            ImGui::Checkbox("捕获所有效果器", &allowAll);
             group->setAllowAllTechniques(allowAll);
 
             bool exceptions = group->getHasTechniqueExceptions();
             if (allowAll)
             {
                 ImGui::SameLine();
-                ImGui::Checkbox("Except for selected techniques", &exceptions);
+                ImGui::Checkbox("排除勾选的效果器", &exceptions);
                 group->setHasTechniqueExceptions(exceptions);
             }
 
-            if (ImGui::Button("Untick all"))
+            if (ImGui::Button("全部不选"))
             {
                 curTechniques.clear();
             }
 
             ImGui::SameLine();
-            ImGui::Text("Search: ");
+            ImGui::Text("搜索：");
             ImGui::SameLine();
             ImGui::InputText("##techniqueSearch", searchBuf, 256, ImGuiInputTextFlags_None);
 
@@ -141,7 +141,7 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ToggleG
             {
                 ImGui::BeginDisabled();
             }
-            if (ImGui::BeginTable("Technique selection##table", columns, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders))
+            if (ImGui::BeginTable("效果器选择##table", columns, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders))
             {
                 string prefix(searchBuf);
 
@@ -220,36 +220,36 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, effect_runtime* ru
         bool wndOpen = true;
         ImGui::SetNextWindowBgAlpha(*instance.OverlayOpacity());
         ImGui::SetNextWindowPos(ImVec2(10, 10));
-        if (!ImGui::Begin(std::format("Edit group {}", editingGroupName).c_str(), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize |
+        if (!ImGui::Begin(std::format("编辑组 {}", editingGroupName).c_str(), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
         {
             ImGui::End();
             return;
         }
 
-        ImGui::Text("# of pipelines with vertex shaders: %d. # of different vertex shaders gathered: %d.", instance.GetVertexShaderManager()->getPipelineCount(), instance.GetVertexShaderManager()->getShaderCount());
-        ImGui::Text("# of pipelines with pixel shaders: %d. # of different pixel shaders gathered: %d.", instance.GetPixelShaderManager()->getPipelineCount(), instance.GetPixelShaderManager()->getShaderCount());
+        ImGui::Text("包含顶点着色器的管线数量：%d。# 聚合的不同顶点着色器的数量：%d。", instance.GetVertexShaderManager()->getPipelineCount(), instance.GetVertexShaderManager()->getShaderCount());
+        ImGui::Text("包含像素着色器的管线数量：%d。# 聚合的不同像素着色器的数量：%d。", instance.GetPixelShaderManager()->getPipelineCount(), instance.GetPixelShaderManager()->getShaderCount());
         if (*instance.ActiveCollectorFrameCounter() > 0)
         {
             const uint32_t counterValue = *instance.ActiveCollectorFrameCounter();
-            ImGui::Text("Collecting active shaders... frames to go: %d", counterValue);
+            ImGui::Text("收集激活中的着色器… 剩余帧数：%d", counterValue);
         }
         else
         {
             if (instance.GetVertexShaderManager()->isInHuntingMode() || instance.GetPixelShaderManager()->isInHuntingMode())
             {
-                ImGui::Text("Editing the shaders for group: %s", editingGroupName.c_str());
+                ImGui::Text("正在为该组编辑着色器：%s", editingGroupName.c_str());
                 if (tGroup != nullptr)
                 {
-                    ImGui::Text("Invocation location: %s", invocationDescription[tGroup->getInvocationLocation()]);
-                    ImGui::Text("Render target index: %d", tGroup->getDescriptorIndex());
-                    ImGui::Text("Render target format %d: ", (uint32_t)instance.cFormat);
+                    ImGui::Text("调用位置：%s", invocationDescription[tGroup->getInvocationLocation()]);
+                    ImGui::Text("渲染目标索引：%d", tGroup->getDescriptorIndex());
+                    ImGui::Text("渲染目标格式：%d", (uint32_t)instance.cFormat);
                 }
             }
             if (instance.GetVertexShaderManager()->isInHuntingMode())
             {
-                ImGui::Text("# of vertex shaders active: %d. # of vertex shaders in group: %d", instance.GetVertexShaderManager()->getAmountShaderHashesCollected(), instance.GetVertexShaderManager()->getMarkedShaderCount());
-                ImGui::Text("Current selected vertex shader: %d / %d.", instance.GetVertexShaderManager()->getActiveHuntedShaderIndex(), instance.GetVertexShaderManager()->getAmountShaderHashesCollected());
+                ImGui::Text("激活的顶点着色器数量：%d。组中的顶点着色器数量：%d。", instance.GetVertexShaderManager()->getAmountShaderHashesCollected(), instance.GetVertexShaderManager()->getMarkedShaderCount());
+                ImGui::Text("当前选择的顶点着色器：%d / %d。", instance.GetVertexShaderManager()->getActiveHuntedShaderIndex(), instance.GetVertexShaderManager()->getAmountShaderHashesCollected());
                 if (instance.GetVertexShaderManager()->isHuntedShaderMarked())
                 {
                     DisplayIsPartOfToggleGroup();
@@ -257,8 +257,8 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, effect_runtime* ru
             }
             if (instance.GetPixelShaderManager()->isInHuntingMode())
             {
-                ImGui::Text("# of pixel shaders active: %d. # of pixel shaders in group: %d", instance.GetPixelShaderManager()->getAmountShaderHashesCollected(), instance.GetPixelShaderManager()->getMarkedShaderCount());
-                ImGui::Text("Current selected pixel shader: %d / %d", instance.GetPixelShaderManager()->getActiveHuntedShaderIndex(), instance.GetPixelShaderManager()->getAmountShaderHashesCollected());
+                ImGui::Text("激活的像素着色器数量：%d。组中的像素着色器数量：%d。", instance.GetPixelShaderManager()->getAmountShaderHashesCollected(), instance.GetPixelShaderManager()->getMarkedShaderCount());
+                ImGui::Text("当前选择的像素着色器：%d / %d。", instance.GetPixelShaderManager()->getActiveHuntedShaderIndex(), instance.GetPixelShaderManager()->getAmountShaderHashesCollected());
                 if (instance.GetPixelShaderManager()->isHuntedShaderMarked())
                 {
                     DisplayIsPartOfToggleGroup();
@@ -414,37 +414,37 @@ static void ShowHelpMarker(const char* desc)
 
 static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* runtime)
 {
-    if (ImGui::CollapsingHeader("General info and help"))
+    if (ImGui::CollapsingHeader("一般信息与帮助"))
     {
         ImGui::PushTextWrapPos();
-        ImGui::TextUnformatted("The Shader Toggler allows you to create one or more groups with shaders to toggle on/off. You can assign a keyboard shortcut (including using keys like Shift, Alt and Control) to each group, including a handy name. Each group can have one or more vertex or pixel shaders assigned to it. When you press the assigned keyboard shortcut, any draw calls using these shaders will be disabled, effectively hiding the elements in the 3D scene.");
-        ImGui::TextUnformatted("\nThe following (hardcoded) keyboard shortcuts are used when you click a group's 'Change Shaders' button:");
-        ImGui::TextUnformatted("* Numpad 1 and Numpad 2: previous/next pixel shader");
-        ImGui::TextUnformatted("* Ctrl + Numpad 1 and Ctrl + Numpad 2: previous/next marked pixel shader in the group");
-        ImGui::TextUnformatted("* Numpad 3: mark/unmark the current pixel shader as being part of the group");
-        ImGui::TextUnformatted("* Numpad 4 and Numpad 5: previous/next vertex shader");
-        ImGui::TextUnformatted("* Ctrl + Numpad 4 and Ctrl + Numpad 5: previous/next marked vertex shader in the group");
-        ImGui::TextUnformatted("* Numpad 6: mark/unmark the current vertex shader as being part of the group");
-        ImGui::TextUnformatted("\nWhen you step through the shaders, the current shader is disabled in the 3D scene so you can see if that's the shader you were looking for.");
-        ImGui::TextUnformatted("When you're done, make sure you click 'Save all toggle groups' to preserve the groups you defined so next time you start your game they're loaded in and you can use them right away.");
+        ImGui::TextUnformatted("着色器切换器允许你创建若干分组，每个分组包含需要切换开启/关闭的着色器。你可以为每个分组绑定键盘快捷键（包括Shift、Alt、Ctrl），并为分组命名。每个分组可以拥有若干与之绑定的顶点着色器。当你按下相应键盘快捷键时，任何使用这些着色器的绘制调用将被禁用，从而有效隐藏3D场景中的元素。");
+        ImGui::TextUnformatted("\n以下（硬编码的）键盘快捷键在单击分组的“更改着色器”按钮时可用：");
+        ImGui::TextUnformatted("* [小键盘1] 和 [小键盘2]：前一个/后一个像素着色器");
+        ImGui::TextUnformatted("* [Ctrl+小键盘1] 和 [Ctrl+小键盘2]：前一个/后一个分组内已标记的像素着色器");
+        ImGui::TextUnformatted("* [小键盘3]：标记/取消标记当前像素着色器，即是否置入分组");
+        ImGui::TextUnformatted("* [小键盘4] 和 [小键盘5]：前一个/后一个顶点着色器");
+        ImGui::TextUnformatted("* [Ctrl+小键盘4] 和 [Ctrl+小键盘5]：前一个/后一个分组内已标记的顶点着色器");
+        ImGui::TextUnformatted("* [小键盘6]：标记/取消标记当前顶点着色器，即是否置入分组");
+        ImGui::TextUnformatted("\n当遍历着色器时，当前所在着色器在3D场景中被禁用，因此你可以观察它是不是你寻找的那个。");
+        ImGui::TextUnformatted("完成标记后，请确认你点击了“保存所有切换分组”以保存你定义的分组，由此下次启动游戏时它们将被自动加载，从而可以立刻使用。");
         ImGui::PopTextWrapPos();
     }
 
     ImGui::AlignTextToFramePadding();
-    if (ImGui::CollapsingHeader("Shader selection parameters", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("着色器选择参数", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::AlignTextToFramePadding();
         ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
-        ImGui::SliderFloat("Overlay opacity", instance.OverlayOpacity(), 0.0f, 1.0f);
+        ImGui::SliderFloat("覆盖面板不透明度", instance.OverlayOpacity(), 0.0f, 1.0f);
         ImGui::AlignTextToFramePadding();
-        ImGui::SliderInt("# of frames to collect", instance.StartValueFramecountCollectionPhase(), 10, 1000);
+        ImGui::SliderInt("所需收集的帧数量", instance.StartValueFramecountCollectionPhase(), 10, 1000);
         ImGui::SameLine();
-        ShowHelpMarker("This is the number of frames the addon will collect active shaders. Set this to a high number if the shader you want to mark is only used occasionally. Only shaders that are used in the frames collected can be marked.");
+        ShowHelpMarker("这是插件用以收集激活的着色器所用的帧数量。如果你想标记的着色器只是偶尔被使用，调高该值。只有在这些帧当中用到的着色器会被收集。");
         ImGui::PopItemWidth();
     }
     ImGui::Separator();
 
-    if (ImGui::CollapsingHeader("Keybindings", ImGuiTreeNodeFlags_None))
+    if (ImGui::CollapsingHeader("快捷键绑定", ImGuiTreeNodeFlags_None))
     {
         for (uint32_t i = 0; i < IM_ARRAYSIZE(AddonImGui::KeybindNames); i++)
         {
@@ -458,9 +458,9 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
         }
     }
 
-    if (ImGui::CollapsingHeader("List of Toggle Groups", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("分组列表", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (ImGui::Button(" New "))
+        if (ImGui::Button(" 新 "))
         {
             instance.AddDefaultGroup();
         }
@@ -482,7 +482,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
 
             ImGui::SameLine();
             bool groupActive = group.isActive();
-            ImGui::Checkbox("Active", &groupActive);
+            ImGui::Checkbox("激活", &groupActive);
             if (groupActive != group.isActive())
             {
                 group.toggleActive();
@@ -494,7 +494,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             }
 
             ImGui::SameLine();
-            if (ImGui::Button("Edit"))
+            if (ImGui::Button("编辑"))
             {
                 group.setEditing(true);
             }
@@ -504,7 +504,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             {
                 if (instance.GetToggleGroupIdShaderEditing() == group.getId())
                 {
-                    if (ImGui::Button(" Done "))
+                    if (ImGui::Button(" 完成 "))
                     {
                         instance.EndShaderEditing(true, group);
                     }
@@ -518,7 +518,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             }
             else
             {
-                if (ImGui::Button("Change shaders"))
+                if (ImGui::Button("更改着色器"))
                 {
                     ImGui::SameLine();
                     instance.StartShaderEditing(group);
@@ -530,7 +530,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             {
                 if (instance.GetToggleGroupIdEffectEditing() == group.getId())
                 {
-                    if (ImGui::Button("  Done  "))
+                    if (ImGui::Button("  完成  "))
                     {
                         instance.EndEffectEditing();
                     }
@@ -544,7 +544,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             }
             else
             {
-                if (ImGui::Button("Change effects"))
+                if (ImGui::Button("更改效果器"))
                 {
                     instance.StartEffectEditing(group);
                     instance.GetInvocationLocation() = group.getInvocationLocation();
@@ -556,7 +556,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             {
                 if (instance.GetToggleGroupIdConstantEditing() == group.getId())
                 {
-                    if (ImGui::Button("Done"))
+                    if (ImGui::Button("完成"))
                     {
                         instance.EndConstantEditing();
                     }
@@ -570,7 +570,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             }
             else
             {
-                if (ImGui::Button("Constants"))
+                if (ImGui::Button("常量"))
                 {
                     instance.StartConstantEditing(group);
                 }
@@ -589,7 +589,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
             if (group.isEditing())
             {
                 ImGui::Separator();
-                ImGui::Text("Edit group %d", group.getId());
+                ImGui::Text("编辑分组 %d", group.getId());
 
                 // Name of group
                 char tmpBuffer[150];
@@ -597,7 +597,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
                 strncpy_s(tmpBuffer, 150, name.c_str(), name.size());
                 ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.7f);
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text("Name");
+                ImGui::Text("名字");
                 ImGui::SameLine(ImGui::GetWindowWidth() * 0.2f);
                 ImGui::InputText("##Name", tmpBuffer, 149);
                 group.setName(tmpBuffer);
@@ -609,7 +609,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
                 strncpy_s(tmpBuffer, 150, bindingName.c_str(), bindingName.size());
                 ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.7f);
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text("Binding Name");
+                ImGui::Text("绑定名字");
                 ImGui::SameLine(ImGui::GetWindowWidth() * 0.2f);
                 if (isBindingEnabled)
                 {
@@ -632,7 +632,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
                 // Key binding of group
                 ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.7f);
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text("Key shortcut");
+                ImGui::Text("快捷键");
                 ImGui::SameLine(ImGui::GetWindowWidth() * 0.2f);
 
                 uint32_t keys = group.getToggleKey();
@@ -674,7 +674,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, effect_runtime* r
         ImGui::Separator();
         if (instance.GetToggleGroups().size() > 0)
         {
-            if (ImGui::Button("Save all Toggle Groups"))
+            if (ImGui::Button("保存所有切换分组"))
             {
                 instance.SaveShaderTogglerIniFile();
             }

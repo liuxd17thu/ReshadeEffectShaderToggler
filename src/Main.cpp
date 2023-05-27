@@ -58,7 +58,7 @@ using namespace ConstantFeedback;
 using namespace StateTracker;
 
 extern "C" __declspec(dllexport) const char* NAME = "Reshade Effect Shader Toggler";
-extern "C" __declspec(dllexport) const char* DESCRIPTION = "Addon which allows you to define groups of shaders to render Reshade effects on.";
+extern "C" __declspec(dllexport) const char* DESCRIPTION = "又名REST，允许你定义接受ReShade效果渲染的游戏着色器分组。";
 
 extern void register_addon_depth();
 extern void unregister_addon_depth();

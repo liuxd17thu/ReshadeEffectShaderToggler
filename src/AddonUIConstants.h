@@ -32,7 +32,7 @@ static const unordered_set<string> varExclusionSet({
 
 static void DisplayConstantSettings(ToggleGroup* group)
 {
-    ImGui::Text("Slot #: %u", group->getSlotIndex());
+    ImGui::Text("槽 #：%u", group->getSlotIndex());
 
     ImGui::SameLine();
 
@@ -53,7 +53,7 @@ static void DisplayConstantSettings(ToggleGroup* group)
         }
     }
 
-    ImGui::Text("Binding #: %u", group->getDescriptorIndex());
+    ImGui::Text("绑定 #：%u", group->getDescriptorIndex());
 
     ImGui::SameLine();
 
@@ -79,7 +79,7 @@ static void DisplayConstantSettings(ToggleGroup* group)
 
 static void DisplaySRVSettings(ToggleGroup* group)
 {
-    ImGui::Text("Slot #: %u", group->getSRVSlotIndex());
+    ImGui::Text("槽 #：%u", group->getSRVSlotIndex());
 
     ImGui::SameLine();
 
@@ -100,7 +100,7 @@ static void DisplaySRVSettings(ToggleGroup* group)
         }
     }
 
-    ImGui::Text("Binding #: %u", group->getSRVDescriptorIndex());
+    ImGui::Text("绑定 #：%u", group->getSRVDescriptorIndex());
 
     ImGui::SameLine();
 
@@ -143,7 +143,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
     static char offsetInputBuf[offsetInputBufSize] = { "000" };
 
     bool extractionEnabled = group->getExtractConstants();
-    ImGui::Checkbox("Extract constant buffer", &extractionEnabled);
+    ImGui::Checkbox("抽取常量缓冲区", &extractionEnabled);
     group->setExtractConstant(extractionEnabled);
 
     if (!extractionEnabled)
@@ -157,9 +157,9 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
 
     float height = ImGui::GetWindowHeight();
 
-    if (ImGui::BeginChild("Constant Buffer Viewer##child", { 0, height / 1.5f }, true, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginChild("常量缓冲区浏览##child", { 0, height / 1.5f }, true, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        if (ImGui::BeginCombo("View mode", typeSelectedItem, ImGuiComboFlags_None))
+        if (ImGui::BeginCombo("浏览模式", typeSelectedItem, ImGuiComboFlags_None))
         {
             for (int n = 0; n < IM_ARRAYSIZE(typeItems); n++)
             {
@@ -177,7 +177,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
 
         ImGui::Separator();
 
-        if (bufferContent != nullptr && bufferSize > 0 && ImGui::BeginTable("Buffer View Grid##table", columns + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+        if (bufferContent != nullptr && bufferSize > 0 && ImGui::BeginTable("缓冲区浏览网格##table", columns + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
         {
             size_t elements = bufferSize / typeSizes[typeSelectionIndex];
 
@@ -248,18 +248,18 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
         ImGui::EndChild();
     }
 
-    if (ImGui::BeginChild("Constant Buffer Viewer##vars", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginChild("常量缓冲区浏览##vars", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        if (ImGui::Button("Add Variable Binding"))
+        if (ImGui::Button("添加变量绑定"))
         {
-            ImGui::OpenPopup("Add###const_variables");
+            ImGui::OpenPopup("添加###const_variables");
         }
 
         ImGui::Separator();
 
-        if (ImGui::BeginPopupModal("Add###const_variables", nullptr, ImGuiWindowFlags_AlwaysAutoResize) && instance.GetRESTVariables()->size() > 0)
+        if (ImGui::BeginPopupModal("添加###const_variables", nullptr, ImGuiWindowFlags_AlwaysAutoResize) && instance.GetRESTVariables()->size() > 0)
         {
-            ImGui::Text("Add constant buffer offset to variable binding:");
+            ImGui::Text("添加常量缓冲区偏移至变量绑定：");
 
             static int varSelectionIndex = 0;
             vector<string> varNames;
@@ -273,7 +273,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
 
             static string varSelectedItem = filteredVars.size() > 0 ? filteredVars[0] : "";
 
-            if (ImGui::BeginCombo("Variable", varSelectedItem.c_str(), ImGuiComboFlags_None))
+            if (ImGui::BeginCombo("变量", varSelectedItem.c_str(), ImGuiComboFlags_None))
             {
                 for (auto& v : filteredVars)
                 {
@@ -290,11 +290,11 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
 
             ImGui::Text("0x");
             ImGui::SameLine();
-            ImGui::InputText("Offset", offsetInputBuf, offsetInputBufSize, ImGuiInputTextFlags_CharsHexadecimal);
+            ImGui::InputText("偏移", offsetInputBuf, offsetInputBufSize, ImGuiInputTextFlags_CharsHexadecimal);
 
             static bool prevValue = false;
 
-            ImGui::Checkbox("Use previous value", &prevValue);
+            ImGui::Checkbox("使用先前值", &prevValue);
 
             ImGui::Separator();
 
@@ -309,7 +309,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
             }
             ImGui::SetItemDefaultFocus();
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0)))
+            if (ImGui::Button("取消", ImVec2(120, 0)))
             {
                 ImGui::CloseCurrentPopup();
             }
@@ -317,10 +317,10 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
             ImGui::EndPopup();
         }
 
-        const char* varColumns[] = { "Variable", "Offset", "Type", "Use Previous Value" };
+        const char* varColumns[] = { "变量", "偏移", "类型", "使用先前值" };
         vector<string> removal;
 
-        if (varMap.size() > 0 && ImGui::BeginTable("Buffer View Grid##vartable", IM_ARRAYSIZE(varColumns) + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody))
+        if (varMap.size() > 0 && ImGui::BeginTable("缓冲区预览网格##vartable", IM_ARRAYSIZE(varColumns) + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody))
         {
             for (int i = 0; i < IM_ARRAYSIZE(varColumns); i++)
             {
@@ -343,7 +343,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
                 ImGui::TableNextColumn();
                 ImGui::Text(std::format("{}", get<1>(varMapping.second)).c_str());
                 ImGui::TableNextColumn();
-                if (ImGui::Button(std::format("Remove##{}", varMapping.first).c_str()))
+                if (ImGui::Button(std::format("移除##{}", varMapping.first).c_str()))
                 {
                     removal.push_back(varMapping.first);
                 }
@@ -361,7 +361,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
 static void DisplaySRVTab(AddonImGui::AddonUIData& instance, ToggleGroup* group, device* dev)
 {
     bool extractionEnabled = group->getExtractResourceViews();
-    ImGui::Checkbox("Extract shader resource views", &extractionEnabled);
+    ImGui::Checkbox("抽取着色器资源视图", &extractionEnabled);
     group->setExtractResourceViews(extractionEnabled);
 
     ImGui::Separator();
@@ -379,17 +379,17 @@ static void DisplayConstantViewer(AddonImGui::AddonUIData& instance, ToggleGroup
     ImGui::SetNextWindowSize({ 500, 800 }, ImGuiCond_Once);
     bool wndOpen = true;
 
-    if (ImGui::Begin("Shader Resource Viewer", &wndOpen))
+    if (ImGui::Begin("着色器资源浏览", &wndOpen))
     {
         ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
         if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
         {
-            if (ImGui::BeginTabItem("Constants"))
+            if (ImGui::BeginTabItem("常量"))
             {
                 DisplayConstantTab(instance, group, dev);
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Shader Resource Views"))
+            if (ImGui::BeginTabItem("着色器资源视图"))
             {
                 DisplaySRVTab(instance, group, dev);
                 ImGui::EndTabItem();

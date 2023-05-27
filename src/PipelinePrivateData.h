@@ -28,7 +28,6 @@ struct __declspec(novtable) ShaderData final {
 };
 
 struct __declspec(uuid("222F7169-3C09-40DB-9BC9-EC53842CE537")) CommandListDataContainer {
-    uint32_t commandCheck = 0;
     uint32_t commandQueue = 0;
     StateTracker::PipelineStateTracker stateTracker;
     ShaderData ps;
@@ -40,7 +39,6 @@ struct __declspec(uuid("222F7169-3C09-40DB-9BC9-EC53842CE537")) CommandListDataC
         vs.Reset();
         stateTracker.Reset();
 
-        commandCheck = 0;
         commandQueue = 0;
     }
 };

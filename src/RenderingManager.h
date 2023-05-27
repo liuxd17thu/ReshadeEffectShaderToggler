@@ -28,6 +28,8 @@ namespace Rendering
     static constexpr uint32_t MATCH_EFFECT     = 0b00000011;
     static constexpr uint32_t MATCH_BINDING    = 0b00001100;
     static constexpr uint32_t MATCH_CONST      = 0b00110000;
+    static constexpr uint32_t MATCH_PS         = 0b00010101;
+    static constexpr uint32_t MATCH_VS         = 0b00101010;
     static constexpr uint32_t MATCH_DELIMITER  = 6;
 
     static constexpr uint32_t CHECK_MATCH_DRAW         = MATCH_ALL << (CALL_DRAW * MATCH_DELIMITER);
@@ -61,8 +63,10 @@ namespace Rendering
         void UpdateTextureBindings(reshade::api::command_list* cmd_list, uint32_t callLocation = CALL_DRAW, uint32_t invocation = MATCH_NONE);
         void ClearUnmatchedTextureBindings(reshade::api::command_list* cmd_list);
 
-        void _CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, const DeviceDataContainer& deviceData);
-        void CheckCallForCommandList(reshade::api::command_list* commandList, uint32_t psShaderHash, uint32_t vsShaderHash);
+        void _CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, const DeviceDataContainer& deviceData) const;
+        void CheckCallForCommandList(reshade::api::command_list* commandList);
+
+        void ClearQueue2(CommandListDataContainer& commandListData, const uint32_t location0, const uint32_t location1) const;
 
         static void EnumerateTechniques(reshade::api::effect_runtime* runtime, std::function<void(reshade::api::effect_runtime*, reshade::api::effect_technique, std::string&)> func);
     private:

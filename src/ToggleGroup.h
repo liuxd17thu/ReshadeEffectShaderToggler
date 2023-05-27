@@ -103,9 +103,13 @@ namespace ShaderToggler
         uint32_t getSRVDescriptorIndex() const { return _srvDescIndex; }
         bool getHasTechniqueExceptions() const { return _hasTechniqueExceptions; }
         void setHasTechniqueExceptions(bool exceptions) { _hasTechniqueExceptions = exceptions; }
-        const std::unordered_map<string, tuple<uintptr_t, bool>>& GetVarOffsetMapping() const { return _varOffsetMapping; }
-        bool SetVarMapping(uintptr_t, string&, bool);
-        bool RemoveVarMapping(string&);
+        bool getMatchSwapchainResolution() const { return _matchSwapchainResolution; }
+        void setMatchSwapchainResolution(bool match) { _matchSwapchainResolution = match; }
+        bool getRequeueAfterRTMatchingFailure() const { return _requeueAfterRTMatchingFailure; }
+        void setRequeueAfterRTMatchingFailure(bool requeue) { _requeueAfterRTMatchingFailure = requeue; }
+        const std::unordered_map<std::string, std::tuple<uintptr_t, bool>>& GetVarOffsetMapping() const { return _varOffsetMapping; }
+        bool SetVarMapping(uintptr_t, std::string&, bool);
+        bool RemoveVarMapping(std::string&);
 
         bool operator==(const ToggleGroup& rhs)
         {
@@ -131,8 +135,10 @@ namespace ShaderToggler
         bool _extractResourceViews;
         bool _clearBindings;
         bool _hasTechniqueExceptions; // _preferredTechniques are handled as exception to _allowAllTechniques
+        bool _matchSwapchainResolution;
+        bool _requeueAfterRTMatchingFailure;
         std::string _textureBindingName;
         std::unordered_set<std::string> _preferredTechniques;
-        std::unordered_map<string, tuple<uintptr_t, bool>> _varOffsetMapping;
+        std::unordered_map<std::string, std::tuple<uintptr_t, bool>> _varOffsetMapping;
     };
 }

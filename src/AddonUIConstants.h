@@ -8,10 +8,7 @@
 #include "ToggleGroup.h"
 #include "AddonUIData.h"
 
-using namespace reshade::api;
-using namespace ShaderToggler;
-
-static const unordered_set<string> varExclusionSet({
+static const std::unordered_set<std::string> varExclusionSet({
     "frametime",
     "framecount",
     "random",
@@ -30,7 +27,7 @@ static const unordered_set<string> varExclusionSet({
     "ui_hovered",
     "overlay_hovered" });
 
-static void DisplayConstantSettings(ToggleGroup* group)
+static void DisplayConstantSettings(ShaderToggler::ToggleGroup* group)
 {
     ImGui::Text("槽 #：%u", group->getSlotIndex());
 
@@ -77,7 +74,7 @@ static void DisplayConstantSettings(ToggleGroup* group)
     }
 }
 
-static void DisplaySRVSettings(ToggleGroup* group)
+static void DisplaySRVSettings(ShaderToggler::ToggleGroup* group)
 {
     ImGui::Text("槽 #：%u", group->getSRVSlotIndex());
 
@@ -124,7 +121,7 @@ static void DisplaySRVSettings(ToggleGroup* group)
     }
 }
 
-static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* group, device* dev)
+static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler::ToggleGroup* group, reshade::api::device* dev)
 {
     if (instance.GetConstantHandler() == nullptr)
     {
@@ -213,7 +210,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
                             continue;
                         }
 
-                        stringstream sContent;
+                        std::stringstream sContent;
 
                         if (typeSelectionIndex == 0) {
                             sContent << std::format("{:02X}", bufferContent[i - i / (columns + 1) - 1]) << std::endl;
@@ -262,16 +259,16 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
             ImGui::Text("添加常量缓冲区偏移至变量绑定：");
 
             static int varSelectionIndex = 0;
-            vector<string> varNames;
+            std::vector<std::string> varNames;
             std::transform(instance.GetRESTVariables()->begin(), instance.GetRESTVariables()->end(), std::back_inserter(varNames),
-                [](const pair<string, tuple<constant_type, vector<effect_uniform_variable>>>& kV)
+                [](const std::pair<std::string, std::tuple<Shim::Constants::constant_type, std::vector<reshade::api::effect_uniform_variable>>>& kV)
                 {
                     return kV.first;
                 });
-            vector<string> filteredVars;
-            std::copy_if(varNames.begin(), varNames.end(), std::back_inserter(filteredVars), [](const string& s) { return !varExclusionSet.contains(s); });
+            std::vector<std::string> filteredVars;
+            std::copy_if(varNames.begin(), varNames.end(), std::back_inserter(filteredVars), [](const std::string& s) { return !varExclusionSet.contains(s); });
 
-            static string varSelectedItem = filteredVars.size() > 0 ? filteredVars[0] : "";
+            static std::string varSelectedItem = filteredVars.size() > 0 ? filteredVars[0] : "";
 
             if (ImGui::BeginCombo("变量", varSelectedItem.c_str(), ImGuiComboFlags_None))
             {
@@ -303,7 +300,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
             {
                 if (varSelectedItem.size() > 0)
                 {
-                    group->SetVarMapping(std::stoul(string(offsetInputBuf), nullptr, 16), varSelectedItem, prevValue);
+                    group->SetVarMapping(std::stoul(std::string(offsetInputBuf), nullptr, 16), varSelectedItem, prevValue);
                 }
                 ImGui::CloseCurrentPopup();
             }
@@ -318,7 +315,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
         }
 
         const char* varColumns[] = { "变量", "偏移", "类型", "使用先前值" };
-        vector<string> removal;
+        std::vector<std::string> removal;
 
         if (varMap.size() > 0 && ImGui::BeginTable("缓冲区预览网格##vartable", IM_ARRAYSIZE(varColumns) + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody))
         {
@@ -337,11 +334,11 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
                 ImGui::TableNextColumn();
                 ImGui::Text(varMapping.first.c_str());
                 ImGui::TableNextColumn();
-                ImGui::Text(std::format("{:#05x}", get<0>(varMapping.second)).c_str());
+                ImGui::Text(std::format("{:#05x}", std::get<0>(varMapping.second)).c_str());
                 ImGui::TableNextColumn();
-                ImGui::Text(type_desc[static_cast<uint32_t>(std::get<0>(instance.GetRESTVariables()->at(varMapping.first)))]);
+                ImGui::Text(Shim::Constants::type_desc[static_cast<uint32_t>(std::get<0>(instance.GetRESTVariables()->at(varMapping.first)))]);
                 ImGui::TableNextColumn();
-                ImGui::Text(std::format("{}", get<1>(varMapping.second)).c_str());
+                ImGui::Text(std::format("{}", std::get<1>(varMapping.second)).c_str());
                 ImGui::TableNextColumn();
                 if (ImGui::Button(std::format("移除##{}", varMapping.first).c_str()))
                 {
@@ -352,13 +349,13 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ToggleGroup* g
             ImGui::EndTable();
         }
 
-        std::for_each(removal.begin(), removal.end(), [&group](string& e) { group->RemoveVarMapping(e); });
+        std::for_each(removal.begin(), removal.end(), [&group](std::string& e) { group->RemoveVarMapping(e); });
 
         ImGui::EndChild();
     }
 }
 
-static void DisplaySRVTab(AddonImGui::AddonUIData& instance, ToggleGroup* group, device* dev)
+static void DisplaySRVTab(AddonImGui::AddonUIData& instance, ShaderToggler::ToggleGroup* group, reshade::api::device* dev)
 {
     bool extractionEnabled = group->getExtractResourceViews();
     ImGui::Checkbox("抽取着色器资源视图", &extractionEnabled);
@@ -369,7 +366,7 @@ static void DisplaySRVTab(AddonImGui::AddonUIData& instance, ToggleGroup* group,
     DisplaySRVSettings(group);
 }
 
-static void DisplayConstantViewer(AddonImGui::AddonUIData& instance, ToggleGroup* group, device* dev)
+static void DisplayConstantViewer(AddonImGui::AddonUIData& instance, ShaderToggler::ToggleGroup* group, reshade::api::device* dev)
 {
     if (group == nullptr)
     {

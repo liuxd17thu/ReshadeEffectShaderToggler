@@ -42,10 +42,6 @@
 constexpr auto FRAMECOUNT_COLLECTION_PHASE_DEFAULT = 10;
 constexpr auto HASH_FILE_NAME = "ReshadeEffectShaderToggler.ini";
 
-using namespace reshade::api;
-using namespace ShaderToggler;
-using namespace ConstantFeedback;
-
 namespace AddonImGui
 {
     enum Keybind : uint32_t
@@ -86,66 +82,67 @@ namespace AddonImGui
     class AddonUIData
     {
     private:
-        ShaderManager* _pixelShaderManager;
-        ShaderManager* _vertexShaderManager;
-        ConstantHandlerBase* _constantHandler;
-        atomic_uint32_t* _activeCollectorFrameCounter;
-        vector<string>* _allTechniques;
-        atomic_uint _invocationLocation = 0;
-        atomic_uint _descriptorIndex = 0;
-        atomic_int _toggleGroupIdShaderEditing = -1;
-        atomic_int _toggleGroupIdEffectEditing = -1;
-        atomic_int _toggleGroupIdConstantEditing = -1;
-        std::unordered_map<int, ToggleGroup> _toggleGroups;
-        std::unordered_map<uint32_t, vector<ToggleGroup*>> _pixelShaderHashToToggleGroups;
-        std::unordered_map<uint32_t, vector<ToggleGroup*>> _vertexShaderHashToToggleGroups;
+        ShaderToggler::ShaderManager* _pixelShaderManager;
+        ShaderToggler::ShaderManager* _vertexShaderManager;
+        Shim::Constants::ConstantHandlerBase* _constantHandler;
+        std::atomic_uint32_t* _activeCollectorFrameCounter;
+        std::vector<std::string>* _allTechniques;
+        std::atomic_uint _invocationLocation = 0;
+        std::atomic_uint _descriptorIndex = 0;
+        std::atomic_int _toggleGroupIdShaderEditing = -1;
+        std::atomic_int _toggleGroupIdEffectEditing = -1;
+        std::atomic_int _toggleGroupIdConstantEditing = -1;
+        std::unordered_map<int, ShaderToggler::ToggleGroup> _toggleGroups;
+        std::unordered_map<uint32_t, std::vector<ShaderToggler::ToggleGroup*>> _pixelShaderHashToToggleGroups;
+        std::unordered_map<uint32_t, std::vector<ShaderToggler::ToggleGroup*>> _vertexShaderHashToToggleGroups;
         int _startValueFramecountCollectionPhase = FRAMECOUNT_COLLECTION_PHASE_DEFAULT;
         float _overlayOpacity = 0.2f;
         uint32_t _keyBindings[ARRAYSIZE(KeybindNames)];
-        string _constHookType = "none";
-        string _constHookCopyType = "singular";
-        bool _attemptSRGBCorrection = false;
+        std::string _constHookType = "none";
+        std::string _constHookCopyType = "singular";
+        std::string _resourceShim = "none";
         std::filesystem::path _basePath;
     public:
-        AddonUIData(ShaderManager* pixelShaderManager, ShaderManager* vertexShaderManager, ConstantHandlerBase* constants, atomic_uint32_t* activeCollectorFrameCounter,
-            vector<string>* techniques);
-        std::unordered_map<int, ToggleGroup>& GetToggleGroups();
-        const std::vector<ToggleGroup*>* GetToggleGroupsForPixelShaderHash(uint32_t hash);
-        const std::vector<ToggleGroup*>* GetToggleGroupsForVertexShaderHash(uint32_t hash);
+        AddonUIData(ShaderToggler::ShaderManager* pixelShaderManager, ShaderToggler::ShaderManager* vertexShaderManager, Shim::Constants::ConstantHandlerBase* constants, std::atomic_uint32_t* activeCollectorFrameCounter,
+            std::vector<std::string>* techniques);
+        std::unordered_map<int, ShaderToggler::ToggleGroup>& GetToggleGroups();
+        const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForPixelShaderHash(uint32_t hash);
+        const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForVertexShaderHash(uint32_t hash);
         void UpdateToggleGroupsForShaderHashes();
         void AddDefaultGroup();
-        const atomic_int& GetToggleGroupIdShaderEditing() const;
-        void EndShaderEditing(bool acceptCollectedShaderHashes, ToggleGroup& groupEditing);
-        void StartShaderEditing(ToggleGroup& groupEditing);
-        void StartEffectEditing(ToggleGroup& groupEditing);
+        const std::atomic_int& GetToggleGroupIdShaderEditing() const;
+        void EndShaderEditing(bool acceptCollectedShaderHashes, ShaderToggler::ToggleGroup& groupEditing);
+        void StartShaderEditing(ShaderToggler::ToggleGroup& groupEditing);
+        void StartEffectEditing(ShaderToggler::ToggleGroup& groupEditing);
         void EndEffectEditing();
-        void StartConstantEditing(ToggleGroup& groupEditing);
+        void StartConstantEditing(ShaderToggler::ToggleGroup& groupEditing);
         void EndConstantEditing();
         void StopHuntingMode();
         void SetBasePath(const std::filesystem::path& basePath) { _basePath = basePath; };
         std::filesystem::path GetBasePath() { return _basePath; };
         void SaveShaderTogglerIniFile(const std::string& fileName = HASH_FILE_NAME);
         void LoadShaderTogglerIniFile(const std::string& fileName = HASH_FILE_NAME);
-        void ResetKeyBinding(ToggleGroup& groupgroupEditing);
-        atomic_int& GetToggleGroupIdShaderEditing() { return _toggleGroupIdShaderEditing; }
-        atomic_int& GetToggleGroupIdEffectEditing() { return _toggleGroupIdEffectEditing; }
-        atomic_int& GetToggleGroupIdConstantEditing() { return _toggleGroupIdConstantEditing; }
-        atomic_uint& GetInvocationLocation() { return _invocationLocation; }
-        atomic_uint& GetDescriptorIndex() { return _descriptorIndex; }
-        const vector<string>* GetAllTechniques() const;
+        void ResetKeyBinding(ShaderToggler::ToggleGroup& groupgroupEditing);
+        std::atomic_int& GetToggleGroupIdShaderEditing() { return _toggleGroupIdShaderEditing; }
+        std::atomic_int& GetToggleGroupIdEffectEditing() { return _toggleGroupIdEffectEditing; }
+        std::atomic_int& GetToggleGroupIdConstantEditing() { return _toggleGroupIdConstantEditing; }
+        std::atomic_uint& GetInvocationLocation() { return _invocationLocation; }
+        std::atomic_uint& GetDescriptorIndex() { return _descriptorIndex; }
+        const std::vector<std::string>* GetAllTechniques() const;
         int* StartValueFramecountCollectionPhase() { return &_startValueFramecountCollectionPhase; }
         float* OverlayOpacity() { return &_overlayOpacity; }
-        atomic_uint32_t* ActiveCollectorFrameCounter() { return _activeCollectorFrameCounter; }
-        ShaderManager* GetPixelShaderManager() { return _pixelShaderManager; }
-        ShaderManager* GetVertexShaderManager() { return _vertexShaderManager; }
-        void SetConstantHandler(ConstantHandlerBase* handler) { _constantHandler = handler; }
-        ConstantHandlerBase* GetConstantHandler() { return _constantHandler; }
+        std::atomic_uint32_t* ActiveCollectorFrameCounter() { return _activeCollectorFrameCounter; }
+        ShaderToggler::ShaderManager* GetPixelShaderManager() { return _pixelShaderManager; }
+        ShaderToggler::ShaderManager* GetVertexShaderManager() { return _vertexShaderManager; }
+        void SetConstantHandler(Shim::Constants::ConstantHandlerBase* handler) { _constantHandler = handler; }
+        Shim::Constants::ConstantHandlerBase* GetConstantHandler() { return _constantHandler; }
         uint32_t GetKeybinding(Keybind keybind);
-        const string& GetConstHookType() { return _constHookType; }
-        const string& GetConstHookCopyType()  { return _constHookCopyType; }
-        bool GetAttemptSRGBCorrection() { return _attemptSRGBCorrection; }
+        const std::string& GetConstHookType() { return _constHookType; }
+        const std::string& GetConstHookCopyType()  { return _constHookCopyType; }
+        const std::string& GetResourceShim() { return _resourceShim; }
+        void SetResourceShim(std::string& shim) { _resourceShim = shim; }
         void SetKeybinding(Keybind keybind, uint32_t keys);
-        const unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>>* GetRESTVariables() { return _constantHandler->GetRESTVariables(); };
+        const std::unordered_map<std::string, std::tuple<Shim::Constants::constant_type, std::vector<reshade::api::effect_uniform_variable>>>* GetRESTVariables() { return _constantHandler->GetRESTVariables(); };
         reshade::api::format cFormat;
     };
 }

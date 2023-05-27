@@ -2,10 +2,14 @@
 #include "ConstantHandlerBase.h"
 #include "PipelinePrivateData.h"
 
-using namespace ConstantFeedback;
+using namespace Shim::Constants;
+using namespace std;
+using namespace reshade::api;
+using namespace ShaderToggler;
 
 unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>> ConstantHandlerBase::restVariables;
 char ConstantHandlerBase::charBuffer[CHAR_BUFFER_SIZE];
+ConstantCopyBase* ConstantHandlerBase::_constCopy;
 
 ConstantHandlerBase::ConstantHandlerBase()
 {
@@ -13,6 +17,12 @@ ConstantHandlerBase::ConstantHandlerBase()
 
 ConstantHandlerBase::~ConstantHandlerBase()
 {
+}
+
+
+void ConstantHandlerBase::SetConstantCopy(ConstantCopyBase* constantCopy)
+{
+    _constCopy = constantCopy;
 }
 
 size_t ConstantHandlerBase::GetConstantBufferSize(const ToggleGroup* group)
@@ -118,6 +128,27 @@ void ConstantHandlerBase::ClearConstantVariables()
     restVariables.clear();
 }
 
+void ConstantHandlerBase::OnReshadeSetTechniqueState(effect_runtime* runtime, int32_t enabledCount)
+{
+    previousEnableCount = enabledCount;
+}
+
+void ConstantHandlerBase::OnReshadeReloadedEffects(effect_runtime* runtime, int32_t enabledCount)
+{
+    std::unique_lock<shared_mutex> lock(varMutex);
+
+    if (enabledCount == 0 || enabledCount - previousEnableCount < 0)
+    {
+        ClearConstantVariables();
+    }
+    else
+    {
+        ReloadConstantVariables(runtime);
+    }
+
+    previousEnableCount = enabledCount;
+}
+
 bool ConstantHandlerBase::UpdateConstantEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, const ToggleGroup* group, uint32_t index)
 {
     uint32_t slot_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index].size());
@@ -201,6 +232,8 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
 void ConstantHandlerBase::ApplyConstantValues(effect_runtime* runtime, const ToggleGroup* group,
     const unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>>& constants)
 {
+    std::unique_lock<shared_mutex> lock(varMutex);
+
     if (!groupBufferContent.contains(group) || runtime == nullptr)
     {
         return;
@@ -283,12 +316,8 @@ void ConstantHandlerBase::CopyToScratchpad(const ToggleGroup* group, device* dev
 
     uint64_t size = targetBufferDesc.buffer.size;
 
-    const uint8_t* hostbuf = GetHostConstantBuffer(currentBufferRange.buffer.handle);
-    if (hostbuf != nullptr)
-    {
-        std::memcpy(prevBufferContent.data(), bufferContent.data(), size);
-        std::memcpy(bufferContent.data(), hostbuf, size);
-    }
+    std::memcpy(prevBufferContent.data(), bufferContent.data(), size);
+    _constCopy->GetHostConstantBuffer(bufferContent, size, currentBufferRange.buffer.handle);
 }
 
 bool ConstantHandlerBase::CreateScratchpad(const ToggleGroup* group, device* dev, resource_desc& targetBufferDesc)
@@ -319,59 +348,4 @@ void ConstantHandlerBase::RemoveGroup(const ToggleGroup* group, device* dev)
     groupBufferRanges.erase(group);
     groupBufferContent.erase(group);
     groupPrevBufferContent.erase(group);
-}
-
-const uint8_t* ConstantHandlerBase::GetHostConstantBuffer(uint64_t resourceHandle)
-{
-    shared_lock<shared_mutex> lock(deviceHostMutex);
-    const auto& ret = deviceToHostConstantBuffer.find(resourceHandle);
-    if (ret != deviceToHostConstantBuffer.end())
-    {
-        return ret->second.data();
-    }
-
-    return nullptr;
-}
-
-void ConstantHandlerBase::CreateHostConstantBuffer(device* dev, resource resource, size_t size)
-{
-    unique_lock<shared_mutex> lock(deviceHostMutex);
-    deviceToHostConstantBuffer.emplace(resource.handle, vector<uint8_t>(size, 0));
-}
-
-void ConstantHandlerBase::DeleteHostConstantBuffer(resource resource)
-{
-    unique_lock<shared_mutex> lock(deviceHostMutex);
-    deviceToHostConstantBuffer.erase(resource.handle);
-}
-
-inline void ConstantHandlerBase::SetHostConstantBuffer(const uint64_t handle, const void* buffer, size_t size, uintptr_t offset, uint64_t bufferSize)
-{
-    unique_lock<shared_mutex> lock(deviceHostMutex);
-    const auto& blah = deviceToHostConstantBuffer.find(handle);
-    if (blah != deviceToHostConstantBuffer.end())
-        memcpy(blah->second.data() + offset, buffer, size);
-}
-
-void ConstantHandlerBase::OnInitResource(device* device, const resource_desc& desc, const subresource_data* initData, resource_usage usage, reshade::api::resource handle)
-{
-    auto& data = device->get_private_data<DeviceDataContainer>();
-
-    if (desc.heap == memory_heap::cpu_to_gpu && static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer))
-    {
-        CreateHostConstantBuffer(device, handle, desc.buffer.size);
-        if (initData != nullptr && initData->data != nullptr)
-        {
-            SetHostConstantBuffer(handle.handle, initData->data, desc.buffer.size, 0, desc.buffer.size);
-        }
-    }
-}
-
-void ConstantHandlerBase::OnDestroyResource(device* device, resource res)
-{
-    resource_desc desc = device->get_resource_desc(res);
-    if (desc.heap == memory_heap::cpu_to_gpu && static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer))
-    {
-        DeleteHostConstantBuffer(res);
-    }
 }

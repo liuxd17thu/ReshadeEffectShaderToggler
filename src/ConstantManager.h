@@ -4,31 +4,34 @@
 #include "ConstantHandlerBase.h"
 #include "ConstantCopyBase.h"
 
-namespace ConstantFeedback
+namespace Shim
 {
-    enum ConstantCopyType
+    namespace Constants
     {
-        Copy_None,
-        Copy_Memcpy,
-        Copy_FFXIV, //actually only works with ConstantHandlerType::FFXIV, but shhhhh
-        Copy_NierReplicant
-    };
+        enum ConstantCopyType
+        {
+            Copy_None,
+            Copy_MemcpySingular,
+            Copy_MemcpyNested,
+            Copy_FFXIV, //actually only works with ConstantHandlerType::FFXIV, but shhhhh
+            Copy_NierReplicant,
+            Copy_DXUpdateBuffer
+        };
 
-    enum ConstantHandlerType
-    {
-        Handler_Singular,
-        Handler_Nested,
-        Handler_FFXIV
-    };
+        enum ConstantHandlerType
+        {
+            Handler_Default,
+        };
 
-    class ConstantManager
-    {
-    public:
-        static bool Init(AddonImGui::AddonUIData& data, ConstantFeedback::ConstantCopyBase**, ConstantFeedback::ConstantHandlerBase**);
-        static bool UnInit();
+        class ConstantManager
+        {
+        public:
+            static bool Init(AddonImGui::AddonUIData& data, ConstantCopyBase**, ConstantHandlerBase**);
+            static bool UnInit();
 
-    private:
-        static ConstantCopyType ResolveConstantCopyType(const string&);
-        static ConstantHandlerType ResolveConstantHandlerType(const string&);
-    };
+        private:
+            static ConstantCopyType ResolveConstantCopyType(const std::string&);
+            static ConstantHandlerType ResolveConstantHandlerType(const std::string&);
+        };
+    }
 }

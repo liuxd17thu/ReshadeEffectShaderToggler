@@ -56,6 +56,7 @@
 #define vsnprintf _vsnprintf
 #endif
 
+using namespace std;
 
 // CDataFile
 // Our default contstructor.  If it can load the file, it will do so and populate

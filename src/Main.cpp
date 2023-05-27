@@ -32,6 +32,7 @@
 #include <imgui.h>
 #include <reshade.hpp>
 #include <vector>
+#include <format>
 #include <unordered_map>
 #include <set>
 #include <functional>
@@ -54,17 +55,11 @@
 using namespace reshade::api;
 using namespace ShaderToggler;
 using namespace AddonImGui;
-using namespace ConstantFeedback;
+using namespace Shim::Constants;
 using namespace StateTracker;
 
 extern "C" __declspec(dllexport) const char* NAME = "Reshade Effect Shader Toggler";
 extern "C" __declspec(dllexport) const char* DESCRIPTION = "又名REST，允许你定义接受ReShade效果渲染的游戏着色器分组。";
-
-extern void register_addon_depth();
-extern void unregister_addon_depth();
-extern void draw_settings_overlay(effect_runtime* runtime);
-extern void on_begin_render_effects(effect_runtime* runtime, command_list* cmd_list, resource_view, resource_view);
-extern void on_finish_render_effects(effect_runtime* runtime, command_list* cmd_list, resource_view, resource_view);
 
 constexpr auto MAX_EFFECT_HANDLES = 128;
 constexpr auto REST_VAR_ANNOTATION = "source";
@@ -94,7 +89,7 @@ static char g_charBuffer[CHAR_BUFFER_SIZE];
 static size_t g_charBufferSize = CHAR_BUFFER_SIZE;
 
 // TODO: actually implement ability to turn off srgb-view generation
-static bool srgbOverride = false;
+static std::vector<effect_runtime*> runtimes;
 
 /// <summary>
 /// Calculates a crc32 hash from the passed in shader bytecode. The hash is used to identity the shader in future runs.
@@ -120,6 +115,8 @@ static void onInitDevice(device* device)
 
 static void onDestroyDevice(device* device)
 {
+    resourceManager.OnDestroyDevice(device);
+
     device->destroy_private_data<DeviceDataContainer>();
 }
 
@@ -145,6 +142,18 @@ static void onResetCommandList(command_list* commandList)
 }
 
 
+static void onInitSwapchain(reshade::api::swapchain* swapchain)
+{
+    resourceManager.OnInitSwapchain(swapchain);
+}
+
+
+static void onDestroySwapchain(reshade::api::swapchain* swapchain)
+{
+    resourceManager.OnDestroySwapchain(swapchain);
+}
+
+
 static bool onCreateResource(device* device, resource_desc& desc, subresource_data* initial_data, resource_usage initial_state)
 {
     return resourceManager.OnCreateResource(device, desc, initial_data, initial_state);
@@ -155,8 +164,8 @@ static void onInitResource(device* device, const resource_desc& desc, const subr
 {
     resourceManager.OnInitResource(device, desc, initData, usage, handle);
     
-    if (constantHandler != nullptr)
-        constantHandler->OnInitResource(device, desc, initData, usage, handle);
+    if (constantCopy != nullptr)
+        constantCopy->OnInitResource(device, desc, initData, usage, handle);
 }
 
 
@@ -164,8 +173,8 @@ static void onDestroyResource(device* device, resource res)
 {
     resourceManager.OnDestroyResource(device, res);
     
-    if (constantHandler != nullptr)
-        constantHandler->OnDestroyResource(device, res);
+    if (constantCopy != nullptr)
+        constantCopy->OnDestroyResource(device, res);
 }
 
 
@@ -180,8 +189,8 @@ static void onReshadeReloadedEffects(effect_runtime* runtime)
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
     data.allEnabledTechniques.clear();
     allTechniques.clear();
-    
-    Rendering::RenderingManager::EnumerateTechniques(data.current_runtime, [&data](effect_runtime* runtime, effect_technique technique, string& name) {
+
+    Rendering::RenderingManager::EnumerateTechniques(runtime, [&data](effect_runtime* runtime, effect_technique technique, string& name) {
         allTechniques.push_back(name);
         bool enabled = runtime->get_technique_state(technique);
     
@@ -190,6 +199,11 @@ static void onReshadeReloadedEffects(effect_runtime* runtime)
             data.allEnabledTechniques.emplace(name, false);
         }
         });
+
+    if (constantHandler != nullptr)
+    {
+        constantHandler->OnReshadeReloadedEffects(runtime, static_cast<int32_t>(data.allEnabledTechniques.size()));
+    }
 }
 
 
@@ -214,6 +228,11 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
             data.allEnabledTechniques.emplace(techName, false);
         }
     }
+
+    if (constantHandler != nullptr)
+    {
+        constantHandler->OnReshadeSetTechniqueState(runtime, static_cast<int32_t>(data.allEnabledTechniques.size()));
+    }
     
     return false;
 }
@@ -221,17 +240,24 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
 
 static void onInitEffectRuntime(effect_runtime* runtime)
 {
+    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+
+    // Dispose of texture bindings created from the runtime below
+    if (data.current_runtime != nullptr)
+    {
+        renderingManager.DisposeTextureBindings(data.current_runtime);
+    }
+
+    // Push new runtime on top
+    runtimes.push_back(runtime);
+    data.current_runtime = runtime;
+
+    renderingManager.InitTextureBingings(runtime);
+
     if (constantHandler != nullptr)
     {
         constantHandler->ReloadConstantVariables(runtime);
     }
-
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
-    data.current_runtime = runtime;
-    
-    resourceManager.InitBackbuffer(runtime);
-    
-    renderingManager.InitTextureBingings(runtime);
 }
 
 
@@ -239,16 +265,44 @@ static void onDestroyEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
-    if (constantHandler != nullptr)
+    // Remove runtime from stack
+    for (auto it = runtimes.begin(); it != runtimes.end();)
     {
-        constantHandler->ClearConstantVariables();
+        if (runtime == *it)
+        {
+            it = runtimes.erase(it);
+            continue;
+        }
+
+        it++;
     }
 
-    data.current_runtime = nullptr;
-    
-    renderingManager.DisposeTextureBindings(runtime);
+    // Pick the runtime on top of our stack if there are any
+    if (runtime == data.current_runtime)
+    {
+        renderingManager.DisposeTextureBindings(runtime);
 
-    resourceManager.ClearBackbuffer(runtime);
+        if (runtimes.size() > 0)
+        {
+            data.current_runtime = runtimes[runtimes.size() - 1];
+
+            renderingManager.InitTextureBingings(data.current_runtime);
+
+            if (constantHandler != nullptr)
+            {
+                constantHandler->ReloadConstantVariables(data.current_runtime);
+            }
+        }
+        else
+        {
+            data.current_runtime = nullptr;
+
+            if (constantHandler != nullptr)
+            {
+                constantHandler->ClearConstantVariables();
+            }
+        }
+    }
 }
 
 
@@ -288,8 +342,9 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
         return;
     }
 
-    const uint32_t handleHasPixelShaderAttached = g_pixelShaderManager.safeGetShaderHash(pipelineHandle.handle);
-    const uint32_t handleHasVertexShaderAttached = g_vertexShaderManager.safeGetShaderHash(pipelineHandle.handle);
+    const uint32_t handleHasPixelShaderAttached = (uint32_t)(stages & pipeline_stage::pixel_shader) ? g_pixelShaderManager.safeGetShaderHash(pipelineHandle.handle) : 0;
+    const uint32_t handleHasVertexShaderAttached = (uint32_t)(stages & pipeline_stage::vertex_shader) ? g_vertexShaderManager.safeGetShaderHash(pipelineHandle.handle) : 0;
+
     if (!handleHasPixelShaderAttached && !handleHasVertexShaderAttached)
     {
         // draw call with unknown handle, don't collect it
@@ -303,7 +358,7 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
         return;
     }
     
-    if (commandList->get_device()->get_api() == device_api::vulkan)
+    if (commandList->get_device()->get_api() == device_api::vulkan || commandList->get_device()->get_api() == device_api::d3d12)
     {
         commandListData.stateTracker.OnBindPipeline(commandList, stages, pipelineHandle);
     }
@@ -357,7 +412,10 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
             renderingManager.RenderEffects(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_EFFECT);
         }
 
-        renderingManager.CheckCallForCommandList(commandList, handleHasPixelShaderAttached, handleHasVertexShaderAttached);
+        // Make sure we dequeue whatever is left over scheduled for CALL_DRAW/CALL_BIND_PIPELINE in case re-queueing was enabled for some group
+        renderingManager.ClearQueue2(commandListData, Rendering::CALL_DRAW, Rendering::CALL_BIND_PIPELINE);
+
+        renderingManager.CheckCallForCommandList(commandList);
     }
 }
 
@@ -524,11 +582,6 @@ static void onReshadePresent(effect_runtime* runtime)
         });
     deviceData.bindingsUpdated.clear();
     deviceData.constantsUpdated.clear();
-    
-    if (constantHandler != nullptr && runtime->get_effects_state())
-    {
-        constantHandler->ReloadConstantVariables(runtime);
-    }
 
     CheckHotkeys(g_addonUIData, runtime);
 }
@@ -536,92 +589,95 @@ static void onReshadePresent(effect_runtime* runtime)
 
 static void onMapBufferRegion(device* device, resource resource, uint64_t offset, uint64_t size, map_access access, void** data)
 {
-    if (constantHandler != nullptr)
-        constantHandler->OnMapBufferRegion(device, resource, offset, size, access, data);
+    if (constantCopy != nullptr)
+        constantCopy->OnMapBufferRegion(device, resource, offset, size, access, data);
 }
 
 
 static void onUnmapBufferRegion(device* device, resource resource)
 {
-    if (constantHandler != nullptr)
-        constantHandler->OnUnmapBufferRegion(device, resource);
+    if (constantCopy != nullptr)
+        constantCopy->OnUnmapBufferRegion(device, resource);
+}
+
+
+static bool onUpdateBufferRegion(device* device, const void* data, resource resource, uint64_t offset, uint64_t size)
+{
+    if (constantCopy != nullptr)
+        constantCopy->OnUpdateBufferRegion(device, data, resource, offset, size);
+
+    return false;
 }
 
 
 static void displaySettings(effect_runtime* runtime)
 {
     DisplaySettings(g_addonUIData, runtime);
-    if (ImGui::CollapsingHeader("Depth", ImGuiTreeNodeFlags_None))
-    {
-        draw_settings_overlay(runtime);
-    }
 }
 
 
-static bool InitHooks()
+static bool Init()
 {
-    srgbOverride = g_addonUIData.GetAttemptSRGBCorrection();
+    resourceManager.SetResourceShim(g_addonUIData.GetResourceShim());
+    resourceManager.Init();
 
     return constantManager.Init(g_addonUIData, &constantCopy, &constantHandler);
 }
 
 
-static bool UnInitHooks()
+static bool UnInit()
 {
     return constantManager.UnInit();
 }
 
-bool onDraw(command_list* cmd_list, uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
+static void CheckDrawCall(command_list* cmd_list)
 {
     CommandListDataContainer& commandListData = cmd_list->get_private_data<CommandListDataContainer>();
 
-    if (commandListData.commandCheck > 0)
+    if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW)
     {
-        if (constantHandler != nullptr && (commandListData.commandCheck & Rendering::MATCH_CONST))
+        if (constantHandler != nullptr && (commandListData.commandQueue & Rendering::MATCH_CONST))
         {
             constantHandler->UpdateConstants(cmd_list);
+            commandListData.commandQueue &= ~Rendering::MATCH_CONST;
         }
 
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_BINDING)
         {
-            renderingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, commandListData.commandCheck & Rendering::MATCH_BINDING);
+            renderingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_BINDING);
         }
 
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_EFFECT)
         {
-            renderingManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, commandListData.commandCheck & Rendering::MATCH_EFFECT);
+            renderingManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT);
         }
-
-        // Reset pipeline update data
-        commandListData.commandCheck = 0;
     }
+}
+
+static bool onDraw(command_list* cmd_list, uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
+{
+    CheckDrawCall(cmd_list);
 
     return false;
 }
 
-bool onDrawIndexed(command_list* cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+static bool onDrawIndexed(command_list* cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
-    CommandListDataContainer& commandListData = cmd_list->get_private_data<CommandListDataContainer>();
+    CheckDrawCall(cmd_list);
 
-    if (commandListData.commandCheck > 0)
+    return false;
+}
+
+static bool onDrawOrDispatchIndirect(command_list* cmd_list, indirect_command type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+{
+    switch (type)
     {
-        if (constantHandler != nullptr && (commandListData.commandCheck & Rendering::MATCH_CONST))
-        {
-            constantHandler->UpdateConstants(cmd_list);
-        }
-
-        if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_BINDING)
-        {
-            renderingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, commandListData.commandCheck & Rendering::MATCH_BINDING);
-        }
-
-        if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_EFFECT)
-        {
-            renderingManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, commandListData.commandCheck & Rendering::MATCH_EFFECT);
-        }
-
-        // Reset pipeline update data mask
-        commandListData.commandCheck = 0;
+    case indirect_command::draw:
+    case indirect_command::draw_indexed:
+        CheckDrawCall(cmd_list);
+        break;
+    default:
+        break;
     }
 
     return false;
@@ -647,16 +703,17 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
             return FALSE;
         }
 
-        register_addon_depth();
-
         g_dllPath = getModulePath(hModule);
 
         g_addonUIData.SetBasePath(g_dllPath.parent_path());
         g_addonUIData.LoadShaderTogglerIniFile();
-        InitHooks();
+        Init();
+        reshade::register_event<reshade::addon_event::init_swapchain>(onInitSwapchain);
+        reshade::register_event<reshade::addon_event::destroy_swapchain>(onDestroySwapchain);
         reshade::register_event<reshade::addon_event::init_resource>(onInitResource);
         reshade::register_event<reshade::addon_event::create_resource>(onCreateResource);
         reshade::register_event<reshade::addon_event::map_buffer_region>(onMapBufferRegion);
+        reshade::register_event<reshade::addon_event::update_buffer_region>(onUpdateBufferRegion);
         reshade::register_event<reshade::addon_event::unmap_buffer_region>(onUnmapBufferRegion);
         reshade::register_event<reshade::addon_event::destroy_resource>(onDestroyResource);
         reshade::register_event<reshade::addon_event::create_resource_view>(onCreateResourceView);
@@ -687,13 +744,17 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
         reshade::register_event<reshade::addon_event::draw>(onDraw);
         reshade::register_event<reshade::addon_event::draw_indexed>(onDrawIndexed);
+        reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(onDrawOrDispatchIndirect);
 
         reshade::register_overlay(nullptr, &displaySettings);
         break;
     case DLL_PROCESS_DETACH:
-        UnInitHooks();
+        UnInit();
+        reshade::unregister_event<reshade::addon_event::init_swapchain>(onInitSwapchain);
+        reshade::unregister_event<reshade::addon_event::destroy_swapchain>(onDestroySwapchain);
         reshade::unregister_event<reshade::addon_event::reshade_present>(onReshadePresent);
         reshade::unregister_event<reshade::addon_event::map_buffer_region>(onMapBufferRegion);
+        reshade::unregister_event<reshade::addon_event::update_buffer_region>(onUpdateBufferRegion);
         reshade::unregister_event<reshade::addon_event::unmap_buffer_region>(onUnmapBufferRegion);
         reshade::unregister_event<reshade::addon_event::destroy_pipeline>(onDestroyPipeline);
         reshade::unregister_event<reshade::addon_event::init_pipeline>(onInitPipeline);
@@ -725,11 +786,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
         reshade::unregister_event<reshade::addon_event::draw>(onDraw);
         reshade::unregister_event<reshade::addon_event::draw_indexed>(onDrawIndexed);
+        reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(onDrawOrDispatchIndirect);
 
         reshade::unregister_overlay(nullptr, &displaySettings);
         reshade::unregister_addon(hModule);
 
-        unregister_addon_depth();
         break;
     }
 

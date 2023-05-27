@@ -73,19 +73,23 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <TargetExt>.addon</TargetExt>
+    <TargetExt>.addon32</TargetExt>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetExt>.addon</TargetExt>
+    <TargetExt>.addon32</TargetExt>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <TargetExt>.addon</TargetExt>
+    <TargetExt>.addon64</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <TargetExt>.addon</TargetExt>
+    <TargetExt>.addon64</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -95,7 +99,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;$(SolutionDir)..\deps\reshade\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\deps\robin-map\include;$(SolutionDir)Include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;$(SolutionDir)..\deps\reshade\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -114,7 +118,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;SHADERTOGGLER_EXPORTS;_WINDOWS;_USRDLL;BUILTIN_ADDON;NOMINMAX;IMGUI_DISABLE_INCLUDE_IMCONFIG_H;ImTextureID=unsigned long long;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;$(SolutionDir)..\deps\reshade\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\deps\robin-map\include;$(SolutionDir)Include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;$(SolutionDir)..\deps\reshade\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -134,7 +138,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;$(SolutionDir)..\deps\reshade\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\deps\robin-map\include;$(SolutionDir)Include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;$(SolutionDir)..\deps\reshade\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -159,8 +163,9 @@
       <PreprocessorDefinitions>NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;BUILTIN_ADDON;IMGUI_DISABLE_INCLUDE_IMCONFIG_H;ImTextureID=unsigned long long;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include;$(SolutionDir)..\deps\reshade\include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\deps\robin-map\include;$(SolutionDir)Include;$(SolutionDir)..\deps\reshade\include;$(SolutionDir)..\deps\sigmatch\include\sigmatch;$(SolutionDir)..\deps\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -181,15 +186,18 @@
     <ClInclude Include="ConstantCopyBase.h" />
     <ClInclude Include="ConstantCopyDefinitions.h" />
     <ClInclude Include="ConstantCopyFFXIV.h" />
+    <ClInclude Include="ConstantCopyDXUpdateBuffer.h" />
+    <ClInclude Include="ConstantCopyMemcpyNested.h" />
+    <ClInclude Include="ConstantCopyMemcpySingular.h" />
     <ClInclude Include="ConstantCopyNierReplicant.h" />
-    <ClInclude Include="ConstantCopyT.h" />
-    <ClInclude Include="ConstantHandlerFFXIV.h" />
-    <ClInclude Include="ConstantHandlerNestedMapping.h" />
-    <ClInclude Include="ConstantHandlerSingularMapping.h" />
     <ClInclude Include="ConstantHandlerBase.h" />
     <ClInclude Include="ConstantCopyMemcpy.h" />
     <ClInclude Include="ConstantManager.h" />
     <ClInclude Include="crc32_hash.hpp" />
+    <ClInclude Include="GameHookT.h" />
+    <ClInclude Include="ResourceShim.h" />
+    <ClInclude Include="ResourceShimFFXIV.h" />
+    <ClInclude Include="ResourceShimSRGB.h" />
     <ClInclude Include="KeyData.h" />
     <ClInclude Include="PipelinePrivateData.h" />
     <ClInclude Include="PipelineStateTracker.h" />
@@ -201,19 +209,20 @@
     <ClInclude Include="ToggleGroup.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\deps\reshade\examples\09-depth\generic_depth.cpp" />
     <ClCompile Include="AddonUIData.cpp" />
     <ClCompile Include="CDataFile.cpp" />
     <ClCompile Include="ConstantCopyBase.cpp" />
     <ClCompile Include="ConstantCopyFFXIV.cpp" />
+    <ClCompile Include="ConstantCopyDXUpdateBuffer.cpp" />
+    <ClCompile Include="ConstantCopyMemcpyNested.cpp" />
+    <ClCompile Include="ConstantCopyMemcpySingular.cpp" />
     <ClCompile Include="ConstantCopyNierReplicant.cpp" />
-    <ClCompile Include="ConstantCopyT.cpp" />
-    <ClCompile Include="ConstantHandlerFFXIV.cpp" />
-    <ClCompile Include="ConstantHandlerNestedMapping.cpp" />
-    <ClCompile Include="ConstantHandlerSingularMapping.cpp" />
     <ClCompile Include="ConstantHandlerBase.cpp" />
     <ClCompile Include="ConstantCopyMemcpy.cpp" />
     <ClCompile Include="ConstantManager.cpp" />
+    <ClCompile Include="GameHookT.cpp" />
+    <ClCompile Include="ResourceShimFFXIV.cpp" />
+    <ClCompile Include="ResourceShimSRGB.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="PipelineStateTracker.cpp" />
     <ClCompile Include="RenderingManager.cpp" />

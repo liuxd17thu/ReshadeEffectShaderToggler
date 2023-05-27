@@ -5,9 +5,6 @@ using namespace Rendering;
 using namespace ShaderToggler;
 using namespace reshade::api;
 
-extern void on_begin_render_effects(effect_runtime* runtime, command_list* cmd_list, resource_view, resource_view);
-extern void on_finish_render_effects(effect_runtime* runtime, command_list* cmd_list, resource_view, resource_view);
-
 size_t RenderingManager::g_charBufferSize = CHAR_BUFFER_SIZE;
 char RenderingManager::g_charBuffer[CHAR_BUFFER_SIZE];
 
@@ -30,11 +27,10 @@ void RenderingManager::EnumerateTechniques(effect_runtime* runtime, std::functio
         });
 }
 
-void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, const DeviceDataContainer& deviceData)
+void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, const DeviceDataContainer& deviceData) const
 {
     // Masks which checks to perform. Note that we will always schedule a draw call check for binding and effect updates,
     // this serves the purpose of assigning the resource_view to perform the update later on if needed.
-    uint32_t match_mask = MATCH_NONE;
     uint32_t queue_mask = MATCH_NONE;
 
     // Shift in case of VS using data id
@@ -53,7 +49,7 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                     if (!sData.constantBuffersToUpdate.contains(group))
                     {
                         sData.constantBuffersToUpdate.emplace(group);
-                        match_mask |= match_const;
+                        queue_mask |= match_const;
                     }
                 }
 
@@ -62,7 +58,6 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                     if (!sData.bindingsToUpdate.contains(group->getTextureBindingName()))
                     {
                         sData.bindingsToUpdate.emplace(group->getTextureBindingName(), std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
-                        match_mask |= match_binding;
                         queue_mask |= (match_binding << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_binding << CALL_DRAW * MATCH_DELIMITER);
                     }
                 }
@@ -81,7 +76,6 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                             if (!sData.techniquesToRender.contains(tech.first))
                             {
                                 sData.techniquesToRender.emplace(tech.first, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
-                                match_mask |= match_effect;
                                 queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << CALL_DRAW * MATCH_DELIMITER);
                             }
                         }
@@ -95,7 +89,6 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                             if (!sData.techniquesToRender.contains(techName))
                             {
                                 sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
-                                match_mask |= match_effect;
                                 queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << CALL_DRAW * MATCH_DELIMITER);
                             }
                         }
@@ -105,11 +98,10 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
         }
     }
 
-    commandListData.commandCheck |= match_mask;
     commandListData.commandQueue |= queue_mask;
 }
 
-void RenderingManager::CheckCallForCommandList(reshade::api::command_list* commandList, uint32_t psShaderHash, uint32_t vsShaderHash)
+void RenderingManager::CheckCallForCommandList(reshade::api::command_list* commandList)
 {
     if (nullptr == commandList)
     {
@@ -170,7 +162,7 @@ const resource_view RenderingManager::GetCurrentResourceView(effect_runtime* run
         }
 
         // Make sure our target matches swap buffer dimensions when applying effects
-        if (action & MATCH_EFFECT)
+        if (group->getMatchSwapchainResolution())
         {
             resource_desc desc = device->get_resource_desc(rs);
 
@@ -200,40 +192,27 @@ bool RenderingManager::RenderRemainingEffects(effect_runtime* runtime)
     device* device = runtime->get_device();
     CommandListDataContainer& commandListData = cmd_list->get_private_data<CommandListDataContainer>();
     DeviceDataContainer& deviceData = device->get_private_data<DeviceDataContainer>();
-    resource_view active_rtv = { 0 };
-    resource_view active_rtv_srgb = { 0 };
     bool rendered = false;
 
-    resourceManager.SetBackbufferViewHandles(runtime->get_current_back_buffer().handle, &active_rtv, &active_rtv_srgb);
+    resource res = runtime->get_current_back_buffer();
+    resource_view active_rtv = { 0 };
+    resource_view active_rtv_srgb = { 0 };
 
-    if (deviceData.current_runtime == nullptr || active_rtv == 0) {
+    resourceManager.SetResourceViewHandles(res.handle, &active_rtv, &active_rtv_srgb);
+    
+    if (deviceData.current_runtime == nullptr || active_rtv == 0 || !deviceData.rendered_effects) {
         return false;
     }
-
-    if (deviceData.rendered_effects)
-    {
-        on_begin_render_effects(deviceData.current_runtime, runtime->get_command_queue()->get_immediate_command_list(), { 0 }, { 0 });
-
-        EnumerateTechniques(deviceData.current_runtime, [&deviceData, &commandListData, &cmd_list, &device, &active_rtv, &active_rtv_srgb, &rendered](effect_runtime* runtime, effect_technique technique, string& name) {
-            if (deviceData.allEnabledTechniques.contains(name) && !deviceData.allEnabledTechniques[name])
-            {
-                resource res = runtime->get_device()->get_resource_from_view(active_rtv);
-                resource_desc resDesc = runtime->get_device()->get_resource_desc(res);
-
-                runtime->render_technique(technique, cmd_list, active_rtv, active_rtv_srgb);
-
-                deviceData.allEnabledTechniques[name] = true;
-                rendered = true;
-            }
-            });
-
-        on_finish_render_effects(deviceData.current_runtime, runtime->get_command_queue()->get_immediate_command_list(), { 0 }, { 0 });
-    }
-    else
-    {
-        deviceData.current_runtime->render_effects(runtime->get_command_queue()->get_immediate_command_list(),
-            active_rtv, active_rtv_srgb);
-    }
+    
+    EnumerateTechniques(deviceData.current_runtime, [&deviceData, &commandListData, &cmd_list, &device, &active_rtv, &active_rtv_srgb, &rendered, &res](effect_runtime* runtime, effect_technique technique, string& name) {
+        if (deviceData.allEnabledTechniques.contains(name) && !deviceData.allEnabledTechniques[name])
+        {
+            runtime->render_technique(technique, cmd_list, active_rtv, active_rtv_srgb);
+    
+            deviceData.allEnabledTechniques[name] = true;
+            rendered = true;
+        }
+        });
 
     return rendered;
 }
@@ -271,6 +250,11 @@ bool RenderingManager::_RenderEffects(
 
                 resourceManager.SetResourceViewHandles(res.handle, &view_non_srgb, &view_srgb);
 
+                if (view_non_srgb == 0)
+                {
+                    return;
+                }
+
                 deviceData.rendered_effects = true;
 
                 runtime->render_technique(technique, cmd_list, view_non_srgb, view_srgb);
@@ -284,6 +268,7 @@ bool RenderingManager::_RenderEffects(
             }
         }
         });
+
     return rendered;
 }
 
@@ -299,13 +284,20 @@ void RenderingManager::_QueueOrDequeue(
     for (auto it = queue.begin(); it != queue.end();)
     {
         // Set views during draw call since we can be sure the correct ones are bound at that point
-        if (!callLocation)
+        if (!callLocation && std::get<2>(it->second) == 0)
         {
             resource_view active_rtv = GetCurrentResourceView(runtime, *it, commandListData, layoutIndex, action);
 
             if (active_rtv != 0)
             {
                 std::get<2>(it->second) = active_rtv;
+            }
+            else if(std::get<0>(it->second)->getRequeueAfterRTMatchingFailure())
+            {
+                // Re-issue draw call queue command
+                commandListData.commandQueue |= (action << (callLocation * MATCH_DELIMITER));
+                it++;
+                continue;
             }
             else
             {
@@ -348,12 +340,12 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocati
 
     if (invocation & MATCH_EFFECT_PS)
     {
-        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.ps.techniquesToRender, psToRenderNames, callLocation, 0, MATCH_EFFECT);
+        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.ps.techniquesToRender, psToRenderNames, callLocation, 0, MATCH_EFFECT_PS);
     }
 
     if (invocation & MATCH_EFFECT_VS)
     {
-        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.vs.techniquesToRender, vsToRenderNames, callLocation, 1, MATCH_EFFECT);
+        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.vs.techniquesToRender, vsToRenderNames, callLocation, 1, MATCH_EFFECT_VS);
     }
 
     bool rendered = false;
@@ -367,14 +359,14 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocati
 
     deviceData.current_runtime->render_effects(cmd_list, static_cast<resource_view>(0), static_cast<resource_view>(0));
 
-    on_begin_render_effects(deviceData.current_runtime, cmd_list, { 0 }, { 0 });
+    //on_begin_render_effects(deviceData.current_runtime, cmd_list, { 0 }, { 0 });
 
     std::unique_lock<shared_mutex> dev_mutex(render_mutex);
     rendered = (psToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, commandListData.ps.techniquesToRender, psRemovalList, psToRenderNames) ||
         (vsToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, commandListData.vs.techniquesToRender, vsRemovalList, vsToRenderNames);
     dev_mutex.unlock();
 
-    on_finish_render_effects(deviceData.current_runtime, cmd_list, { 0 }, { 0 });
+    //on_finish_render_effects(deviceData.current_runtime, cmd_list, { 0 }, { 0 });
 
     for (auto& g : psRemovalList)
     {
@@ -633,12 +625,12 @@ void RenderingManager::UpdateTextureBindings(command_list* cmd_list, uint32_t ca
 
     if (invocation & MATCH_BINDING_PS)
     {
-        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.ps.bindingsToUpdate, psToUpdateBindings, callLocation, 0, MATCH_BINDING);
+        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.ps.bindingsToUpdate, psToUpdateBindings, callLocation, 0, MATCH_BINDING_PS);
     }
 
     if (invocation & MATCH_BINDING_VS)
     {
-        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.vs.bindingsToUpdate, vsToUpdateBindings, callLocation, 1, MATCH_BINDING);
+        _QueueOrDequeue(deviceData.current_runtime, commandListData, commandListData.vs.bindingsToUpdate, vsToUpdateBindings, callLocation, 1, MATCH_BINDING_VS);
     }
 
     if (psToUpdateBindings.size() == 0 && vsToUpdateBindings.size() == 0)
@@ -695,6 +687,43 @@ void RenderingManager::ClearUnmatchedTextureBindings(reshade::api::command_list*
         if (rtv != 0)
         {
             cmd_list->clear_render_target_view(rtv, clearColor);
+        }
+    }
+}
+
+void RenderingManager::ClearQueue2(CommandListDataContainer& commandListData, const uint32_t location0, const uint32_t location1) const
+{
+    if (commandListData.commandQueue & ((Rendering::MATCH_ALL << location0 * Rendering::MATCH_DELIMITER) | (Rendering::MATCH_ALL << location1 * Rendering::MATCH_DELIMITER)))
+    {
+        commandListData.commandQueue &= ~(Rendering::MATCH_ALL << location0 * Rendering::MATCH_DELIMITER);
+        commandListData.commandQueue &= ~(Rendering::MATCH_ALL << location1 * Rendering::MATCH_DELIMITER);
+
+        if (commandListData.ps.techniquesToRender.size() > 0)
+        {
+            for (auto it = commandListData.ps.techniquesToRender.begin(); it != commandListData.ps.techniquesToRender.end();)
+            {
+                uint32_t callLocation = std::get<1>(it->second);
+                if (callLocation == location0 || callLocation == location1)
+                {
+                    it = commandListData.ps.techniquesToRender.erase(it);
+                    continue;
+                }
+                it++;
+            }
+        }
+
+        if (commandListData.vs.techniquesToRender.size() > 0)
+        {
+            for (auto it = commandListData.vs.techniquesToRender.begin(); it != commandListData.vs.techniquesToRender.end();)
+            {
+                uint32_t callLocation = std::get<1>(it->second);
+                if (callLocation == location0 || callLocation == location1)
+                {
+                    it = commandListData.vs.techniquesToRender.erase(it);
+                    continue;
+                }
+                it++;
+            }
         }
     }
 }

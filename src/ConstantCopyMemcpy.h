@@ -6,16 +6,13 @@
 #include <unordered_map>
 #include <vector>
 #include <shared_mutex>
-#include "ConstantCopyDefinitions.h"
-#include "ConstantCopyT.h"
+#include "ConstantCopyBase.h"
+#include "GameHookT.h"
 
-using namespace std;
-using namespace reshade::api;
-using namespace ShaderToggler;
 using namespace sigmatch_literals;
 
 #if _WIN64
-static const vector<sigmatch::signature> memcpy_static = {
+static const std::vector<sigmatch::signature> memcpy_static = {
     // vcruntime140
     "48 8B C1 4C 8D 15 ?? ?? ?? ?? 49 83 F8 0F"_sig,
     // msvcrt
@@ -26,7 +23,7 @@ static const vector<sigmatch::signature> memcpy_static = {
     "4C 8B D9 48 2B D1 ?? ?? ?? ?? ?? ?? 49 83 F8 08 ?? ?? F6 C1 07"_sig
 };
 #else
-static const vector<sigmatch::signature> memcpy_static = {
+static const std::vector<sigmatch::signature> memcpy_static = {
     // vcruntime140
     "57 56 8B 74 24 ?? 8B 4C 24 ?? 8B 7C 24 ?? 8B C1 8B D1 03 C6 3B FE 76 ??"_sig,
     // msvcrt
@@ -38,7 +35,7 @@ static const vector<sigmatch::signature> memcpy_static = {
 };
 #endif
 
-static const vector<tuple<wstring, string>> memcpy_dynamic = {
+static const std::vector<std::tuple<std::wstring, std::string>> memcpy_dynamic = {
     {L"vcruntime140", "memcpy"},
     {L"msvcrt", "memcpy"},
     {L"msvcr120", "memcpy"},
@@ -46,23 +43,45 @@ static const vector<tuple<wstring, string>> memcpy_dynamic = {
     {L"msvcr100", "memcpy"}
 };
 
-namespace ConstantFeedback {
-    class ConstantCopyMemcpy final : public virtual ConstantCopyT<sig_memcpy>{
-    public:
-        ConstantCopyMemcpy();
-        ~ConstantCopyMemcpy();
+namespace Shim
+{
+    namespace Constants
+    {
+        struct BufferCopy
+        {
+            uint64_t resource = 0;
+            void* destination = nullptr;
+            uint8_t* hostDestination = nullptr;
+            uint64_t offset = 0;
+            uint64_t size = 0;
+            uint64_t bufferSize = 0;
+        };
 
-        bool Init() override;
-        bool UnInit() override;
 
-        bool Hook(sig_memcpy** original, sig_memcpy* detour, const sigmatch::signature& sig) override;
-        bool Unhook() override;
+        class ConstantCopyMemcpy: public virtual ConstantCopyBase {
+        public:
+            ConstantCopyMemcpy();
+            ~ConstantCopyMemcpy();
 
-    private:
-        bool HookStatic(sig_memcpy** original, sig_memcpy* detour);
-        bool HookDynamic(sig_memcpy** original, sig_memcpy* detour);
+            bool Init() override final;
+            bool UnInit() override final;
 
-        static sig_memcpy* org_memcpy;
-        static void* __fastcall detour_memcpy(void* dest, void* src, size_t size);
-    };
+            bool Hook(sig_memcpy** original, sig_memcpy* detour, const sigmatch::signature& sig);
+            bool Unhook();
+
+            void OnUpdateBufferRegion(reshade::api::device* device, const void* data, reshade::api::resource resource, uint64_t offset, uint64_t size) override final {};
+
+            virtual void OnMemcpy(void* dest, void* src, size_t size) = 0;
+
+        protected:
+            static ConstantCopyMemcpy* _instance;
+
+        private:
+            bool HookStatic(sig_memcpy** original, sig_memcpy* detour);
+            bool HookDynamic(sig_memcpy** original, sig_memcpy* detour);
+
+            static sig_memcpy* org_memcpy;
+            static void* __fastcall detour_memcpy(void* dest, void* src, size_t size);
+        };
+    }
 }

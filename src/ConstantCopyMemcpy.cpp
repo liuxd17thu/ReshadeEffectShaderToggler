@@ -2,9 +2,12 @@
 #include <MinHook.h>
 #include "ConstantCopyMemcpy.h"
 
-using namespace ConstantFeedback;
+using namespace Shim;
+using namespace Shim::Constants;
+using namespace std;
 
 sig_memcpy* ConstantCopyMemcpy::org_memcpy = nullptr;
+ConstantCopyMemcpy* ConstantCopyMemcpy::_instance = nullptr;
 
 ConstantCopyMemcpy::ConstantCopyMemcpy()
 {
@@ -28,7 +31,7 @@ bool ConstantCopyMemcpy::UnInit()
 
 bool ConstantCopyMemcpy::HookStatic(sig_memcpy** original, sig_memcpy* detour)
 {
-    string exe = GetExecutableName();
+    string exe = GameHookT<sig_memcpy>::GetExecutableName();
     if (exe.length() == 0)
         return false;
 
@@ -39,7 +42,7 @@ bool ConstantCopyMemcpy::HookStatic(sig_memcpy** original, sig_memcpy* detour)
 
         for (const std::byte* address : result.matches()) {
             void* adr = static_cast<void*>(const_cast<std::byte*>(address));
-            *original = InstallHook(adr, detour);
+            *original = GameHookT<sig_memcpy>::InstallHook(adr, detour);
 
             // Assume signature is unique
             if (*original != nullptr)
@@ -56,7 +59,7 @@ bool ConstantCopyMemcpy::HookDynamic(sig_memcpy** original, sig_memcpy* detour)
 {
     for (const auto& libFunc : memcpy_dynamic)
     {
-        *original = InstallApiHook(get<0>(libFunc).c_str(), get<1>(libFunc).c_str(), detour);
+        *original = GameHookT<sig_memcpy>::InstallApiHook(get<0>(libFunc).c_str(), get<1>(libFunc).c_str(), detour);
 
         // Pick first hit and hope for the best
         if (*original != nullptr)
@@ -91,8 +94,7 @@ bool ConstantCopyMemcpy::Unhook()
 
 void* __fastcall ConstantCopyMemcpy::detour_memcpy(void* dest, void* src, size_t size)
 {
-    if (_constHandler != nullptr)
-        _constHandler->OnMemcpy(dest, src, size);
+    _instance->OnMemcpy(dest, src, size);
 
     return org_memcpy(dest, src, size);
 }

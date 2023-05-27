@@ -1,18 +1,20 @@
-#include "ConstantHandlerNestedMapping.h"
+#include "ConstantCopyMemcpyNested.h"
 
-using namespace ConstantFeedback;
+using namespace Shim::Constants;
+using namespace reshade::api;
+using namespace std;
 
-ConstantHandlerNestedMapping::ConstantHandlerNestedMapping() : ConstantHandlerBase()
+ConstantCopyMemcpyNested::ConstantCopyMemcpyNested()
+{
+    _instance = this;
+}
+
+ConstantCopyMemcpyNested::~ConstantCopyMemcpyNested()
 {
 
 }
 
-ConstantHandlerNestedMapping::~ConstantHandlerNestedMapping()
-{
-
-}
-
-void ConstantHandlerNestedMapping::OnMapBufferRegion(device* device, resource resource, uint64_t offset, uint64_t size, map_access access, void** data)
+void ConstantCopyMemcpyNested::OnMapBufferRegion(device* device, resource resource, uint64_t offset, uint64_t size, map_access access, void** data)
 {
     if (access == map_access::write_discard || access == map_access::write_only)
     {
@@ -20,12 +22,12 @@ void ConstantHandlerNestedMapping::OnMapBufferRegion(device* device, resource re
         if (desc.heap == memory_heap::cpu_to_gpu && static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer))
         {
             std::unique_lock<shared_mutex> lock(_map_mutex);
-            _resourceMemoryMapping[resource.handle] = BufferCopy { resource.handle, *data, nullptr, offset, size, desc.buffer.size };
+            _resourceMemoryMapping[resource.handle] = BufferCopy{ resource.handle, *data, nullptr, offset, size, desc.buffer.size };
         }
     }
 }
 
-void ConstantHandlerNestedMapping::OnUnmapBufferRegion(device* device, resource resource)
+void ConstantCopyMemcpyNested::OnUnmapBufferRegion(device* device, resource resource)
 {
 
     resource_desc desc = device->get_resource_desc(resource);
@@ -36,14 +38,14 @@ void ConstantHandlerNestedMapping::OnUnmapBufferRegion(device* device, resource 
     }
 }
 
-void ConstantHandlerNestedMapping::OnMemcpy(void *volatile dest, void* src, size_t size)
+void ConstantCopyMemcpyNested::OnMemcpy(void* volatile dest, void* src, size_t size)
 {
     std::shared_lock<shared_mutex> lock(_map_mutex);
     if (_resourceMemoryMapping.size() > 0)
     {
         for (auto& mapping : _resourceMemoryMapping)
         {
-            if(dest >= mapping.second.destination && static_cast<uintptr_t>(reinterpret_cast<intptr_t>(dest)) <= reinterpret_cast<intptr_t>(mapping.second.destination) + mapping.second.bufferSize - mapping.second.offset)
+            if (dest >= mapping.second.destination && static_cast<uintptr_t>(reinterpret_cast<intptr_t>(dest)) <= reinterpret_cast<intptr_t>(mapping.second.destination) + mapping.second.bufferSize - mapping.second.offset)
             {
                 SetHostConstantBuffer(mapping.second.resource, src, size, reinterpret_cast<intptr_t>(dest) - reinterpret_cast<intptr_t>(mapping.second.destination), mapping.second.bufferSize);
                 break;

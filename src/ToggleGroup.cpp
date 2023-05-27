@@ -34,6 +34,8 @@
 #include "stdafx.h"
 #include "ToggleGroup.h"
 
+using namespace std;
+
 namespace ShaderToggler
 {
     ToggleGroup::ToggleGroup(std::string name, int id)
@@ -48,6 +50,7 @@ namespace ShaderToggler
         _hasTechniqueExceptions = false;
         _extractConstants = false;
         _extractResourceViews = false;
+        _matchSwapchainResolution = true;
     }
 
 
@@ -177,6 +180,8 @@ namespace ShaderToggler
             firstElement = false;
         }
         iniFile.SetUInt("InvocationLocation", _invocationLocation, "", sectionRoot);
+        iniFile.SetBool("MatchSwapchainResolutionOnly", _matchSwapchainResolution, "", sectionRoot);
+        iniFile.SetBool("RequeueAfterRTMatchingFailure", _requeueAfterRTMatchingFailure, "", sectionRoot);
 
         iniFile.SetValue("Techniques", ss.str(), "", sectionRoot);
         iniFile.SetBool("AllowAllTechniques", _allowAllTechniques, "", sectionRoot);
@@ -286,6 +291,9 @@ namespace ShaderToggler
         {
             _invocationLocation = 0;
         }
+
+        _matchSwapchainResolution = iniFile.GetBoolOrDefault("MatchSwapchainResolutionOnly", sectionRoot, true);
+        _requeueAfterRTMatchingFailure = iniFile.GetBoolOrDefault("RequeueAfterRTMatchingFailure", sectionRoot, false);
 
         std::string techniques = iniFile.GetString("Techniques", sectionRoot);
         if (techniques.size() > 0) {

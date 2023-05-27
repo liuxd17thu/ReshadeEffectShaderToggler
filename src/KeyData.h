@@ -62,7 +62,7 @@ namespace ShaderToggler
         return keyboard_keys[vkCode];
     }
 
-    static bool areKeysPressed(uint32_t keys, effect_runtime* runtime)
+    static bool areKeysPressed(uint32_t keys, reshade::api::effect_runtime * runtime)
     {
         uint8_t key0 = keys & 0xFF;
         uint8_t key1 = (keys >> 8) & 0xFF;
@@ -92,7 +92,7 @@ namespace ShaderToggler
     }
 
 
-    static uint8_t reshade_last_key_pressed(const effect_runtime* runtime)
+    static uint8_t reshade_last_key_pressed(const reshade::api::effect_runtime* runtime)
     {
         for (uint32_t i = VK_XBUTTON2 + 1; i < 256; i++)
             if (runtime->is_key_pressed(static_cast<uint8_t>(i)))

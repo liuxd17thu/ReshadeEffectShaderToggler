@@ -61,8 +61,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,0,570
- PRODUCTVERSION 1,2,0,570
+ FILEVERSION 1,2,1,580
+ PRODUCTVERSION 1,2,1,580
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -78,13 +78,13 @@ BEGIN
         BLOCK "040004b0"
         BEGIN
             VALUE "CompanyName", "alex"
-            VALUE "FileDescription", "ReshadeEffectShaderToggler Addon for ReShade 5.7+"
-            VALUE "FileVersion", "1.2.0.570"
+            VALUE "FileDescription", "ReshadeEffectShaderToggler Addon for ReShade 5.8+"
+            VALUE "FileVersion", "1.2.1.580"
             VALUE "InternalName", "ShaderTo.dll"
             VALUE "LegalCopyright", "Copyright (C) 2022 Frans Bouma"
             VALUE "OriginalFilename", "ShaderTo.dll"
-            VALUE "ProductName", "Reshade Effect Shader Toggler addon for ReShade 5.7+"
-            VALUE "ProductVersion", "1.2.0.570"
+            VALUE "ProductName", "Reshade Effect Shader Toggler addon for ReShade 5.8+"
+            VALUE "ProductVersion", "1.2.1.580"
         END
     END
     BLOCK "VarFileInfo"

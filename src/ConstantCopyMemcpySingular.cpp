@@ -1,49 +1,48 @@
-#include "ConstantHandlerSingularMapping.h"
+#include "ConstantCopyMemcpySingular.h"
 
-using namespace ConstantFeedback;
+using namespace Shim::Constants;
+using namespace reshade::api;
+using namespace std;
 
-BufferCopy ConstantHandlerSingularMapping::_bufferCopy;
+BufferCopy ConstantCopyMemcpySingular::_bufferCopy;
 
-ConstantHandlerSingularMapping::ConstantHandlerSingularMapping() : ConstantHandlerBase()
+ConstantCopyMemcpySingular::ConstantCopyMemcpySingular()
 {
-
+    _instance = this;
 }
 
-ConstantHandlerSingularMapping::~ConstantHandlerSingularMapping()
-{
+ConstantCopyMemcpySingular::~ConstantCopyMemcpySingular() {}
 
-}
-
-void ConstantHandlerSingularMapping::OnMapBufferRegion(device* device, resource resource, uint64_t offset, uint64_t size, map_access access, void** data)
+void ConstantCopyMemcpySingular::OnMapBufferRegion(device* device, resource resource, uint64_t offset, uint64_t size, map_access access, void** data)
 {
     if (access == map_access::write_discard || access == map_access::write_only)
     {
         resource_desc desc = device->get_resource_desc(resource);
-        uint8_t* buf = const_cast<uint8_t*>(GetHostConstantBuffer(resource.handle));
+        const auto& buf = deviceToHostConstantBuffer.find(resource.handle);
 
-        if(buf != nullptr)
+        if (buf != deviceToHostConstantBuffer.end())
         {
             _bufferCopy.resource = resource.handle;
             _bufferCopy.destination = *data;
             _bufferCopy.size = size;
             _bufferCopy.offset = offset;
             _bufferCopy.bufferSize = desc.buffer.size;
-            _bufferCopy.hostDestination = buf;
+            _bufferCopy.hostDestination = get<1>(*buf).data();
         }
     }
 }
 
-void ConstantHandlerSingularMapping::OnUnmapBufferRegion(device* device, resource resource)
+void ConstantCopyMemcpySingular::OnUnmapBufferRegion(device* device, resource resource)
 {
     _bufferCopy.resource = 0;
     _bufferCopy.destination = nullptr;
 }
 
-void ConstantHandlerSingularMapping::OnMemcpy(void* dest, void* src, size_t size)
+void ConstantCopyMemcpySingular::OnMemcpy(void* dest, void* src, size_t size)
 {
     uintptr_t destPtr = reinterpret_cast<uintptr_t>(dest);
     uintptr_t destinationPtr = reinterpret_cast<uintptr_t>(_bufferCopy.destination);
-    
+
     if (_bufferCopy.resource != 0 &&
         destPtr >= destinationPtr &&
         destPtr <= destinationPtr + _bufferCopy.bufferSize - _bufferCopy.offset)

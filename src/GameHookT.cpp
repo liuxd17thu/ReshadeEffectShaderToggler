@@ -1,21 +1,26 @@
-#include "ConstantCopyT.h"
+#include "GameHookT.h"
 
-using namespace ConstantFeedback;
+using namespace Shim;
+
+bool GameHook::_hooked = false;
 
 template<typename T>
-ConstantCopyT<T>::ConstantCopyT()
+std::string GameHookT<T>::GetExecutableName()
 {
+    char fileName[MAX_PATH + 1];
+    DWORD charsWritten = GetModuleFileNameA(NULL, fileName, MAX_PATH + 1);
+    if (charsWritten != 0)
+    {
+        std::string ret(fileName);
+        std::size_t found = ret.find_last_of("/\\");
+        return ret.substr(found + 1);
+    }
 
+    return std::string();
 }
 
 template<typename T>
-ConstantCopyT<T>::~ConstantCopyT()
-{
-
-}
-
-template<typename T>
-T* ConstantCopyT<T>::InstallHook(void* target, T* callback)
+T* GameHookT<T>::InstallHook(void* target, T* callback)
 {
     void* original_function = nullptr;
 
@@ -26,7 +31,7 @@ T* ConstantCopyT<T>::InstallHook(void* target, T* callback)
 }
 
 template<typename T>
-T* ConstantCopyT<T>::InstallApiHook(LPCWSTR pszModule, LPCSTR pszProcName, T* callback)
+T* GameHookT<T>::InstallApiHook(LPCWSTR pszModule, LPCSTR pszProcName, T* callback)
 {
     void* original_function = nullptr;
 
@@ -37,9 +42,20 @@ T* ConstantCopyT<T>::InstallApiHook(LPCWSTR pszModule, LPCSTR pszProcName, T* ca
 }
 
 template<typename T>
-bool ConstantCopyT<T>::Hook(T** original, T* detour, const sigmatch::signature& sig)
+bool GameHookT<T>::Hook(T** original, T* detour, const sigmatch::signature& sig)
 {
-    string exe = GetExecutableName();
+    if (!_hooked)
+    {
+        // Initialize MinHook.
+        if (MH_Initialize() != MH_OK)
+        {
+            return false;
+        }
+
+        _hooked = true;
+    }
+
+    std::string exe = GetExecutableName();
     if (exe.length() == 0)
         return false;
 
@@ -58,7 +74,7 @@ bool ConstantCopyT<T>::Hook(T** original, T* detour, const sigmatch::signature& 
 }
 
 template<typename T>
-bool ConstantCopyT<T>::Unhook()
+bool GameHookT<T>::Unhook()
 {
     if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK)
     {
@@ -68,6 +84,8 @@ bool ConstantCopyT<T>::Unhook()
     return true;
 }
 
-template class ConstantCopyT<sig_memcpy>;
-template class ConstantCopyT<sig_ffxiv_cbload>;
-template class ConstantCopyT<sig_nier_replicant_cbload>;
+template class GameHookT<sig_ffxiv_texture_create>;
+template class GameHookT<sig_ffxiv_textures_create>;
+template class GameHookT<sig_memcpy>;
+template class GameHookT<sig_ffxiv_cbload>;
+template class GameHookT<sig_nier_replicant_cbload>;

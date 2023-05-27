@@ -8,127 +8,110 @@
 #include <shared_mutex>
 #include "ToggleGroup.h"
 #include "ShaderManager.h"
-
-using namespace std;
-using namespace reshade::api;
-using namespace ShaderToggler;
+#include "ConstantCopyBase.h"
 
 struct CommandListDataContainer;
 struct DeviceDataContainer;
 
-namespace ConstantFeedback {
-    struct BufferCopy
+namespace Shim
+{
+    namespace Constants
     {
-        uint64_t resource = 0;
-        void* destination = nullptr;
-        uint8_t* hostDestination = nullptr;
-        uint64_t offset = 0;
-        uint64_t size = 0;
-        uint64_t bufferSize = 0;
-    };
+        enum class constant_type
+        {
+            type_unknown = 0,
+            type_float,
+            type_float2,
+            type_float3,
+            type_float4,
+            type_float3x3,
+            type_float4x3,
+            type_float4x4,
+            type_int,
+            type_uint
+        };
 
-    enum class constant_type
-    {
-        type_unknown = 0,
-        type_float,
-        type_float2,
-        type_float3,
-        type_float4,
-        type_float3x3,
-        type_float4x3,
-        type_float4x4,
-        type_int,
-        type_uint
-    };
+        static constexpr size_t type_size[] =
+        {
+            0,	// dummy
+            4,	// float
+            4,	// float2
+            4,	// float3
+            4,  // float4
+            4,	// float3x3
+            4,  // float4x3
+            4,	// float4x4
+            4,	// int
+            4	// uint
+        };
 
-    static constexpr size_t type_size[] =
-    {
-        0,	// dummy
-        4,	// float
-        4,	// float2
-        4,	// float3
-        4,  // float4
-        4,	// float3x3
-        4,  // float4x3
-        4,	// float4x4
-        4,	// int
-        4	// uint
-    };
+        static constexpr size_t type_length[] =
+        {
+            0,	// dummy
+            1,	// float
+            2,	// float2
+            3,	// float3
+            4,	// float4
+            9,	// float3x3
+            12, // float4x3
+            16,	// float4x4
+            1,	// int
+            1	// uint
+        };
 
-    static constexpr size_t type_length[] =
-    {
-        0,	// dummy
-        1,	// float
-        2,	// float2
-        3,	// float3
-        4,	// float4
-        9,	// float3x3
-        12, // float4x3
-        16,	// float4x4
-        1,	// int
-        1	// uint
-    };
+        static constexpr const char* type_desc[] =
+        {
+            "",	// dummy
+            "float",	// float
+            "float2",	// float2
+            "float3",	// float3
+            "float4",	// float4
+            "float3x3",	// float3x3
+            "float4x3", // float4x3
+            "float4x4",	// float4x4
+            "int",	// int
+            "uint"	// uint
+        };
 
-    static constexpr const char* type_desc[] =
-    {
-        "",	// dummy
-        "float",	// float
-        "float2",	// float2
-        "float3",	// float3
-        "float4",	// float4
-        "float3x3",	// float3x3
-        "float4x3", // float4x3
-        "float4x4",	// float4x4
-        "int",	// int
-        "uint"	// uint
-    };
+        static constexpr size_t CHAR_BUFFER_SIZE = 256;
 
-    static constexpr size_t CHAR_BUFFER_SIZE = 256;
+        class __declspec(novtable) ConstantHandlerBase final {
+        public:
+            ConstantHandlerBase();
+            ~ConstantHandlerBase();
 
-    class ConstantHandlerBase {
-    public:
-        ConstantHandlerBase();
-        ~ConstantHandlerBase();
+            void SetBufferRange(const ShaderToggler::ToggleGroup* group, reshade::api::buffer_range range, reshade::api::device * dev, reshade::api::command_list* cmd_list);
+            void RemoveGroup(const ShaderToggler::ToggleGroup*, reshade::api::device* dev);
+            uint8_t* GetConstantBuffer(const ShaderToggler::ToggleGroup* group);
+            size_t GetConstantBufferSize(const ShaderToggler::ToggleGroup* group);
+            void ReloadConstantVariables(reshade::api::effect_runtime* runtime);
+            void UpdateConstants(reshade::api::command_list* cmd_list);
+            void ClearConstantVariables();
+            void ApplyConstantValues(reshade::api::effect_runtime* runtime, const ShaderToggler::ToggleGroup*, const std::unordered_map<std::string, std::tuple<constant_type, std::vector<reshade::api::effect_uniform_variable>>>& constants);
 
-        virtual void SetBufferRange(const ToggleGroup* group, buffer_range range, device* dev, command_list* cmd_list);
-        virtual void RemoveGroup(const ToggleGroup*, device* dev);
-        uint8_t* GetConstantBuffer(const ToggleGroup* group);
-        size_t GetConstantBufferSize(const ToggleGroup* group);
-        void ReloadConstantVariables(effect_runtime* runtime);
-        void UpdateConstants(command_list* cmd_list);
-        void ClearConstantVariables();
-        virtual void OnInitResource(device* device, const resource_desc& desc, const subresource_data* initData, resource_usage usage, reshade::api::resource handle);
-        virtual void OnDestroyResource(device* device, resource res);
+            void OnReshadeReloadedEffects(reshade::api::effect_runtime* runtime, int32_t enabledCount);
+            void OnReshadeSetTechniqueState(reshade::api::effect_runtime* runtime, int32_t enabledCount);
 
-        void ApplyConstantValues(effect_runtime* runtime, const ToggleGroup*, const unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>>& constants);
+            std::unordered_map<std::string, std::tuple<constant_type, std::vector<reshade::api::effect_uniform_variable>>>* GetRESTVariables();
 
-        unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>>* GetRESTVariables();
+            static void SetConstantCopy(ConstantCopyBase* constantHandler);
+        private:
+            std::unordered_map<const ShaderToggler::ToggleGroup*, std::vector<uint8_t>> groupBufferContent;
+            std::unordered_map<const ShaderToggler::ToggleGroup*, std::vector<uint8_t>> groupPrevBufferContent;
+            std::unordered_map<const ShaderToggler::ToggleGroup*, size_t> groupBufferSize;
+            int32_t previousEnableCount = std::numeric_limits<int32_t>::max();
+            std::shared_mutex varMutex;
 
-        const uint8_t* GetHostConstantBuffer(uint64_t resourceHandle);
-        void CreateHostConstantBuffer(device* dev, resource resource, size_t size);
-        void DeleteHostConstantBuffer(resource resource);
-        inline void SetHostConstantBuffer(const uint64_t handle, const void* buffer, size_t size, uintptr_t offset, uint64_t bufferSize);
+            static std::unordered_map<std::string, std::tuple<constant_type, std::vector<reshade::api::effect_uniform_variable>>> restVariables;
+            static char charBuffer[CHAR_BUFFER_SIZE];
 
-        virtual void OnMapBufferRegion(device* device, resource resource, uint64_t offset, uint64_t size, map_access access, void** data) = 0;
-        virtual void OnUnmapBufferRegion(device* device, resource resource) = 0;
-        virtual void OnMemcpy(void* dest, void* src, size_t size) = 0;
-    protected:
-        unordered_map<const ToggleGroup*, vector<uint8_t>> groupBufferContent;
-        unordered_map<const ToggleGroup*, vector<uint8_t>> groupPrevBufferContent;
-        unordered_map<const ToggleGroup*, size_t> groupBufferSize;
+            std::unordered_map<const ShaderToggler::ToggleGroup*, reshade::api::buffer_range> groupBufferRanges;
 
-        unordered_set<uint64_t> constantBuffers;
-        static unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>> restVariables;
-        static char charBuffer[CHAR_BUFFER_SIZE];
+            static ConstantCopyBase* _constCopy;
 
-        unordered_map<const ToggleGroup*, buffer_range> groupBufferRanges;
-        unordered_map<uint64_t, vector<uint8_t>> deviceToHostConstantBuffer;
-
-        shared_mutex deviceHostMutex;
-
-        bool CreateScratchpad(const ToggleGroup* group, device* dev, resource_desc& target);
-        void CopyToScratchpad(const ToggleGroup* group, device* dev, command_list* cmd_list);
-    private:
-        bool UpdateConstantEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, const ToggleGroup* group, uint32_t index);
-    };
+            bool CreateScratchpad(const ShaderToggler::ToggleGroup* group, reshade::api::device* dev, reshade::api::resource_desc& target);
+            void CopyToScratchpad(const ShaderToggler::ToggleGroup* group, reshade::api::device* dev, reshade::api::command_list* cmd_list);
+            bool UpdateConstantEntries(reshade::api::command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, const ShaderToggler::ToggleGroup* group, uint32_t index);
+        };
+    }
 }

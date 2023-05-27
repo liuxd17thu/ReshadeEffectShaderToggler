@@ -1,11 +1,11 @@
 # ReshadeEffectShaderToggler
-Reshade 5.7+ addon to apply Reshade effects to render targets bound before specific, user-configurable, groups of shaders are 
+Reshade 5.8+ addon to apply Reshade effects to render targets bound before specific, user-configurable, groups of shaders are 
 encountered within a game's rendering pipeline.
 
 It's mainly for 64bit reshade. There's a 32bit version in the releases, but it's not actively maintained/tested. 
 
 ## How to use
-Place the `ReshadeEffectShaderToggler.addon` in the same folder as where the game exe is located. This is in most cases the same folder as where the Reshade 5.2+ dll
+Place the `ReshadeEffectShaderToggler.addon` in the same folder as where the game exe is located. This is in most cases the same folder as where the Reshade 5.8+ dll
 is located. Only for games which use Vulkan, the Reshade dll is likely elsewhere. For Unreal Engine powered games there might be two
 game exe's: one in the game's installation folder, and one in a folder deeper into that folder, e.g. 
 `GameName\Binaries\Win64\GameName-Win64-Shipping.exe`; the shader toggler addon has to be in that second folder, in our example:

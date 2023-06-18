@@ -674,10 +674,10 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
                 bool matchRes = group.getMatchSwapchainResolution();
 
                 ImGui::AlignTextToFramePadding();
-                ImGui::Checkbox("Retry RT assignment", &retry);
+                ImGui::Checkbox("重试RT分配", &retry);
                 group.setRequeueAfterRTMatchingFailure(retry);
                 ImGui::SameLine();
-                ImGui::Checkbox("Match swapchain resolution", &matchRes);
+                ImGui::Checkbox("匹配交换链分辨率", &matchRes);
                 group.setMatchSwapchainResolution(matchRes);
 
                 if (ImGui::Button("OK"))

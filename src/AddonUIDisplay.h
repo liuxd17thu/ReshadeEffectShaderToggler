@@ -183,8 +183,9 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
                 newTechniques.insert(technique);
             }
         }
+
+        ImGui::EndTable();
     }
-    ImGui::EndTable();
 
     if (allowAll && !exceptions)
     {
@@ -769,11 +770,11 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
         static float height = ImGui::GetWindowHeight();
         static float width = ImGui::GetWindowWidth();
 
-        const char* typeItems[] = { "Pixel shader", "Vertex shader"};
+        const char* typeItems[] = { "Pixel shader", "Vertex shader", "Compute Shader"};
         static const char* typeSelectedItem = typeItems[0];
         static uint32_t selectedIndex = 0;
 
-        ShaderToggler::ShaderManager* selectedShaderManager = selectedIndex == 0 ? instance.GetPixelShaderManager() : instance.GetVertexShaderManager();
+        ShaderToggler::ShaderManager* selectedShaderManager = selectedIndex == 0 ? instance.GetPixelShaderManager() : (selectedIndex == 1 ? instance.GetVertexShaderManager() : instance.GetComputeShaderManager());
 
         if (ImGui::Begin(std::format("Group settings ({})", editingGroupName).c_str(), &wndOpen))
         {

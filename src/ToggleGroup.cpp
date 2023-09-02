@@ -69,10 +69,11 @@ namespace ShaderToggler
     }
 
 
-    void ToggleGroup::storeCollectedHashes(const std::unordered_set<uint32_t> pixelShaderHashes, const std::unordered_set<uint32_t> vertexShaderHashes)
+    void ToggleGroup::storeCollectedHashes(const std::unordered_set<uint32_t> pixelShaderHashes, const std::unordered_set<uint32_t> vertexShaderHashes, const std::unordered_set<uint32_t> computeShaderHashes)
     {
         _vertexShaderHashes.clear();
         _pixelShaderHashes.clear();
+        _computeShaderHashes.clear();
 
         for (const auto hash : vertexShaderHashes)
         {
@@ -81,6 +82,10 @@ namespace ShaderToggler
         for (const auto hash : pixelShaderHashes)
         {
             _pixelShaderHashes.emplace(hash);
+        }
+        for (const auto hash : computeShaderHashes)
+        {
+            _computeShaderHashes.emplace(hash);
         }
     }
 
@@ -97,10 +102,17 @@ namespace ShaderToggler
     }
 
 
+    bool ToggleGroup::isBlockedComputeShader(uint32_t shaderHash) const
+    {
+        return _isActive && (_computeShaderHashes.contains(shaderHash));
+    }
+
+
     void ToggleGroup::clearHashes()
     {
         _pixelShaderHashes.clear();
         _vertexShaderHashes.clear();
+        _computeShaderHashes.clear();
     }
 
 
@@ -135,6 +147,7 @@ namespace ShaderToggler
         const std::string sectionRoot = "Group" + std::to_string(groupCounter);
         const std::string vertexHashesCategory = sectionRoot + "_VertexShaders";
         const std::string pixelHashesCategory = sectionRoot + "_PixelShaders";
+        const std::string computeHashesCategory = sectionRoot + "_ComputeShaders";
         const std::string constantsCategory = sectionRoot + "_Constants";
 
         int counter = 0;
@@ -152,6 +165,14 @@ namespace ShaderToggler
             counter++;
         }
         iniFile.SetUInt("AmountHashes", counter, "", pixelHashesCategory);
+
+        counter = 0;
+        for (const auto hash : _computeShaderHashes)
+        {
+            iniFile.SetUInt("ShaderHash" + std::to_string(counter), hash, "", computeHashesCategory);
+            counter++;
+        }
+        iniFile.SetUInt("AmountHashes", counter, "", computeHashesCategory);
 
         counter = 0;
         for (const auto var : _varOffsetMapping)
@@ -230,6 +251,15 @@ namespace ShaderToggler
                     _vertexShaderHashes.emplace(hash);
                 }
             }
+            amount = iniFile.GetInt("AmountHashes", "ComputeShaders");
+            for (int i = 0; i < amount; i++)
+            {
+                uint32_t hash = iniFile.GetUInt("ShaderHash" + std::to_string(i), "ComputeShaders");
+                if (hash != UINT_MAX)
+                {
+                    _computeShaderHashes.emplace(hash);
+                }
+            }
 
             // done
             return;
@@ -238,6 +268,7 @@ namespace ShaderToggler
         const std::string sectionRoot = "Group" + std::to_string(groupCounter);
         const std::string vertexHashesCategory = sectionRoot + "_VertexShaders";
         const std::string pixelHashesCategory = sectionRoot + "_PixelShaders";
+        const std::string computeHashesCategory = sectionRoot + "_ComputeShaders";
         const std::string constantsCategory = sectionRoot + "_Constants";
 
         int amountShaders = iniFile.GetInt("AmountHashes", vertexHashesCategory);
@@ -257,6 +288,16 @@ namespace ShaderToggler
             if (hash != UINT_MAX)
             {
                 _pixelShaderHashes.emplace(hash);
+            }
+        }
+
+        amountShaders = iniFile.GetInt("AmountHashes", computeHashesCategory);
+        for (int i = 0; i < amountShaders; i++)
+        {
+            uint32_t hash = iniFile.GetUInt("ShaderHash" + std::to_string(i), computeHashesCategory);
+            if (hash != UINT_MAX)
+            {
+                _computeShaderHashes.emplace(hash);
             }
         }
 

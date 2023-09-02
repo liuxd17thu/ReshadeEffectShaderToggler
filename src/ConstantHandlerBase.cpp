@@ -241,12 +241,13 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
     DeviceDataContainer& deviceData = device->get_private_data<DeviceDataContainer>();
 
     if (deviceData.current_runtime == nullptr ||
-        (commandListData.ps.constantBuffersToUpdate.size() == 0 && commandListData.vs.constantBuffersToUpdate.size() == 0)) {
+        (commandListData.ps.constantBuffersToUpdate.size() == 0 && commandListData.vs.constantBuffersToUpdate.size() == 0 && commandListData.cs.constantBuffersToUpdate.size() == 0)) {
         return;
     }
 
     vector<ToggleGroup*> psRemovalList;
     vector<ToggleGroup*> vsRemovalList;
+    vector<ToggleGroup*> csRemovalList;
 
     for (const auto& cb : commandListData.ps.constantBuffersToUpdate)
     {
@@ -272,6 +273,18 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
         }
     }
 
+    for (const auto& cb : commandListData.cs.constantBuffersToUpdate)
+    {
+        if (!deviceData.constantsUpdated.contains(cb))
+        {
+            if (!cb->getCBIsPushMode() && UpdateConstantBufferEntries(cmd_list, commandListData, deviceData, cb, 2) ||
+                cb->getCBIsPushMode() && UpdateConstantEntries(cmd_list, commandListData, deviceData, cb, 2))
+            {
+                csRemovalList.push_back(cb);
+            }
+        }
+    }
+
     for (const auto& g : psRemovalList)
     {
         commandListData.ps.constantBuffersToUpdate.erase(g);
@@ -280,6 +293,11 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
     for (const auto& g : vsRemovalList)
     {
         commandListData.vs.constantBuffersToUpdate.erase(g);
+    }
+
+    for (const auto& g : csRemovalList)
+    {
+        commandListData.cs.constantBuffersToUpdate.erase(g);
     }
 }
 

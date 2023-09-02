@@ -92,6 +92,7 @@ namespace AddonImGui
     private:
         ShaderToggler::ShaderManager* _pixelShaderManager;
         ShaderToggler::ShaderManager* _vertexShaderManager;
+        ShaderToggler::ShaderManager* _computeShaderManager;
         Shim::Constants::ConstantHandlerBase* _constantHandler;
         std::atomic_uint32_t* _activeCollectorFrameCounter;
         std::vector<std::string>* _allTechniques;
@@ -103,6 +104,7 @@ namespace AddonImGui
         std::unordered_map<int, ShaderToggler::ToggleGroup> _toggleGroups;
         std::unordered_map<uint32_t, std::vector<ShaderToggler::ToggleGroup*>> _pixelShaderHashToToggleGroups;
         std::unordered_map<uint32_t, std::vector<ShaderToggler::ToggleGroup*>> _vertexShaderHashToToggleGroups;
+        std::unordered_map<uint32_t, std::vector<ShaderToggler::ToggleGroup*>> _computeShaderHashToToggleGroups;
         int _startValueFramecountCollectionPhase = FRAMECOUNT_COLLECTION_PHASE_DEFAULT;
         float _overlayOpacity = 0.2f;
         uint32_t _keyBindings[ARRAYSIZE(KeybindNames)];
@@ -112,11 +114,12 @@ namespace AddonImGui
         std::filesystem::path _basePath;
         TabType _currentTab = TabType::TAB_NONE;
     public:
-        AddonUIData(ShaderToggler::ShaderManager* pixelShaderManager, ShaderToggler::ShaderManager* vertexShaderManager, Shim::Constants::ConstantHandlerBase* constants, std::atomic_uint32_t* activeCollectorFrameCounter,
+        AddonUIData(ShaderToggler::ShaderManager* pixelShaderManager, ShaderToggler::ShaderManager* vertexShaderManager, ShaderToggler::ShaderManager* computeShaderManager, Shim::Constants::ConstantHandlerBase* constants, std::atomic_uint32_t* activeCollectorFrameCounter,
             std::vector<std::string>* techniques);
         std::unordered_map<int, ShaderToggler::ToggleGroup>& GetToggleGroups();
         const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForPixelShaderHash(uint32_t hash);
         const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForVertexShaderHash(uint32_t hash);
+        const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForComputeShaderHash(uint32_t hash);
         void UpdateToggleGroupsForShaderHashes();
         void AddDefaultGroup();
         const std::atomic_int& GetToggleGroupIdShaderEditing() const;
@@ -145,6 +148,7 @@ namespace AddonImGui
         std::atomic_uint32_t* ActiveCollectorFrameCounter() { return _activeCollectorFrameCounter; }
         ShaderToggler::ShaderManager* GetPixelShaderManager() { return _pixelShaderManager; }
         ShaderToggler::ShaderManager* GetVertexShaderManager() { return _vertexShaderManager; }
+        ShaderToggler::ShaderManager* GetComputeShaderManager() { return _computeShaderManager; }
         void SetConstantHandler(Shim::Constants::ConstantHandlerBase* handler) { _constantHandler = handler; }
         Shim::Constants::ConstantHandlerBase* GetConstantHandler() { return _constantHandler; }
         uint32_t GetKeybinding(Keybind keybind);

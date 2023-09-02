@@ -166,6 +166,11 @@ void PipelineStateTracker::OnBindDescriptorSets(command_list* cmd_list, shader_s
 
     _descriptorSetsState.cmd_list = cmd_list;
 
+    if (_descriptorSetsState.current_layout[type_index] != layout)
+    {
+        _descriptorSetsState.current_sets[type_index].clear();
+    }
+
     _descriptorSetsState.current_layout[type_index] = layout;
 
     if (_descriptorSetsState.current_sets[type_index].size() < (count + first))
@@ -181,12 +186,33 @@ void PipelineStateTracker::OnBindDescriptorSets(command_list* cmd_list, shader_s
 
 void PipelineStateTracker::OnPushConstants(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void* values)
 {
-    const int stage_index = (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::pixel)) ? 0 : 1;
+    //const int stage_index = (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::pixel)) ? 0 : 1;
+
+    int stage_index = 0;
+
+    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::pixel))
+    {
+        stage_index = 0;
+    }
+    else if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::vertex))
+    {
+        stage_index = 1;
+    }
+    else
+    {
+        stage_index = 2;
+    }
 
     _pushConstantsState.callIndex = _callIndex;
     _callIndex++;
 
     _pushConstantsState.cmd_list = cmd_list;
+
+
+    //if (_pushConstantsState.current_layout[stage_index] != layout)
+    //{
+    //    _pushConstantsState.current_constants[stage_index].clear();
+    //}
 
     _pushConstantsState.current_layout[stage_index] = layout;
 
@@ -210,17 +236,37 @@ void PipelineStateTracker::OnPushDescriptors(command_list* cmd_list, shader_stag
 {
     // only consider pixel and vertex shader CBs for now
     if ((update.type != descriptor_type::constant_buffer && update.type != descriptor_type::shader_resource_view) ||
-        !(static_cast<uint32_t>(stages) & (static_cast<uint32_t>(shader_stage::pixel) | static_cast<uint32_t>(shader_stage::vertex))))
+        !(static_cast<uint32_t>(stages) & (static_cast<uint32_t>(shader_stage::pixel) | static_cast<uint32_t>(shader_stage::vertex) | static_cast<uint32_t>(shader_stage::compute))))
     {
         return;
     }
 
-    const int stage_index = (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::pixel)) ? 0 : 1;
+    //const int stage_index = (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::pixel)) ? 0 : 1;
+    int stage_index = 0;
+
+    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::pixel))
+    {
+        stage_index = 0;
+    }
+    else if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(shader_stage::vertex))
+    {
+        stage_index = 1;
+    }
+    else
+    {
+        stage_index = 2;
+    }
 
     _pushDescriptorsState.callIndex = _callIndex;
     _callIndex++;
 
     _pushDescriptorsState.cmd_list = cmd_list;
+
+    //if (_pushDescriptorsState.current_layout[stage_index] != layout)
+    //{
+    //    _pushDescriptorsState.current_descriptors[stage_index].clear();
+    //    _pushDescriptorsState.current_srv[stage_index].clear();
+    //}
 
     _pushDescriptorsState.current_layout[stage_index] = layout;
 

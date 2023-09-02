@@ -100,10 +100,10 @@ namespace StateTracker
     };
 
     struct __declspec(novtable) PushConstantsState final : PipelineBinding<PipelineBindingTypes::push_constants> {
-        pipeline_layout current_layout[2];
+        pipeline_layout current_layout[3];
         uint32_t first;
         uint32_t count;
-        vector<vector<uint32_t>> current_constants[2]; // consider only CBs for now
+        vector<vector<uint32_t>> current_constants[3]; // consider only CBs for now
 
         void Reset()
         {
@@ -111,17 +111,19 @@ namespace StateTracker
             cmd_list = nullptr;
             current_layout[0] = { 0 };
             current_layout[1] = { 0 };
+            current_layout[2] = { 0 };
             first = 0;
             count = 0;
             current_constants[0].clear();
             current_constants[1].clear();
+            current_constants[2].clear();
         }
     };
 
     struct __declspec(novtable) PushDescriptorsState final : PipelineBinding<PipelineBindingTypes::push_descriptors> {
-        pipeline_layout current_layout[2];
-        vector<vector<buffer_range>> current_descriptors[2]; // consider only CBs for now
-        vector<vector<resource_view>> current_srv[2];
+        pipeline_layout current_layout[3];
+        vector<vector<buffer_range>> current_descriptors[3]; // consider only CBs for now
+        vector<vector<resource_view>> current_srv[3];
 
         void Reset()
         {
@@ -129,10 +131,13 @@ namespace StateTracker
             cmd_list = nullptr;
             current_layout[0] = { 0 };
             current_layout[1] = { 0 };
+            current_layout[2] = { 0 };
             current_descriptors[0].clear();
             current_descriptors[1].clear();
+            current_descriptors[2].clear();
             current_srv[0].clear();
             current_srv[1].clear();
+            current_srv[2].clear();
         }
     };
 

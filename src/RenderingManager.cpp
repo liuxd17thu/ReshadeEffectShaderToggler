@@ -31,13 +31,13 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
 {
     // Masks which checks to perform. Note that we will always schedule a draw call check for binding and effect updates,
     // this serves the purpose of assigning the resource_view to perform the update later on if needed.
-    uint32_t queue_mask = MATCH_NONE;
+    uint64_t queue_mask = MATCH_NONE;
 
     // Shift in case of VS using data id
-    const uint32_t match_effect = MATCH_EFFECT_PS * sData.id;
-    const uint32_t match_binding = MATCH_BINDING_PS * sData.id;
-    const uint32_t match_const = MATCH_CONST_PS * sData.id;
-    const uint32_t match_preview = MATCH_PREVIEW_PS * sData.id;
+    const uint64_t match_effect = MATCH_EFFECT_PS << sData.id;
+    const uint64_t match_binding = MATCH_BINDING_PS << sData.id;
+    const uint64_t match_const = MATCH_CONST_PS << sData.id;
+    const uint64_t match_preview = MATCH_PREVIEW_PS << sData.id;
 
     if (sData.blockedShaderGroups != nullptr)
     {
@@ -58,7 +58,13 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                 {
                     if(uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
                     {
-                        queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << CALL_DRAW * MATCH_DELIMITER);
+                        queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
+                        //queue_mask |= match_preview << (group->getInvocationLocation() * MATCH_DELIMITER);
+                        //if (group->getInvocationLocation() == CALL_BIND_PIPELINE)
+                        //{
+                        //    queue_mask |= match_preview << (CALL_DRAW * MATCH_DELIMITER);
+                        //}
+                
                         deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
                     }
                 }
@@ -75,7 +81,12 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                         else
                         {
                             sData.bindingsToUpdate.emplace(group->getTextureBindingName(), std::make_tuple(group, group->getBindingInvocationLocation(), resource_view{ 0 }));
-                            queue_mask |= (match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER)) | (match_binding << CALL_DRAW * MATCH_DELIMITER);
+                            queue_mask |= (match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
+                            //queue_mask |= match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER);
+                            //if (group->getBindingInvocationLocation() == CALL_BIND_PIPELINE)
+                            //{
+                            //    queue_mask |= match_binding << (CALL_DRAW * MATCH_DELIMITER);
+                            //}
                         }
                     }
                 }
@@ -94,7 +105,12 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                             if (!sData.techniquesToRender.contains(tech.first))
                             {
                                 sData.techniquesToRender.emplace(tech.first, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
-                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << CALL_DRAW * MATCH_DELIMITER);
+                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                                //queue_mask |= match_effect << (group->getInvocationLocation() * MATCH_DELIMITER);
+                                //if (group->getInvocationLocation() == CALL_BIND_PIPELINE)
+                                //{
+                                //    queue_mask |= match_effect << (CALL_DRAW * MATCH_DELIMITER);
+                                //}
                             }
                         }
                     }
@@ -107,7 +123,12 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                             if (!sData.techniquesToRender.contains(techName))
                             {
                                 sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
-                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << CALL_DRAW * MATCH_DELIMITER);
+                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                                //queue_mask |= match_effect << (group->getInvocationLocation() * MATCH_DELIMITER);
+                                //if (group->getInvocationLocation() == CALL_BIND_PIPELINE)
+                                //{
+                                //    queue_mask |= match_effect << (CALL_DRAW * MATCH_DELIMITER);
+                                //}
                             }
                         }
                     }
@@ -134,6 +155,86 @@ void RenderingManager::CheckCallForCommandList(reshade::api::command_list* comma
 
     _CheckCallForCommandList(commandListData.ps, commandListData, deviceData);
     _CheckCallForCommandList(commandListData.vs, commandListData, deviceData);
+    _CheckCallForCommandList(commandListData.cs, commandListData, deviceData);
+
+    b_mutex.unlock();
+    r_mutex.unlock();
+}
+
+void RenderingManager::_RescheduleGroups(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData)
+{
+    const uint32_t match_effect = MATCH_EFFECT_PS << sData.id;
+    const uint32_t match_binding = MATCH_BINDING_PS << sData.id;
+    const uint32_t match_const = MATCH_CONST_PS << sData.id;
+    const uint32_t match_preview = MATCH_PREVIEW_PS << sData.id;
+
+    uint32_t queue_mask = MATCH_NONE;
+
+    for (const auto& tech : sData.techniquesToRender)
+    {
+        const ToggleGroup* group = std::get<0>(tech.second);
+        const resource_view view = std::get<2>(tech.second);
+
+        if (view == 0 && group->getRequeueAfterRTMatchingFailure())
+        {
+            queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_rtv == 0)
+            {
+                if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
+                {
+                    queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
+
+                    deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
+                }
+            }
+        }
+    }
+
+    for (const auto& tech : sData.bindingsToUpdate)
+    {
+        const ToggleGroup* group = std::get<0>(tech.second);
+        const resource_view view = std::get<2>(tech.second);
+
+        if (view == 0 && group->getRequeueAfterRTMatchingFailure())
+        {
+            queue_mask |= (match_binding << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
+
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_rtv == 0)
+            {
+                if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
+                {
+                    queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
+
+                    deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
+                }
+            }
+        }
+    }
+
+
+    commandListData.commandQueue |= queue_mask;
+}
+
+void RenderingManager::RescheduleGroups(CommandListDataContainer& commandListData, DeviceDataContainer& deviceData)
+{
+    std::shared_lock<std::shared_mutex> r_mutex(render_mutex);
+    std::shared_lock<std::shared_mutex> b_mutex(binding_mutex);
+
+    if (commandListData.ps.techniquesToRender.size() > 0 || commandListData.ps.bindingsToUpdate.size() > 0)
+    {
+        _RescheduleGroups(commandListData.ps, commandListData, deviceData);
+    }
+
+    if (commandListData.vs.techniquesToRender.size() > 0 || commandListData.vs.bindingsToUpdate.size() > 0)
+    {
+        _RescheduleGroups(commandListData.vs, commandListData, deviceData);
+    }
+
+    if (commandListData.cs.techniquesToRender.size() > 0 || commandListData.cs.bindingsToUpdate.size() > 0)
+    {
+        _RescheduleGroups(commandListData.cs, commandListData, deviceData);
+    }
 
     b_mutex.unlock();
     r_mutex.unlock();
@@ -192,7 +293,7 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, uint
     return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (matchingMode == ShaderToggler::SWAPCHAIN_MATCH_MODE_EXTENDED_ASPECT_RATIO && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
-const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint32_t action)
+const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
 {
     resource_view active_rtv = { 0 };
 
@@ -326,7 +427,7 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
     return active_rtv;
 }
 
-const resource_view RenderingManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint32_t action)
+const resource_view RenderingManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
 {
     resource_view active_rtv = { 0 };
 
@@ -341,9 +442,6 @@ const resource_view RenderingManager::GetCurrentPreviewResourceView(command_list
 
     size_t index = group->getRenderTargetIndex();
     index = std::min(index, rtvs.size() - 1);
-
-    size_t bindingRTindex = group->getBindingRenderTargetIndex();
-    bindingRTindex = std::min(bindingRTindex, rtvs.size() - 1);
 
     if (rtvs.size() > 0 && rtvs[index] != 0)
     {
@@ -417,7 +515,7 @@ bool RenderingManager::RenderRemainingEffects(effect_runtime* runtime)
 bool RenderingManager::_RenderEffects(
     command_list* cmd_list,
     DeviceDataContainer& deviceData,
-    const unordered_map<string, tuple<ToggleGroup*, uint32_t, resource_view>>& techniquesToRender,
+    const unordered_map<string, tuple<ToggleGroup*, uint64_t, resource_view>>& techniquesToRender,
     vector<string>& removalList,
     const unordered_set<string>& toRenderNames)
 {
@@ -473,11 +571,11 @@ void RenderingManager::_QueueOrDequeue(
     command_list* cmd_list,
     DeviceDataContainer& deviceData,
     CommandListDataContainer& commandListData,
-    std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint32_t, reshade::api::resource_view>>& queue,
+    std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& queue,
     unordered_set<string>& immediateQueue,
-    uint32_t callLocation,
+    uint64_t callLocation,
     uint32_t layoutIndex,
-    uint32_t action)
+    uint64_t action)
 {
     for (auto it = queue.begin(); it != queue.end();)
     {
@@ -493,7 +591,7 @@ void RenderingManager::_QueueOrDequeue(
             else if(std::get<0>(it->second)->getRequeueAfterRTMatchingFailure())
             {
                 // Re-issue draw call queue command
-                commandListData.commandQueue |= (action << (callLocation * MATCH_DELIMITER));
+                //commandListData.commandQueue |= (action << (callLocation * MATCH_DELIMITER));
                 it++;
                 continue;
             }
@@ -514,7 +612,7 @@ void RenderingManager::_QueueOrDequeue(
     }
 }
 
-void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocation, uint32_t invocation)
+void RenderingManager::RenderEffects(command_list* cmd_list, uint64_t callLocation, uint64_t invocation)
 {
     if (cmd_list == nullptr || cmd_list->get_device() == nullptr)
     {
@@ -528,13 +626,14 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocati
     // Remove call location from queue
     commandListData.commandQueue &= ~(invocation << (callLocation * MATCH_DELIMITER));
 
-    if (deviceData.current_runtime == nullptr || (commandListData.ps.techniquesToRender.size() == 0 && commandListData.vs.techniquesToRender.size() == 0)) {
+    if (deviceData.current_runtime == nullptr || (commandListData.ps.techniquesToRender.size() == 0 && commandListData.vs.techniquesToRender.size() == 0 && commandListData.cs.techniquesToRender.size() == 0)) {
         return;
     }
 
     bool toRender = false;
     unordered_set<string> psToRenderNames;
     unordered_set<string> vsToRenderNames;
+    unordered_set<string> csToRenderNames;
 
     if (invocation & MATCH_EFFECT_PS)
     {
@@ -546,9 +645,15 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocati
         _QueueOrDequeue(cmd_list, deviceData, commandListData, commandListData.vs.techniquesToRender, vsToRenderNames, callLocation, 1, MATCH_EFFECT_VS);
     }
 
+    if (invocation & MATCH_EFFECT_CS)
+    {
+        _QueueOrDequeue(cmd_list, deviceData, commandListData, commandListData.cs.techniquesToRender, csToRenderNames, callLocation, 2, MATCH_EFFECT_CS);
+    }
+
     bool rendered = false;
     vector<string> psRemovalList;
     vector<string> vsRemovalList;
+    vector<string> csRemovalList;
 
     if (psToRenderNames.size() == 0 && vsToRenderNames.size() == 0)
     {
@@ -558,8 +663,10 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocati
     deviceData.current_runtime->render_effects(cmd_list, resource_view{ 0 }, resource_view{ 0 });
 
     std::unique_lock<shared_mutex> dev_mutex(render_mutex);
-    rendered = (psToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, commandListData.ps.techniquesToRender, psRemovalList, psToRenderNames) ||
-        (vsToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, commandListData.vs.techniquesToRender, vsRemovalList, vsToRenderNames);
+    rendered =
+        (psToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, commandListData.ps.techniquesToRender, psRemovalList, psToRenderNames) ||
+        (vsToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, commandListData.vs.techniquesToRender, vsRemovalList, vsToRenderNames) ||
+        (csToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, commandListData.cs.techniquesToRender, csRemovalList, csToRenderNames);
     dev_mutex.unlock();
 
     for (auto& g : psRemovalList)
@@ -572,6 +679,11 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocati
         commandListData.vs.techniquesToRender.erase(g);
     }
 
+    for (auto& g : csRemovalList)
+    {
+        commandListData.cs.techniquesToRender.erase(g);
+    }
+
     if (rendered)
     {
         // TODO: ???
@@ -581,7 +693,7 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint32_t callLocati
 }
 
 
-void RenderingManager::UpdatePreview(command_list* cmd_list, uint32_t callLocation, uint32_t invocation)
+void RenderingManager::UpdatePreview(command_list* cmd_list, uint64_t callLocation, uint64_t invocation)
 {
     if (cmd_list == nullptr || cmd_list->get_device() == nullptr)
     {
@@ -614,6 +726,10 @@ void RenderingManager::UpdatePreview(command_list* cmd_list, uint32_t callLocati
         {
             active_rtv = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
         }
+        else if (invocation & MATCH_PREVIEW_CS)
+        {
+            active_rtv = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
+        }
 
         if (active_rtv != 0)
         {
@@ -625,12 +741,12 @@ void RenderingManager::UpdatePreview(command_list* cmd_list, uint32_t callLocati
             deviceData.huntPreview.width = desc.texture.width;
             deviceData.huntPreview.height = desc.texture.height;
         }
-        else if (group.getRequeueAfterRTMatchingFailure())
-        {
-            // Re-issue draw call queue command
-            commandListData.commandQueue |= (invocation << (callLocation * MATCH_DELIMITER));
-            return;
-        }
+        //else if (group.getRequeueAfterRTMatchingFailure())
+        //{
+        //    // Re-issue draw call queue command
+        //    commandListData.commandQueue |= (invocation << (callLocation * MATCH_DELIMITER));
+        //    return;
+        //}
         else
         {
             return;
@@ -877,7 +993,7 @@ uint32_t RenderingManager::UpdateTextureBinding(effect_runtime* runtime, const s
 
 void RenderingManager::_UpdateTextureBindings(command_list* cmd_list,
     DeviceDataContainer& deviceData,
-    const unordered_map<string, tuple<ToggleGroup*, uint32_t, resource_view>>& bindingsToUpdate,
+    const unordered_map<string, tuple<ToggleGroup*, uint64_t, resource_view>>& bindingsToUpdate,
     vector<string>& removalList,
     const unordered_set<string>& toUpdateBindings)
 {
@@ -958,7 +1074,7 @@ void RenderingManager::_UpdateTextureBindings(command_list* cmd_list,
     }
 }
 
-void RenderingManager::UpdateTextureBindings(command_list* cmd_list, uint32_t callLocation, uint32_t invocation)
+void RenderingManager::UpdateTextureBindings(command_list* cmd_list, uint64_t callLocation, uint64_t invocation)
 {
     if (cmd_list == nullptr || cmd_list->get_device() == nullptr)
     {
@@ -972,12 +1088,13 @@ void RenderingManager::UpdateTextureBindings(command_list* cmd_list, uint32_t ca
     // Remove call location from queue
     commandListData.commandQueue &= ~(invocation << (callLocation * MATCH_DELIMITER));
 
-    if (deviceData.current_runtime == nullptr || (commandListData.ps.bindingsToUpdate.size() == 0 && commandListData.vs.bindingsToUpdate.size() == 0)) {
+    if (deviceData.current_runtime == nullptr || (commandListData.ps.bindingsToUpdate.size() == 0 && commandListData.vs.bindingsToUpdate.size() == 0 && commandListData.cs.bindingsToUpdate.size() == 0)) {
         return;
     }
 
     unordered_set<string> psToUpdateBindings;
     unordered_set<string> vsToUpdateBindings;
+    unordered_set<string> csToUpdateBindings;
 
     if (invocation & MATCH_BINDING_PS)
     {
@@ -989,13 +1106,19 @@ void RenderingManager::UpdateTextureBindings(command_list* cmd_list, uint32_t ca
         _QueueOrDequeue(cmd_list, deviceData, commandListData, commandListData.vs.bindingsToUpdate, vsToUpdateBindings, callLocation, 1, MATCH_BINDING_VS);
     }
 
-    if (psToUpdateBindings.size() == 0 && vsToUpdateBindings.size() == 0)
+    if (invocation & MATCH_BINDING_CS)
+    {
+        _QueueOrDequeue(cmd_list, deviceData, commandListData, commandListData.cs.bindingsToUpdate, csToUpdateBindings, callLocation, 2, MATCH_BINDING_CS);
+    }
+
+    if (psToUpdateBindings.size() == 0 && vsToUpdateBindings.size() == 0 && csToUpdateBindings.size() == 0)
     {
         return;
     }
 
     vector<string> psRemovalList;
     vector<string> vsRemovalList;
+    vector<string> csRemovalList;
 
     std::unique_lock<shared_mutex> mtx(binding_mutex);
     if (psToUpdateBindings.size() > 0)
@@ -1005,6 +1128,10 @@ void RenderingManager::UpdateTextureBindings(command_list* cmd_list, uint32_t ca
     if (vsToUpdateBindings.size() > 0)
     {
         _UpdateTextureBindings(cmd_list, deviceData, commandListData.vs.bindingsToUpdate, vsRemovalList, vsToUpdateBindings);
+    }
+    if (csToUpdateBindings.size() > 0)
+    {
+        _UpdateTextureBindings(cmd_list, deviceData, commandListData.cs.bindingsToUpdate, csRemovalList, csToUpdateBindings);
     }
     mtx.unlock();
 
@@ -1017,6 +1144,12 @@ void RenderingManager::UpdateTextureBindings(command_list* cmd_list, uint32_t ca
     {
         commandListData.vs.bindingsToUpdate.erase(g);
     }
+
+    for (auto& g : csRemovalList)
+    {
+        commandListData.cs.bindingsToUpdate.erase(g);
+    }
+
 }
 
 void RenderingManager::ClearUnmatchedTextureBindings(reshade::api::command_list* cmd_list)
@@ -1072,39 +1205,65 @@ void RenderingManager::ClearUnmatchedTextureBindings(reshade::api::command_list*
     }
 }
 
-void RenderingManager::ClearQueue2(CommandListDataContainer& commandListData, const uint32_t location0, const uint32_t location1) const
+static void clearStage(CommandListDataContainer& commandListData, effect_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag)
 {
-    if (commandListData.commandQueue & ((Rendering::MATCH_ALL << location0 * Rendering::MATCH_DELIMITER) | (Rendering::MATCH_ALL << location1 * Rendering::MATCH_DELIMITER)))
+    const uint64_t qdraw = clearFlag << (CALL_DRAW * Rendering::MATCH_DELIMITER);
+    const uint64_t qbind = clearFlag << (CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER);
+
+    if (queuedTasks.size() > 0 && (pipelineChange & clearFlag))
     {
-        commandListData.commandQueue &= ~(Rendering::MATCH_ALL << location0 * Rendering::MATCH_DELIMITER);
-        commandListData.commandQueue &= ~(Rendering::MATCH_ALL << location1 * Rendering::MATCH_DELIMITER);
-
-        if (commandListData.ps.techniquesToRender.size() > 0)
+        for (auto it = queuedTasks.begin(); it != queuedTasks.end();)
         {
-            for (auto it = commandListData.ps.techniquesToRender.begin(); it != commandListData.ps.techniquesToRender.end();)
+            uint64_t callLocation = std::get<1>(it->second);
+            if (callLocation == CALL_DRAW)
             {
-                uint32_t callLocation = std::get<1>(it->second);
-                if (callLocation == location0 || callLocation == location1)
-                {
-                    it = commandListData.ps.techniquesToRender.erase(it);
-                    continue;
-                }
-                it++;
+                commandListData.commandQueue &= ~(qdraw);
+                it = queuedTasks.erase(it);
+                continue;
             }
+            else if (callLocation == CALL_BIND_PIPELINE)
+            {
+                commandListData.commandQueue &= ~(qbind);
+                it = queuedTasks.erase(it);
+                continue;
+            }
+            it++;
         }
+    }
+}
 
-        if (commandListData.vs.techniquesToRender.size() > 0)
-        {
-            for (auto it = commandListData.vs.techniquesToRender.begin(); it != commandListData.vs.techniquesToRender.end();)
-            {
-                uint32_t callLocation = std::get<1>(it->second);
-                if (callLocation == location0 || callLocation == location1)
-                {
-                    it = commandListData.vs.techniquesToRender.erase(it);
-                    continue;
-                }
-                it++;
-            }
-        }
+void RenderingManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange) const
+{
+    const uint64_t qdraw = pipelineChange << CALL_DRAW * Rendering::MATCH_DELIMITER;
+    const uint64_t qbind = pipelineChange << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
+
+    const uint64_t qdraw_pre_ps = (pipelineChange & MATCH_PREVIEW_PS) << CALL_DRAW * Rendering::MATCH_DELIMITER;
+    const uint64_t qbind_pre_ps = (pipelineChange & MATCH_PREVIEW_PS) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
+    const uint64_t qdraw_pre_vs = (pipelineChange & MATCH_PREVIEW_VS) << CALL_DRAW * Rendering::MATCH_DELIMITER;
+    const uint64_t qbind_pre_vs = (pipelineChange & MATCH_PREVIEW_VS) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
+    const uint64_t qdraw_pre_cs = (pipelineChange & MATCH_PREVIEW_CS) << CALL_DRAW * Rendering::MATCH_DELIMITER;
+    const uint64_t qbind_pre_cs = (pipelineChange & MATCH_PREVIEW_CS) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
+
+    if (commandListData.commandQueue & (qdraw | qbind))
+    {
+        commandListData.commandQueue &= ~(qdraw_pre_ps);
+        commandListData.commandQueue &= ~(qbind_pre_ps);
+        commandListData.commandQueue &= ~(qdraw_pre_vs);
+        commandListData.commandQueue &= ~(qbind_pre_vs);
+        commandListData.commandQueue &= ~(qdraw_pre_cs);
+        commandListData.commandQueue &= ~(qbind_pre_cs);
+
+        clearStage(commandListData, commandListData.ps.techniquesToRender, pipelineChange, MATCH_EFFECT_PS);
+        clearStage(commandListData, commandListData.ps.bindingsToUpdate, pipelineChange, MATCH_BINDING_PS);
+
+        clearStage(commandListData, commandListData.vs.techniquesToRender, pipelineChange, MATCH_EFFECT_VS);
+        clearStage(commandListData, commandListData.vs.bindingsToUpdate, pipelineChange, MATCH_BINDING_VS);
+
+        clearStage(commandListData, commandListData.cs.techniquesToRender, pipelineChange, MATCH_EFFECT_CS);
+        clearStage(commandListData, commandListData.cs.bindingsToUpdate, pipelineChange, MATCH_BINDING_CS);
+
+        commandListData.commandQueue &= ~(MATCH_CONST_PS);
+        commandListData.commandQueue &= ~(MATCH_CONST_VS);
+        commandListData.commandQueue &= ~(MATCH_CONST_CS);
     }
 }

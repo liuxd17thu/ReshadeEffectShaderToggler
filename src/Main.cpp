@@ -69,6 +69,7 @@ static filesystem::path g_basePath;
 
 static ShaderToggler::ShaderManager g_pixelShaderManager;
 static ShaderToggler::ShaderManager g_vertexShaderManager;
+static ShaderToggler::ShaderManager g_computeShaderManager;
 
 static ConstantManager constantManager;
 static ConstantHandlerBase* constantHandler = nullptr;
@@ -77,7 +78,7 @@ static bool constantHandlerHooked = false;
 
 static atomic_uint32_t g_activeCollectorFrameCounter = 0;
 static vector<string> allTechniques;
-static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, constantHandler, &g_activeCollectorFrameCounter, &allTechniques);
+static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, &g_computeShaderManager, constantHandler, &g_activeCollectorFrameCounter, &allTechniques);
 
 static Rendering::ResourceManager resourceManager;
 static Rendering::RenderingManager renderingManager(g_addonUIData, resourceManager);
@@ -125,8 +126,9 @@ static void onInitCommandList(command_list* commandList)
 {
     commandList->create_private_data<CommandListDataContainer>();
     CommandListDataContainer& commandListData = commandList->get_private_data<CommandListDataContainer>();
-    commandListData.ps.id = 1;
-    commandListData.vs.id = 2;
+    //commandListData.ps.id = 1;
+    //commandListData.vs.id = 2;
+    //commandListData.cs.id = 3;
 }
 
 
@@ -335,6 +337,11 @@ static void onInitPipeline(device* device, pipeline_layout, uint32_t subobjectCo
             g_pixelShaderManager.addHashHandlePair(calculateShaderHash(subobjects[i].data), pipelineHandle.handle);
         }
         break;
+        case pipeline_subobject_type::compute_shader:
+        {
+            g_computeShaderManager.addHashHandlePair(calculateShaderHash(subobjects[i].data), pipelineHandle.handle);
+        }
+        break;
         }
     }
 }
@@ -344,20 +351,22 @@ static void onDestroyPipeline(device* device, pipeline pipelineHandle)
 {
     g_pixelShaderManager.removeHandle(pipelineHandle.handle);
     g_vertexShaderManager.removeHandle(pipelineHandle.handle);
+    g_computeShaderManager.removeHandle(pipelineHandle.handle);
 }
 
 
 static void onBindPipeline(command_list* commandList, pipeline_stage stages, pipeline pipelineHandle)
 {
-    if (nullptr == commandList || pipelineHandle.handle == 0 || !((uint32_t)(stages & pipeline_stage::pixel_shader) || (uint32_t)(stages & pipeline_stage::vertex_shader)))
+    if (nullptr == commandList || pipelineHandle.handle == 0 || !((uint32_t)(stages & pipeline_stage::pixel_shader) || (uint32_t)(stages & pipeline_stage::vertex_shader) || (uint32_t)(stages & pipeline_stage::compute_shader)))
     {
         return;
     }
 
     const uint32_t handleHasPixelShaderAttached = (uint32_t)(stages & pipeline_stage::pixel_shader) ? g_pixelShaderManager.safeGetShaderHash(pipelineHandle.handle) : 0;
     const uint32_t handleHasVertexShaderAttached = (uint32_t)(stages & pipeline_stage::vertex_shader) ? g_vertexShaderManager.safeGetShaderHash(pipelineHandle.handle) : 0;
+    const uint32_t handleHasComputeShaderAttached = (uint32_t)(stages & pipeline_stage::compute_shader) ? g_computeShaderManager.safeGetShaderHash(pipelineHandle.handle) : 0;
 
-    if (!handleHasPixelShaderAttached && !handleHasVertexShaderAttached)
+    if (!handleHasPixelShaderAttached && !handleHasVertexShaderAttached && !handleHasComputeShaderAttached)
     {
         // draw call with unknown handle, don't collect it
         return;
@@ -386,7 +395,7 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
         }
         if (commandListData.ps.activeShaderHash != handleHasPixelShaderAttached)
         {
-            pipelineChanged |= Rendering::MATCH_EFFECT_PS | Rendering::MATCH_BINDING_PS | Rendering::MATCH_PREVIEW_PS;
+            pipelineChanged |= Rendering::MATCH_EFFECT_PS | Rendering::MATCH_BINDING_PS | Rendering::MATCH_PREVIEW_PS | Rendering::MATCH_CONST_PS;
             commandListData.ps.constantBuffersToUpdate.clear();
         }
 
@@ -403,12 +412,29 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
         }
         if (commandListData.vs.activeShaderHash != handleHasVertexShaderAttached)
         {
-            pipelineChanged |= Rendering::MATCH_EFFECT_VS | Rendering::MATCH_BINDING_VS | Rendering::MATCH_PREVIEW_VS;
+            pipelineChanged |= Rendering::MATCH_EFFECT_VS | Rendering::MATCH_BINDING_VS | Rendering::MATCH_PREVIEW_VS | Rendering::MATCH_CONST_VS;
             commandListData.vs.constantBuffersToUpdate.clear();
         }
 
         commandListData.vs.blockedShaderGroups = g_addonUIData.GetToggleGroupsForVertexShaderHash(handleHasVertexShaderAttached);
         commandListData.vs.activeShaderHash = handleHasVertexShaderAttached;
+    }
+
+    if ((uint32_t)(stages & pipeline_stage::compute_shader) && handleHasComputeShaderAttached)
+    {
+        if (g_activeCollectorFrameCounter > 0)
+        {
+            // in collection mode
+            g_computeShaderManager.addActivePipelineHandle(pipelineHandle.handle);
+        }
+        if (commandListData.cs.activeShaderHash != handleHasComputeShaderAttached)
+        {
+            pipelineChanged |= Rendering::MATCH_EFFECT_CS | Rendering::MATCH_BINDING_CS | Rendering::MATCH_PREVIEW_CS | Rendering::MATCH_CONST_CS;
+            commandListData.cs.constantBuffersToUpdate.clear();
+        }
+
+        commandListData.cs.blockedShaderGroups = g_addonUIData.GetToggleGroupsForComputeShaderHash(handleHasComputeShaderAttached);
+        commandListData.cs.activeShaderHash = handleHasComputeShaderAttached;
     }
 
     if (pipelineChanged > 0)
@@ -430,7 +456,7 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
         }
 
         // Make sure we dequeue whatever is left over scheduled for CALL_DRAW/CALL_BIND_PIPELINE in case re-queueing was enabled for some group
-        renderingManager.ClearQueue2(commandListData, Rendering::CALL_DRAW, Rendering::CALL_BIND_PIPELINE);
+        renderingManager.ClearQueue(commandListData, pipelineChanged);
 
         renderingManager.CheckCallForCommandList(commandList);
     }
@@ -450,23 +476,25 @@ static void onBindRenderTargetsAndDepthStencil(command_list* cmd_list, uint32_t 
 
     commandListData.stateTracker.OnBindRenderTargetsAndDepthStencil(cmd_list, count, rtvs, dsv);
 
-    if (count > 0)
-    {
+    //if (count > 0)
+    //{
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_RENDERTARGET_PREVIEW && !(commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_PREVIEW))
         {
             renderingManager.UpdatePreview(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_PREVIEW);
         }
-
+        
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING && !(commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_BINDING))
         {
             renderingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_BINDING);
         }
-
+        
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT && !(commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_EFFECT))
         {
             renderingManager.RenderEffects(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_EFFECT);
         }
-    }
+        
+        renderingManager.RescheduleGroups(commandListData, deviceData);
+    //}
 }
 
 
@@ -713,15 +741,7 @@ static bool onDrawIndexed(command_list* cmd_list, uint32_t index_count, uint32_t
 
 static bool onDrawOrDispatchIndirect(command_list* cmd_list, indirect_command type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
-    switch (type)
-    {
-    case indirect_command::draw:
-    case indirect_command::draw_indexed:
-        CheckDrawCall(cmd_list);
-        break;
-    default:
-        break;
-    }
+    CheckDrawCall(cmd_list);
 
     return false;
 }

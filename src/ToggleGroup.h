@@ -76,9 +76,10 @@ namespace ShaderToggler
         /// <param name="iniFile"></param>
         /// <param name="groupCounter">if -1, the ini file is in the pre-1.0 format</param>
         void loadState(CDataFile& iniFile, int groupCounter);
-        void storeCollectedHashes(const std::unordered_set<uint32_t> pixelShaderHashes, const std::unordered_set<uint32_t> vertexShaderHashes);
+        void storeCollectedHashes(const std::unordered_set<uint32_t> pixelShaderHashes, const std::unordered_set<uint32_t> vertexShaderHashes, const std::unordered_set<uint32_t> computeShaderHashes);
         bool isBlockedVertexShader(uint32_t shaderHash) const;
         bool isBlockedPixelShader(uint32_t shaderHash) const;
+        bool isBlockedComputeShader(uint32_t shaderHash) const;
         void clearHashes();
 
         void toggleActive() { _isActive = !_isActive; }
@@ -94,6 +95,7 @@ namespace ShaderToggler
         void setPreferredTechniques(std::unordered_set<std::string> techniques) { _preferredTechniques = techniques; }
         std::unordered_set<uint32_t> getPixelShaderHashes() const { return _pixelShaderHashes; }
         std::unordered_set<uint32_t> getVertexShaderHashes() const { return _vertexShaderHashes; }
+        std::unordered_set<uint32_t> getComputeShaderHashes() const { return _computeShaderHashes; }
         void setInvocationLocation(uint32_t location) { _invocationLocation = location; }
         uint32_t getInvocationLocation() const { return _invocationLocation; }
         void setBindingInvocationLocation(uint32_t location) { _bindingInvocationLocation = location; }
@@ -170,6 +172,7 @@ namespace ShaderToggler
         uint32_t _keybind;
         std::unordered_set<uint32_t> _vertexShaderHashes;
         std::unordered_set<uint32_t> _pixelShaderHashes;
+        std::unordered_set<uint32_t> _computeShaderHashes;
         uint32_t _invocationLocation = 0;
         uint32_t _rtIndex = 0;
         uint32_t _cbSlotIndex = 2;

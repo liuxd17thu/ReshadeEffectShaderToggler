@@ -7,14 +7,18 @@
 #include "ToggleGroup.h"
 #include "PipelineStateTracker.h"
 
+using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>;
+
 struct __declspec(novtable) ShaderData final {
     uint32_t activeShaderHash = -1;
-    std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint32_t, reshade::api::resource_view>> bindingsToUpdate;
+    effect_queue bindingsToUpdate;
     std::unordered_set<ShaderToggler::ToggleGroup*> constantBuffersToUpdate;
-    std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint32_t, reshade::api::resource_view>> techniquesToRender;
+    effect_queue techniquesToRender;
     std::unordered_set<ShaderToggler::ToggleGroup*> srvToUpdate;
     const std::vector<ShaderToggler::ToggleGroup*>* blockedShaderGroups = nullptr;
     uint32_t id = 0;
+
+    ShaderData(uint32_t _id) : id(_id) { }
 
     void Reset()
     {
@@ -28,15 +32,17 @@ struct __declspec(novtable) ShaderData final {
 };
 
 struct __declspec(uuid("222F7169-3C09-40DB-9BC9-EC53842CE537")) CommandListDataContainer {
-    uint32_t commandQueue = 0;
+    uint64_t commandQueue = 0;
     StateTracker::PipelineStateTracker stateTracker;
-    ShaderData ps;
-    ShaderData vs;
+    ShaderData ps{ 0 };
+    ShaderData vs{ 1 };
+    ShaderData cs{ 2 };
 
     void Reset()
     {
         ps.Reset();
         vs.Reset();
+        cs.Reset();
         stateTracker.Reset();
 
         commandQueue = 0;
@@ -60,7 +66,7 @@ struct __declspec(novtable) HuntPreview final
 {
     resource_view target_rtv = resource_view{ 0 };
     bool matched = false;
-    uint32_t target_invocation_location = 0;
+    uint64_t target_invocation_location = 0;
     uint32_t width = 0;
     uint32_t height = 0;
     reshade::api::format format = reshade::api::format::unknown;

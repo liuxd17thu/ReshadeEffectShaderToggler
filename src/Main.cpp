@@ -732,6 +732,13 @@ static bool onDraw(command_list* cmd_list, uint32_t vertex_count, uint32_t insta
     return false;
 }
 
+static bool onDispatch(command_list* cmd_list, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+{
+    CheckDrawCall(cmd_list);
+
+    return false;
+}
+
 static bool onDrawIndexed(command_list* cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
     CheckDrawCall(cmd_list);
@@ -809,6 +816,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::register_event<reshade::addon_event::present>(onPresent);
 
         reshade::register_event<reshade::addon_event::draw>(onDraw);
+        reshade::register_event<reshade::addon_event::dispatch>(onDispatch);
         reshade::register_event<reshade::addon_event::draw_indexed>(onDrawIndexed);
         reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(onDrawOrDispatchIndirect);
 
@@ -854,6 +862,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::unregister_event<reshade::addon_event::present>(onPresent);
 
         reshade::unregister_event<reshade::addon_event::draw>(onDraw);
+        reshade::unregister_event<reshade::addon_event::dispatch>(onDispatch);
         reshade::unregister_event<reshade::addon_event::draw_indexed>(onDrawIndexed);
         reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(onDrawOrDispatchIndirect);
 

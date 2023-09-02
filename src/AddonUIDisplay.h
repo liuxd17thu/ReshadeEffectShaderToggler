@@ -166,7 +166,7 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
 
         std::string searchString(searchBuf);
 
-        for (techniquesPtr != nullptr; const auto & technique : *techniquesPtr)
+        for (techniquesPtr != nullptr && techniquesPtr->size() > 0; const auto & technique : *techniquesPtr)
         {
             bool enabled = curTechniques.contains(technique);
 
@@ -194,7 +194,9 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
 
     group->setHasTechniqueExceptions(exceptions);
     group->setAllowAllTechniques(allowAll);
-    group->setPreferredTechniques(newTechniques);
+
+    if(techniquesPtr != nullptr && techniquesPtr->size() > 0)
+        group->setPreferredTechniques(newTechniques);
 }
 
 struct DrawCallData

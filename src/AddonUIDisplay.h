@@ -166,21 +166,24 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
 
         std::string searchString(searchBuf);
 
-        for (techniquesPtr != nullptr && techniquesPtr->size() > 0; const auto & technique : *techniquesPtr)
+        if (techniquesPtr != nullptr)
         {
-            bool enabled = curTechniques.contains(technique);
-
-            if (std::ranges::search(technique, searchString,
-                [](const wchar_t lhs, const wchar_t rhs) {return lhs == rhs; },
-                std::towupper, std::towupper).begin() != technique.end())
+            for (const auto& technique : *techniquesPtr)
             {
-                ImGui::TableNextColumn();
-                ImGui::Checkbox(technique.c_str(), &enabled);
-            }
+                bool enabled = curTechniques.contains(technique);
 
-            if (enabled)
-            {
-                newTechniques.insert(technique);
+                if (std::ranges::search(technique, searchString,
+                    [](const wchar_t lhs, const wchar_t rhs) {return lhs == rhs; },
+                    std::towupper, std::towupper).begin() != technique.end())
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::Checkbox(technique.c_str(), &enabled);
+                }
+
+                if (enabled)
+                {
+                    newTechniques.insert(technique);
+                }
             }
         }
 

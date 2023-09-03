@@ -251,8 +251,8 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
         }
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 
     ImGui::PushID(1);
     ImGui::Button("", ImVec2(-1, 8.0f));
@@ -369,8 +369,8 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
         std::for_each(removal.begin(), removal.end(), [&group](std::string& e) { group->RemoveVarMapping(e); });
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
     
     if (!extractionEnabled)
     {

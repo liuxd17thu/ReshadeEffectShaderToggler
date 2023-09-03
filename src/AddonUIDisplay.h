@@ -267,13 +267,13 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
             if (ImGui::BeginChild("RTPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
             {
                 DrawPreview(srv.handle, deviceData.huntPreview.width, deviceData.huntPreview.height);
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
         }
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 }
 
 static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, const string& binding)
@@ -299,13 +299,13 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
             if (ImGui::BeginChild("BindingPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
             {
                 DrawPreview(texData->second.srv.handle, texData->second.width, texData->second.height);
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
         }
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 }
 
 static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, ShaderToggler::ToggleGroup* group)
@@ -412,8 +412,8 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
         DisplayTechniqueSelection(instance, group, ImGui::GetWindowWidth() / 3);
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 
     ImGui::PushID(4);
     ImGui::Button("", ImVec2(-1, 8.0f));
@@ -738,8 +738,8 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
         }
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 
     ImGui::PushID(3);
     ImGui::Button("", ImVec2(-1, 8.0f));
@@ -784,7 +784,7 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
         if (ImGui::Begin(std::format("Group settings ({})", editingGroupName).c_str(), &wndOpen))
         {
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-            if (ImGui::BeginChild("GroupView", { width / 3.0f, 0 }, true, ImGuiWindowFlags_None))
+            if (ImGui::BeginChild("GroupView", { width / 3.0f, 0 }, true, ImGuiWindowFlags_NoScrollbar))
             {
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
@@ -809,8 +809,8 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
                 ImGui::PopItemWidth();
 
                 ImGui::PopStyleVar();
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
 
             ImGui::SameLine();
 
@@ -851,12 +851,12 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
                 }
 
                 ImGui::PopStyleVar();
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
 
             ImGui::PopStyleVar();
-            ImGui::End();
         }
+        ImGui::End();
 
         if (!wndOpen)
         {

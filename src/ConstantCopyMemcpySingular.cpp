@@ -18,16 +18,17 @@ void ConstantCopyMemcpySingular::OnMapBufferRegion(device* device, resource reso
     if (access == map_access::write_discard || access == map_access::write_only)
     {
         resource_desc desc = device->get_resource_desc(resource);
-        const auto& buf = deviceToHostConstantBuffer.find(resource.handle);
+        const auto& it = deviceToHostConstantBuffer.find(resource.handle);
 
-        if (buf != deviceToHostConstantBuffer.end())
+        if (it != deviceToHostConstantBuffer.end())
         {
+            auto& [_, buf] = *it;
             _bufferCopy.resource = resource.handle;
             _bufferCopy.destination = *data;
             _bufferCopy.size = size;
             _bufferCopy.offset = offset;
             _bufferCopy.bufferSize = desc.buffer.size;
-            _bufferCopy.hostDestination = get<1>(*buf).data();
+            _bufferCopy.hostDestination = buf.data();
         }
     }
 }

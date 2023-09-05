@@ -59,7 +59,7 @@ bool ResourceShimSRGB::OnCreateResource(reshade::api::device* device, reshade::a
     if (static_cast<uint32_t>(desc.usage & resource_usage::render_target) && desc.type == resource_type::texture_2d)
     {
         if (_HasSRGB(desc.texture.format)) {
-            std::unique_lock<shared_mutex> lock(resource_mutex);
+            unique_lock<shared_mutex> lock(resource_mutex);
 
             s_resourceFormatTransient.emplace(&desc, desc.texture.format);
 
@@ -75,7 +75,7 @@ bool ResourceShimSRGB::OnCreateResource(reshade::api::device* device, reshade::a
 
 void ResourceShimSRGB::OnDestroyResource(reshade::api::device* device, reshade::api::resource res)
 {
-    std::unique_lock<shared_mutex> lock(resource_mutex);
+    unique_lock<shared_mutex> lock(resource_mutex);
 
     s_resourceFormat.erase(res.handle);
 }
@@ -84,7 +84,7 @@ void ResourceShimSRGB::OnInitResource(reshade::api::device* device, const reshad
 {
     if (static_cast<uint32_t>(desc.usage & resource_usage::render_target) && desc.type == resource_type::texture_2d)
     {
-        std::unique_lock<shared_mutex> lock(resource_mutex);
+        unique_lock<shared_mutex> lock(resource_mutex);
 
         if (s_resourceFormatTransient.contains(&desc))
         {
@@ -101,7 +101,7 @@ bool ResourceShimSRGB::OnCreateResourceView(reshade::api::device* device, reshad
     if (!static_cast<uint32_t>(texture_desc.usage & resource_usage::render_target) || texture_desc.type != resource_type::texture_2d)
         return false;
 
-    std::shared_lock<shared_mutex> lock(resource_mutex);
+    shared_lock<shared_mutex> lock(resource_mutex);
     if (s_resourceFormat.contains(resource.handle))
     {
         // Set original resource format in case the game uses that as a basis for creating it's views

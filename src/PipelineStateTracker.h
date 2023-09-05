@@ -6,7 +6,6 @@
 #include <shared_mutex>
 
 using namespace reshade::api;
-using namespace std;
 
 namespace StateTracker
 {
@@ -41,7 +40,7 @@ namespace StateTracker
 
     struct __declspec(novtable) BindRenderTargetsState final : PipelineBinding<PipelineBindingTypes::bind_render_target> {
         uint32_t count;
-        vector<resource_view> rtvs;
+        std::vector<resource_view> rtvs;
         resource_view dsv;
 
         void Reset()
@@ -56,7 +55,7 @@ namespace StateTracker
 
     struct __declspec(novtable) RenderPassState final : PipelineBinding<PipelineBindingTypes::render_pass> {
         uint32_t count;
-        vector<render_pass_render_target_desc> rtvs;
+        std::vector<render_pass_render_target_desc> rtvs;
         render_pass_depth_stencil_desc dsv;
 
         void Reset()
@@ -72,7 +71,7 @@ namespace StateTracker
     struct __declspec(novtable) BindViewportsState final : PipelineBinding<PipelineBindingTypes::bind_viewport> {
         uint32_t first;
         uint32_t count;
-        vector<viewport> viewports;
+        std::vector<viewport> viewports;
 
         void Reset()
         {
@@ -87,7 +86,7 @@ namespace StateTracker
     struct __declspec(novtable) BindScissorRectsState final : PipelineBinding<PipelineBindingTypes::bind_scissor_rect> {
         uint32_t first;
         uint32_t count;
-        vector<rect> rects;
+        std::vector<rect> rects;
 
         void Reset()
         {
@@ -103,7 +102,7 @@ namespace StateTracker
         pipeline_layout current_layout[2];
         uint32_t first;
         uint32_t count;
-        vector<vector<uint32_t>> current_constants[2]; // consider only CBs for now
+        std::vector<std::vector<uint32_t>> current_constants[2]; // consider only CBs for now
 
         void Reset()
         {
@@ -120,8 +119,8 @@ namespace StateTracker
 
     struct __declspec(novtable) PushDescriptorsState final : PipelineBinding<PipelineBindingTypes::push_descriptors> {
         pipeline_layout current_layout[2];
-        vector<vector<buffer_range>> current_descriptors[2]; // consider only CBs for now
-        vector<vector<resource_view>> current_srv[2];
+        std::vector<std::vector<buffer_range>> current_descriptors[2]; // consider only CBs for now
+        std::vector<std::vector<resource_view>> current_srv[2];
 
         void Reset()
         {
@@ -138,8 +137,8 @@ namespace StateTracker
 
     struct __declspec(novtable) BindDescriptorSetsState final : PipelineBinding<PipelineBindingTypes::bind_descriptor_sets> {
         pipeline_layout current_layout[2];
-        vector<descriptor_table> current_sets[2];
-        unordered_map<uint64_t, vector<bool>> transient_mask;
+        std::vector<descriptor_table> current_sets[2];
+        std::unordered_map<uint64_t, std::vector<bool>> transient_mask;
 
         void Reset()
         {
@@ -203,7 +202,7 @@ namespace StateTracker
         ~PipelineStateTracker();
 
         void Reset();
-        void ReApplyState(command_list* cmd_list, const unordered_map<uint64_t, vector<bool>>& transient_mask);
+        void ReApplyState(command_list* cmd_list, const std::unordered_map<uint64_t, std::vector<bool>>& transient_mask);
 
         void OnBeginRenderPass(command_list* cmd_list, uint32_t count, const render_pass_render_target_desc* rts, const render_pass_depth_stencil_desc* ds);
         void OnBindRenderTargetsAndDepthStencil(command_list* cmd_list, uint32_t count, const resource_view* rtvs, resource_view dsv);
@@ -217,15 +216,15 @@ namespace StateTracker
 
         const PushDescriptorsState* GetPushDescriptorState() { return &_pushDescriptorsState; }
         const PushConstantsState* GetPushConstantsState() { return &_pushConstantsState; }
-        const vector<resource_view>& GetBoundRenderTargetViews();
+        const std::vector<resource_view>& GetBoundRenderTargetViews() const;
 
         void ClearPushDescriptorState(pipeline_stage);
 
-        bool IsInRenderPass();
+        bool IsInRenderPass() const;
 
     private:
         void ApplyBoundDescriptorSets(command_list* cmd_list, shader_stage stage, pipeline_layout layout,
-            const vector<descriptor_table>& descriptors, const vector<bool>& mask);
+            const std::vector<descriptor_table>& descriptors, const std::vector<bool>& mask);
 
         uint32_t _callIndex = 0;
         BindRenderTargetsState _renderTargetState;

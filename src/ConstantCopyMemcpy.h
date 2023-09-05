@@ -35,7 +35,13 @@ static const std::vector<sigmatch::signature> memcpy_static = {
 };
 #endif
 
-static const std::vector<std::tuple<std::wstring, std::string>> memcpy_dynamic = {
+struct memcopyData
+{
+    std::wstring module;
+    std::string procName;
+};
+
+static const std::vector<memcopyData> memcpy_dynamic = {
     {L"vcruntime140", "memcpy"},
     {L"msvcrt", "memcpy"},
     {L"msvcr120", "memcpy"},

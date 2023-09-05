@@ -57,6 +57,7 @@ using namespace ShaderToggler;
 using namespace AddonImGui;
 using namespace Shim::Constants;
 using namespace StateTracker;
+using namespace std;
 
 extern "C" __declspec(dllexport) const char* NAME = "Reshade Effect Shader Toggler";
 extern "C" __declspec(dllexport) const char* DESCRIPTION = "Addon which allows you to define groups of shaders to render Reshade effects on.";
@@ -82,14 +83,14 @@ static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, 
 static Rendering::ResourceManager resourceManager;
 static Rendering::RenderingManager renderingManager(g_addonUIData, resourceManager);
 
-static std::shared_mutex pipeline_layout_mutex;
+static shared_mutex pipeline_layout_mutex;
 // TODO: was this needed? might need to re-check
-//static std::shared_mutex render_mutex;
+//static shared_mutex render_mutex;
 static char g_charBuffer[CHAR_BUFFER_SIZE];
 static size_t g_charBufferSize = CHAR_BUFFER_SIZE;
 
 // TODO: actually implement ability to turn off srgb-view generation
-static std::vector<effect_runtime*> runtimes;
+static vector<effect_runtime*> runtimes;
 
 /// <summary>
 /// Calculates a crc32 hash from the passed in shader bytecode. The hash is used to identity the shader in future runs.
@@ -733,7 +734,7 @@ static bool onDrawOrDispatchIndirect(command_list* cmd_list, indirect_command ty
 filesystem::path getModulePath(HMODULE module)
 {
     WCHAR buf[4096];
-    return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
+    return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : filesystem::path();
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)

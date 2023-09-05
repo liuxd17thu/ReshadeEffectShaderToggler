@@ -166,21 +166,24 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
 
         std::string searchString(searchBuf);
 
-        for (techniquesPtr != nullptr; const auto & technique : *techniquesPtr)
+        if (techniquesPtr != nullptr)
         {
-            bool enabled = curTechniques.contains(technique);
-
-            if (std::ranges::search(technique, searchString,
-                [](const wchar_t lhs, const wchar_t rhs) {return lhs == rhs; },
-                std::towupper, std::towupper).begin() != technique.end())
+            for (const auto& technique : *techniquesPtr)
             {
-                ImGui::TableNextColumn();
-                ImGui::Checkbox(technique.c_str(), &enabled);
-            }
+                bool enabled = curTechniques.contains(technique);
 
-            if (enabled)
-            {
-                newTechniques.insert(technique);
+                if (std::ranges::search(technique, searchString,
+                    [](const wchar_t lhs, const wchar_t rhs) {return lhs == rhs; },
+                    std::towupper, std::towupper).begin() != technique.end())
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::Checkbox(technique.c_str(), &enabled);
+                }
+
+                if (enabled)
+                {
+                    newTechniques.insert(technique);
+                }
             }
         }
     }
@@ -270,7 +273,7 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
     }
 }
 
-static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, const string& binding)
+static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, const std::string& binding)
 {
     if (ImGui::BeginChild("BindingPreview##child", { 0, 0 }, true, ImGuiWindowFlags_None))
     {
@@ -279,20 +282,21 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         resource_view srv = resource_view{ 0 };
         resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
-        const auto& texData = deviceData.bindingMap.find(binding);
+        const auto& it = deviceData.bindingMap.find(binding);
 
-        if (texData != deviceData.bindingMap.end())
+        if (it != deviceData.bindingMap.end())
         {
-            ImGui::Text(std::format("Format: {} ", static_cast<uint32_t>(texData->second.format)).c_str());
+            auto& [_, texData] = *it;
+            ImGui::Text(std::format("Format: {} ", static_cast<uint32_t>(texData.format)).c_str());
             ImGui::SameLine();
-            ImGui::Text(std::format("Width: {} ", texData->second.width).c_str());
+            ImGui::Text(std::format("Width: {} ", texData.width).c_str());
             ImGui::SameLine();
-            ImGui::Text(std::format("Height: {} ", texData->second.height).c_str());
+            ImGui::Text(std::format("Height: {} ", texData.height).c_str());
             ImGui::Separator();
 
             if (ImGui::BeginChild("BindingPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
             {
-                DrawPreview(texData->second.srv.handle, texData->second.width, texData->second.height);
+                DrawPreview(texData.srv.handle, texData.width, texData.height);
                 ImGui::EndChild();
             }
         }
@@ -984,9 +988,8 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         ImGui::Separator();
 
         std::vector<ShaderToggler::ToggleGroup> toRemove;
-        for (auto& groupKV : instance.GetToggleGroups())
+        for (auto& [_,group] : instance.GetToggleGroups())
         {
-            ShaderToggler::ToggleGroup& group = groupKV.second;
 
             ImGui::PushID(group.getId());
             ImGui::AlignTextToFramePadding();

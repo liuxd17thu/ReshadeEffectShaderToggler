@@ -93,7 +93,7 @@ namespace Rendering
             const std::unordered_set<std::string>& toRenderNames);
         void _UpdateTextureBindings(reshade::api::command_list* cmd_list,
             DeviceDataContainer& deviceData,
-            const unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& bindingsToUpdate,
+            const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& bindingsToUpdate,
             std::vector<std::string>& removalList,
             const std::unordered_set<std::string>& toUpdateBindings);
         bool _CreateTextureBinding(reshade::api::effect_runtime* runtime,
@@ -108,7 +108,7 @@ namespace Rendering
             DeviceDataContainer& deviceData,
             CommandListDataContainer& commandListData,
             std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& queue,
-            unordered_set<string>& immediateQueue,
+            std::unordered_set<std::string>& immediateQueue,
             uint64_t callLocation,
             uint32_t layoutIndex,
             uint64_t action);

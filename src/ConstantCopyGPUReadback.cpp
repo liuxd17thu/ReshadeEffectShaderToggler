@@ -3,26 +3,27 @@
 #include "PipelinePrivateData.h"
 
 using namespace Shim::Constants;
-using namespace std;
 using namespace reshade::api;
 using namespace ShaderToggler;
+using namespace std;
+
 
 void ConstantCopyGPUReadback::GetHostConstantBuffer(reshade::api::command_list* cmd_list, vector<uint8_t>& dest, size_t size, uint64_t resourceHandle)
 {
     shared_lock<shared_mutex> lock(deviceHostMutex);
 
-    const auto& cpuRead = resToCopyBuffer.find(resourceHandle);
-
-    if (cpuRead != resToCopyBuffer.end())
+    const auto& it = resToCopyBuffer.find(resourceHandle);
+    if (it != resToCopyBuffer.end())
     {
+        const auto& [_, cpuRead] = *it;
         void* data = nullptr;
         resource src = resource{ resourceHandle };
 
-        cmd_list->copy_resource(src, cpuRead->second);
-        if (cmd_list->get_device()->map_buffer_region(cpuRead->second, 0, size, map_access::read_only, &data))
+        cmd_list->copy_resource(src, cpuRead);
+        if (cmd_list->get_device()->map_buffer_region(cpuRead, 0, size, map_access::read_only, &data))
         {
             memcpy(dest.data(), data, size);
-            cmd_list->get_device()->unmap_buffer_region(cpuRead->second);
+            cmd_list->get_device()->unmap_buffer_region(cpuRead);
         }
         
     }

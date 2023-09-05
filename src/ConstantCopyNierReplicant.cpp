@@ -32,11 +32,12 @@ void ConstantCopyNierReplicant::OnMapBufferRegion(device* device, resource resou
     {
         resource_desc desc = device->get_resource_desc(resource);
 
-        const auto& buf = deviceToHostConstantBuffer.find(resource.handle);
+        const auto& it = deviceToHostConstantBuffer.find(resource.handle);
 
-        if (buf != deviceToHostConstantBuffer.end())
+        if (it != deviceToHostConstantBuffer.end())
         {
-            memmove(get<1>(*buf).data(), Origin, Size);
+            auto& [_, buf] = *it;
+            memmove(buf.data(), Origin, Size);
         }
     }
 }

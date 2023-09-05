@@ -33,6 +33,7 @@
 #include "ShaderManager.h"
 
 using namespace reshade::api;
+using namespace std;
 
 namespace ShaderToggler
 {
@@ -45,7 +46,7 @@ namespace ShaderToggler
     {
         if (pipelineHandle > 0 && shaderHash > 0)
         {
-            std::unique_lock lock(_hashHandlesMutex);
+            unique_lock lock(_hashHandlesMutex);
             _handleToShaderHash[pipelineHandle] = shaderHash;
             _shaderHashes.emplace(shaderHash);
         }
@@ -54,7 +55,7 @@ namespace ShaderToggler
 
     void ShaderManager::removeHandle(uint64_t handle)
     {
-        std::unique_lock ulock(_hashHandlesMutex);
+        unique_lock ulock(_hashHandlesMutex);
         if (_handleToShaderHash.contains(handle))
         {
             const auto& it = _handleToShaderHash.find(handle);
@@ -66,11 +67,11 @@ namespace ShaderToggler
     }
 
 
-    void ShaderManager::startHuntingMode(const std::unordered_set<uint32_t> currentMarkedHashes)
+    void ShaderManager::startHuntingMode(const unordered_set<uint32_t> currentMarkedHashes)
     {
         // copy the currently marked hashes (from the active group) to the set of marked hashes.
         {
-            std::unique_lock lock(_markedShaderHashMutex);
+            unique_lock lock(_markedShaderHashMutex);
             _markedShaderHashes.clear();
             for (const auto hash : currentMarkedHashes)
             {
@@ -83,7 +84,7 @@ namespace ShaderToggler
         _activeHuntedShaderIndex = -1;
         _activeHuntedShaderHash = 0;
         {
-            std::unique_lock lock(_collectedActiveHandlesMutex);
+            unique_lock lock(_collectedActiveHandlesMutex);
             _collectedActiveShaderHashes.clear();			// clear it so we start with a clean slate
         }
     }
@@ -95,7 +96,7 @@ namespace ShaderToggler
         _activeHuntedShaderIndex = -1;
         _activeHuntedShaderHash = 0;
         {
-            std::unique_lock lock(_markedShaderHashMutex);
+            unique_lock lock(_markedShaderHashMutex);
             _markedShaderHashes.clear();
         }
     }
@@ -291,7 +292,7 @@ namespace ShaderToggler
         const auto shaderHash = getShaderHash(handle);
         if (shaderHash > 0)
         {
-            std::unique_lock lock(_collectedActiveHandlesMutex);
+            unique_lock lock(_collectedActiveHandlesMutex);
             _collectedActiveShaderHashes.emplace(shaderHash);
         }
     }
@@ -303,7 +304,7 @@ namespace ShaderToggler
         {
             return;
         }
-        std::unique_lock lock(_markedShaderHashMutex);
+        unique_lock lock(_markedShaderHashMutex);
         if (_markedShaderHashes.contains(_activeHuntedShaderHash))
         {
             // remove it

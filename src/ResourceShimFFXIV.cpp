@@ -3,6 +3,7 @@
 
 using namespace Shim::Resources;
 using namespace reshade::api;
+using namespace std;
 
 sig_ffxiv_texture_create* ResourceShimFFXIV::org_ffxiv_texture_create = nullptr;
 sig_ffxiv_textures_create* ResourceShimFFXIV::org_ffxiv_textures_create = nullptr;

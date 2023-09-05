@@ -65,13 +65,13 @@ AddonUIData::AddonUIData(ShaderManager* pixelShaderManager, ShaderManager* verte
 }
 
 
-std::unordered_map<int, ToggleGroup>& AddonUIData::GetToggleGroups()
+unordered_map<int, ToggleGroup>& AddonUIData::GetToggleGroups()
 {
     return _toggleGroups;
 }
 
 
-const std::vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForPixelShaderHash(uint32_t hash)
+const vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForPixelShaderHash(uint32_t hash)
 {
     const auto& it = _pixelShaderHashToToggleGroups.find(hash);
 
@@ -83,7 +83,7 @@ const std::vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForPixelShaderHash(
     return nullptr;
 }
 
-const std::vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForVertexShaderHash(uint32_t hash)
+const vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForVertexShaderHash(uint32_t hash)
 {
     const auto& it = _vertexShaderHashToToggleGroups.find(hash);
 
@@ -95,7 +95,7 @@ const std::vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForVertexShaderHash
     return nullptr;
 }
 
-const std::vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForComputeShaderHash(uint32_t hash)
+const vector<ToggleGroup*>* AddonUIData::GetToggleGroupsForComputeShaderHash(uint32_t hash)
 {
     const auto& it = _computeShaderHashToToggleGroups.find(hash);
 
@@ -113,42 +113,42 @@ void AddonUIData::UpdateToggleGroupsForShaderHashes()
     _vertexShaderHashToToggleGroups.clear();
     _computeShaderHashToToggleGroups.clear();
 
-    for (auto& group : _toggleGroups)
+    for (auto& [_,group] : _toggleGroups)
     {
         // Only consider the currently hunted hash for the group being edited
-        if (group.second.getId() == _toggleGroupIdShaderEditing && (_pixelShaderManager->isInHuntingMode() || _vertexShaderManager->isInHuntingMode() || _computeShaderManager->isInHuntingMode()))
+        if (group.getId() == _toggleGroupIdShaderEditing && (_pixelShaderManager->isInHuntingMode() || _vertexShaderManager->isInHuntingMode() || _computeShaderManager->isInHuntingMode()))
         {
             if (_pixelShaderManager->isInHuntingMode())
             {
-                _pixelShaderHashToToggleGroups[_pixelShaderManager->getActiveHuntedShaderHash()].push_back(&group.second);
+                _pixelShaderHashToToggleGroups[_pixelShaderManager->getActiveHuntedShaderHash()].push_back(&group);
             }
 
             if (_vertexShaderManager->isInHuntingMode())
             {
-                _vertexShaderHashToToggleGroups[_vertexShaderManager->getActiveHuntedShaderHash()].push_back(&group.second);
+                _vertexShaderHashToToggleGroups[_vertexShaderManager->getActiveHuntedShaderHash()].push_back(&group);
             }
 
             if (_computeShaderManager->isInHuntingMode())
             {
-                _computeShaderHashToToggleGroups[_computeShaderManager->getActiveHuntedShaderHash()].push_back(&group.second);
+                _computeShaderHashToToggleGroups[_computeShaderManager->getActiveHuntedShaderHash()].push_back(&group);
             }
 
             continue;
         }
 
-        for (const auto& h : group.second.getPixelShaderHashes())
+        for (const auto& h : group.getPixelShaderHashes())
         {
-            _pixelShaderHashToToggleGroups[h].push_back(&group.second);
+            _pixelShaderHashToToggleGroups[h].push_back(&group);
         }
 
-        for (const auto& h : group.second.getVertexShaderHashes())
+        for (const auto& h : group.getVertexShaderHashes())
         {
-            _vertexShaderHashToToggleGroups[h].push_back(&group.second);
+            _vertexShaderHashToToggleGroups[h].push_back(&group);
         }
 
-        for (const auto& h : group.second.getComputeShaderHashes())
+        for (const auto& h : group.getComputeShaderHashes())
         {
-            _computeShaderHashToToggleGroups[h].push_back(&group.second);
+            _computeShaderHashToToggleGroups[h].push_back(&group);
         }
     }
 }
@@ -186,7 +186,7 @@ void AddonUIData::AddDefaultGroup()
 /// <summary>
 /// Loads the defined hashes and groups from the shaderToggler.ini file.
 /// </summary>
-void AddonUIData::LoadShaderTogglerIniFile(const std::string& fileName)
+void AddonUIData::LoadShaderTogglerIniFile(const string& fileName)
 {
     // Will assume it's started at the start of the application and therefore no groups are present.
 
@@ -243,24 +243,24 @@ void AddonUIData::LoadShaderTogglerIniFile(const std::string& fileName)
             _toggleGroups.emplace(group.getId(), group);
         }
     }
-    for (auto& group : _toggleGroups)
+    for (auto& [_,group] : _toggleGroups)
     {
-        group.second.loadState(iniFile, groupCounter);		// groupCounter is normally 0 or greater. For when the old format is detected, it's -1 (and there's 1 group).
+        group.loadState(iniFile, groupCounter);		// groupCounter is normally 0 or greater. For when the old format is detected, it's -1 (and there's 1 group).
         groupCounter++;
 
-        for (const auto& h : group.second.getPixelShaderHashes())
+        for (const auto& h : group.getPixelShaderHashes())
         {
-            _pixelShaderHashToToggleGroups[h].push_back(&group.second);
+            _pixelShaderHashToToggleGroups[h].push_back(&group);
         }
 
-        for (const auto& h : group.second.getVertexShaderHashes())
+        for (const auto& h : group.getVertexShaderHashes())
         {
-            _vertexShaderHashToToggleGroups[h].push_back(&group.second);
+            _vertexShaderHashToToggleGroups[h].push_back(&group);
         }
 
-        for (const auto& h : group.second.getComputeShaderHashes())
+        for (const auto& h : group.getComputeShaderHashes())
         {
-            _computeShaderHashToToggleGroups[h].push_back(&group.second);
+            _computeShaderHashToToggleGroups[h].push_back(&group);
         }
     }
 }
@@ -269,7 +269,7 @@ void AddonUIData::LoadShaderTogglerIniFile(const std::string& fileName)
 /// <summary>
 /// Saves the currently known toggle groups with their shader hashes to the shadertoggler.ini file
 /// </summary>
-void AddonUIData::SaveShaderTogglerIniFile(const std::string& fileName)
+void AddonUIData::SaveShaderTogglerIniFile(const string& fileName)
 {
     // format: first section with # of groups, then per group a section with pixel and vertex shaders, as well as their name and key value.
     // groups are stored with "Group" + group counter, starting with 0.
@@ -288,9 +288,9 @@ void AddonUIData::SaveShaderTogglerIniFile(const std::string& fileName)
     iniFile.SetInt("AmountGroups", static_cast<int>(_toggleGroups.size()), "", "General");
 
     int groupCounter = 0;
-    for (const auto& group : _toggleGroups)
+    for (const auto& [_,group] : _toggleGroups)
     {
-        group.second.saveState(iniFile, groupCounter);
+        group.saveState(iniFile, groupCounter);
         groupCounter++;
     }
     reshade::log_message(reshade::log_level::info, std::format("Creating config file at \"{}\"", (_basePath / fileName).string()).c_str());
@@ -383,7 +383,7 @@ void AddonUIData::EndConstantEditing()
     _toggleGroupIdConstantEditing = -1;
 }
 
-uint32_t AddonUIData::GetKeybinding(Keybind keybind)
+uint32_t AddonUIData::GetKeybinding(Keybind keybind) const
 {
     return _keyBindings[keybind];
 }

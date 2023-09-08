@@ -31,7 +31,7 @@ void ConstantCopyGPUReadback::GetHostConstantBuffer(reshade::api::command_list* 
 
 void ConstantCopyGPUReadback::OnInitResource(device* device, const resource_desc& desc, const subresource_data* initData, resource_usage usage, reshade::api::resource handle)
 {
-    if (static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer) && desc.type == resource_type::buffer)
+    if (static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer) && desc.type == resource_type::buffer && desc.heap == memory_heap::cpu_to_gpu)
     {
         unique_lock<shared_mutex> lock(deviceHostMutex);
         if (resToCopyBuffer.find(handle.handle) == resToCopyBuffer.end())
@@ -48,7 +48,7 @@ void ConstantCopyGPUReadback::OnInitResource(device* device, const resource_desc
 void ConstantCopyGPUReadback::OnDestroyResource(device* device, resource res)
 {
     resource_desc desc = device->get_resource_desc(res);
-    if (static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer) && desc.type == resource_type::buffer)
+    if (static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer) && desc.type == resource_type::buffer && desc.heap == memory_heap::cpu_to_gpu)
     {
         unique_lock<shared_mutex> lock(deviceHostMutex);
         const auto& el = resToCopyBuffer.find(res.handle);

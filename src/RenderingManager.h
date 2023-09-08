@@ -67,9 +67,9 @@ namespace Rendering
         void RenderEffects(reshade::api::command_list* cmd_list, uint64_t callLocation = CALL_DRAW, uint64_t invocation = MATCH_NONE);
         bool RenderRemainingEffects(reshade::api::effect_runtime* runtime);
 
-        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::resource_view* rtv, const resource_desc& desc);
+        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::resource_view* rtv, const reshade::api::resource_desc& desc);
         bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::resource_view* rtv, reshade::api::format format);
-        uint32_t UpdateTextureBinding(reshade::api::effect_runtime* runtime, const std::string& binding, const resource_desc& desc);
+        uint32_t UpdateTextureBinding(reshade::api::effect_runtime* runtime, const std::string& binding, const reshade::api::resource_desc& desc);
         void DestroyTextureBinding(reshade::api::effect_runtime* runtime, const std::string& binding);
         void InitTextureBingings(reshade::api::effect_runtime* runtime);
         void DisposeTextureBindings(reshade::api::effect_runtime* runtime);
@@ -104,7 +104,7 @@ namespace Rendering
             uint32_t width,
             uint32_t height);
         void _QueueOrDequeue(
-            command_list* cmd_list,
+            reshade::api::command_list* cmd_list,
             DeviceDataContainer& deviceData,
             CommandListDataContainer& commandListData,
             std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& queue,

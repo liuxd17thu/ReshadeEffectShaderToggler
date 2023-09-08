@@ -1,5 +1,6 @@
 #include "RenderingManager.h"
 #include "PipelinePrivateData.h"
+#include "StateTracking.h"
 
 using namespace Rendering;
 using namespace ShaderToggler;
@@ -305,7 +306,9 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
 
     device* device = deviceData.current_runtime->get_device();
 
-    const vector<resource_view>& rtvs = commandListData.stateTracker.GetBoundRenderTargetViews();
+    state_tracking& state = cmd_list->get_private_data<state_tracking>();
+    const vector<resource_view>& rtvs = state.render_targets;
+    const auto& [_, current_srv] = state.descriptors[shader_stage::all_graphics];
 
     size_t index = group->getRenderTargetIndex();
     index = std::min(index, rtvs.size() - 1);
@@ -316,19 +319,19 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
     // Only return SRVs in case of bindings
     if(action & MATCH_BINDING && group->getExtractResourceViews())
     { 
-        uint32_t slot_size = static_cast<uint32_t>(commandListData.stateTracker.GetPushDescriptorState()->current_srv[descIndex].size());
+        uint32_t slot_size = static_cast<uint32_t>(current_srv.size());
         uint32_t slot = std::min(group->getBindingSRVSlotIndex(), slot_size - 1);
 
         if (slot_size == 0)
             return active_rtv;
 
-        uint32_t desc_size = static_cast<uint32_t>(commandListData.stateTracker.GetPushDescriptorState()->current_srv[descIndex][slot].size());
+        uint32_t desc_size = static_cast<uint32_t>(current_srv[slot].size());
         uint32_t desc = std::min(group->getBindingSRVDescriptorIndex(), desc_size - 1);
 
         if (desc_size == 0)
             return active_rtv;
 
-        resource_view buf = commandListData.stateTracker.GetPushDescriptorState()->current_srv[descIndex][slot][desc];
+        descriptor_tracking::descriptor_data buf = current_srv[slot][desc];
 
         DescriptorCycle cycle = group->consumeSRVCycle();
         if (cycle != CYCLE_NONE)
@@ -336,31 +339,31 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
             if (cycle == CYCLE_UP)
             {
                 uint32_t newDescIndex = std::min(++desc, desc_size - 1);
-                buf = commandListData.stateTracker.GetPushDescriptorState()->current_srv[descIndex][slot][newDescIndex];
+                buf = current_srv[slot][newDescIndex];
 
-                while (buf == 0 && desc < desc_size - 2)
+                while (buf.view == 0 && desc < desc_size - 2)
                 {
-                    buf = commandListData.stateTracker.GetPushDescriptorState()->current_srv[descIndex][slot][++desc];
+                    buf = current_srv[slot][++desc];
                 }
             }
             else
             {
                 uint32_t newDescIndex = desc > 0 ? --desc : 0;
-                buf = commandListData.stateTracker.GetPushDescriptorState()->current_srv[descIndex][slot][newDescIndex];
+                buf = current_srv[slot][newDescIndex];
 
-                while (buf == 0 && desc > 0)
+                while (buf.view == 0 && desc > 0)
                 {
-                    buf = commandListData.stateTracker.GetPushDescriptorState()->current_srv[descIndex][slot][--desc];
+                    buf = current_srv[slot][--desc];
                 }
             }
 
-            if (buf != 0)
+            if (buf.view != 0)
             {
                 group->setBindingSRVDescriptorIndex(desc);
             }
         }
 
-        active_rtv = buf;
+        active_rtv = buf.view;
     }
     else if(action & MATCH_BINDING && !group->getExtractResourceViews() && rtvs.size() > 0 && rtvs[bindingRTindex] != 0)
     {
@@ -439,7 +442,8 @@ const resource_view RenderingManager::GetCurrentPreviewResourceView(command_list
 
     device* device = deviceData.current_runtime->get_device();
 
-    const vector<resource_view>& rtvs = commandListData.stateTracker.GetBoundRenderTargetViews();
+    state_tracking& state = cmd_list->get_private_data<state_tracking>();
+    const vector<resource_view>& rtvs = state.render_targets;
 
     size_t index = group->getRenderTargetIndex();
     index = std::min(index, rtvs.size() - 1);
@@ -556,7 +560,6 @@ bool RenderingManager::_RenderEffects(
                 runtime->render_technique(technique, cmd_list, view_non_srgb, view_srgb);
 
                 resource_desc resDesc = runtime->get_device()->get_resource_desc(res);
-                uiData.cFormat = resDesc.texture.format;
                 removalList.push_back(name);
 
                 deviceData.allEnabledTechniques[name] = true;
@@ -689,9 +692,7 @@ void RenderingManager::RenderEffects(command_list* cmd_list, uint64_t callLocati
 
     if (rendered)
     {
-        // TODO: ???
-        //shared_lock<shared_mutex> dev_mutex(pipeline_layout_mutex);
-        commandListData.stateTracker.ReApplyState(cmd_list, deviceData.transient_mask);
+        cmd_list->get_private_data<state_tracking>().apply(cmd_list);
     }
 }
 
@@ -770,15 +771,22 @@ void RenderingManager::UpdatePreview(command_list* cmd_list, uint64_t callLocati
             return;
         }
 
-        resourceManager.CreatePreview(deviceData.current_runtime, rs);
-        resource previewRes = resource{ 0 };
-        resourceManager.SetPreviewViewHandles(&previewRes, nullptr, nullptr);
-
-        if (previewRes != 0)
+        if (!resourceManager.IsCompatibleWithPreviewFormat(deviceData.current_runtime, rs))
         {
-            cmd_list->copy_resource(rs, previewRes);
+            deviceData.huntPreview.target_desc = cmd_list->get_device()->get_resource_desc(rs);
+            deviceData.huntPreview.recreate_preview = true;
         }
-    
+        else
+        {
+            resource previewRes = resource{ 0 };
+            resourceManager.SetPreviewViewHandles(&previewRes, nullptr, nullptr);
+
+            if (previewRes != 0)
+            {
+                cmd_list->copy_resource(rs, previewRes);
+            }
+        }
+
         deviceData.huntPreview.matched = true;
     }
 }
@@ -1212,8 +1220,8 @@ void RenderingManager::ClearUnmatchedTextureBindings(reshade::api::command_list*
 
 static void clearStage(CommandListDataContainer& commandListData, effect_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag)
 {
-    const uint64_t qdraw = clearFlag << (CALL_DRAW * Rendering::MATCH_DELIMITER);
-    const uint64_t qbind = clearFlag << (CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER);
+    const uint64_t qdraw = (clearFlag & pipelineChange) << (CALL_DRAW * Rendering::MATCH_DELIMITER);
+    const uint64_t qbind = (clearFlag & pipelineChange) << (CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER);
 
     if (queuedTasks.size() > 0 && (pipelineChange & clearFlag))
     {
@@ -1242,21 +1250,13 @@ void RenderingManager::ClearQueue(CommandListDataContainer& commandListData, con
     const uint64_t qdraw = pipelineChange << CALL_DRAW * Rendering::MATCH_DELIMITER;
     const uint64_t qbind = pipelineChange << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
 
-    const uint64_t qdraw_pre_ps = (pipelineChange & MATCH_PREVIEW_PS) << CALL_DRAW * Rendering::MATCH_DELIMITER;
-    const uint64_t qbind_pre_ps = (pipelineChange & MATCH_PREVIEW_PS) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
-    const uint64_t qdraw_pre_vs = (pipelineChange & MATCH_PREVIEW_VS) << CALL_DRAW * Rendering::MATCH_DELIMITER;
-    const uint64_t qbind_pre_vs = (pipelineChange & MATCH_PREVIEW_VS) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
-    const uint64_t qdraw_pre_cs = (pipelineChange & MATCH_PREVIEW_CS) << CALL_DRAW * Rendering::MATCH_DELIMITER;
-    const uint64_t qbind_pre_cs = (pipelineChange & MATCH_PREVIEW_CS) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
+    const uint64_t qdraw_pre = (pipelineChange & MATCH_PREVIEW) << CALL_DRAW * Rendering::MATCH_DELIMITER;
+    const uint64_t qbind_pre = (pipelineChange & MATCH_PREVIEW) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
 
     if (commandListData.commandQueue & (qdraw | qbind))
     {
-        commandListData.commandQueue &= ~(qdraw_pre_ps);
-        commandListData.commandQueue &= ~(qbind_pre_ps);
-        commandListData.commandQueue &= ~(qdraw_pre_vs);
-        commandListData.commandQueue &= ~(qbind_pre_vs);
-        commandListData.commandQueue &= ~(qdraw_pre_cs);
-        commandListData.commandQueue &= ~(qbind_pre_cs);
+        commandListData.commandQueue &= ~(qdraw_pre);
+        commandListData.commandQueue &= ~(qbind_pre);
 
         clearStage(commandListData, commandListData.ps.techniquesToRender, pipelineChange, MATCH_EFFECT_PS);
         clearStage(commandListData, commandListData.ps.bindingsToUpdate, pipelineChange, MATCH_BINDING_PS);
@@ -1267,8 +1267,6 @@ void RenderingManager::ClearQueue(CommandListDataContainer& commandListData, con
         clearStage(commandListData, commandListData.cs.techniquesToRender, pipelineChange, MATCH_EFFECT_CS);
         clearStage(commandListData, commandListData.cs.bindingsToUpdate, pipelineChange, MATCH_BINDING_CS);
 
-        commandListData.commandQueue &= ~(MATCH_CONST_PS);
-        commandListData.commandQueue &= ~(MATCH_CONST_VS);
-        commandListData.commandQueue &= ~(MATCH_CONST_CS);
+        commandListData.commandQueue &= ~(MATCH_CONST & pipelineChange);
     }
 }

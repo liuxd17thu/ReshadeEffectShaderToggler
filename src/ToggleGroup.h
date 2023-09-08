@@ -118,12 +118,16 @@ namespace ShaderToggler
         void setAllowAllTechniques(bool allowAllTechniques) { _allowAllTechniques = allowAllTechniques; }
         bool getExtractConstants() const { return _extractConstants; }
         void setExtractConstant(bool extract) { _extractConstants = extract; }
+        uint32_t getCBShaderStage() const { return _cbShaderStage; }
+        void setCBShaderStage(uint32_t shaderStage) { _cbShaderStage = shaderStage; }
         bool getExtractResourceViews() const { return _extractResourceViews; }
         void setExtractResourceViews(bool extract) { _extractResourceViews = extract; }
         void setBindingSRVSlotIndex(uint32_t index) { _bindingSrvSlotIndex = index; }
         uint32_t getBindingSRVSlotIndex() const { return _bindingSrvSlotIndex; }
         void setBindingSRVDescriptorIndex(uint32_t index) { _bindingSrvDescIndex = index; }
         uint32_t getBindingSRVDescriptorIndex() const { return _bindingSrvDescIndex; }
+        uint32_t getSRVShaderStage() const { return _bindingSrvShaderStage; }
+        void setSRVShaderStage(uint32_t shaderStage) { _bindingSrvShaderStage = shaderStage; }
         void setBindingRenderTargetIndex(uint32_t index) { _bindingRTIndex = index; }
         uint32_t getBindingRenderTargetIndex() const { return _bindingRTIndex; }
         bool getHasTechniqueExceptions() const { return _hasTechniqueExceptions; }
@@ -177,10 +181,12 @@ namespace ShaderToggler
         uint32_t _rtIndex = 0;
         uint32_t _cbSlotIndex = 2;
         uint32_t _cbDescIndex = 0;
+        uint32_t _cbShaderStage = 4;
         uint32_t _bindingInvocationLocation = 0;
         uint32_t _bindingRTIndex = 0;
         uint32_t _bindingSrvSlotIndex = 1;
         uint32_t _bindingSrvDescIndex = 0;
+        uint32_t _bindingSrvShaderStage = 4;
         bool _isActive;				// true means the group is actively toggled (so the hashes have to be hidden.
         bool _isEditing;			// true means the group is actively edited (name, key)
         bool _allowAllTechniques;	// true means all techniques are allowed, regardless of preferred techniques.

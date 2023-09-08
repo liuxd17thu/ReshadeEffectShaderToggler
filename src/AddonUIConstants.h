@@ -89,6 +89,8 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
         return;
     }
 
+    std::shared_lock<std::shared_mutex> lock(instance.GetConstantHandler()->GetBufferMutex());
+
     static float height = ImGui::GetWindowHeight();
     static float width = ImGui::GetWindowWidth();
 
@@ -107,11 +109,20 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
     const size_t offsetInputBufSize = 32;
     static char offsetInputBuf[offsetInputBufSize] = { "000" };
 
+    static const char* stageItems[] = { "VERTEX", "HULL", "DOMAIN", "GEOMETRY", "PIXEL", "COMPUTE", "ALL", "ALL_COMPUTE", "ALL_GRAPHICS"};
+    uint32_t selectedStageIndex = group->getCBShaderStage();
+    const char* selectedStage = stageItems[selectedStageIndex];
+
     bool extractionEnabled = group->getExtractConstants();
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     if (ImGui::BeginChild("Constant Buffer Viewer##child", { 0, height / 1.5f }, true, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
+
+        if (!instance.GetTrackDescriptors())
+        {
+            ImGui::BeginDisabled();
+        }
 
         if (ImGui::BeginTable("ConstantBufferSettings", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody))
         {
@@ -121,6 +132,12 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::Text("Extract constant buffer");
             ImGui::TableNextColumn();
             ImGui::Checkbox("##Extractconstantbuffer", &extractionEnabled);
+
+            if (!extractionEnabled)
+            {
+                instance.GetConstantHandler()->RemoveGroup(group, dev);
+                ImGui::BeginDisabled();
+            }
 
             ImGui::TableNextRow();
 
@@ -136,6 +153,27 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
                     {
                         typeSelectionIndex = n;
                         typeSelectedItem = typeItems[n];
+                    }
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::Text("Shader Stage");
+            ImGui::TableNextColumn();
+            if (ImGui::BeginCombo("##ShaderStage", selectedStage, ImGuiComboFlags_None))
+            {
+                for (int n = 0; n < IM_ARRAYSIZE(stageItems); n++)
+                {
+                    bool is_selected = (selectedStage == stageItems[n]);
+                    if (ImGui::Selectable(stageItems[n], is_selected))
+                    {
+                        selectedStageIndex = n;
+                        selectedStage = stageItems[n];
                     }
                     if (is_selected)
                         ImGui::SetItemDefaultFocus();
@@ -172,12 +210,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
         }
         group->setExtractConstant(extractionEnabled);
         group->setCBIsPushMode(cbModeSelectionIndex == 1);
-
-        if (!extractionEnabled)
-        {
-            instance.GetConstantHandler()->RemoveGroup(group, dev);
-            ImGui::BeginDisabled();
-        }
+        group->setCBShaderStage(selectedStageIndex);
 
         ImGui::Separator();
 
@@ -250,6 +283,16 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::EndTable();
         }
 
+        if (!extractionEnabled)
+        {
+            ImGui::EndDisabled();
+        }
+
+        if (!instance.GetTrackDescriptors())
+        {
+            ImGui::EndDisabled();
+        }
+
         ImGui::PopStyleVar();
     }
     ImGui::EndChild();
@@ -263,6 +306,12 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
     if (ImGui::BeginChild("Constant Buffer Viewer##vars", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
+
+        if (!extractionEnabled)
+        {
+            instance.GetConstantHandler()->RemoveGroup(group, dev);
+            ImGui::BeginDisabled();
+        }
 
         if (ImGui::Button("Add Variable Binding"))
         {
@@ -368,14 +417,14 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
         std::for_each(removal.begin(), removal.end(), [&group](std::string& e) { group->RemoveVarMapping(e); });
 
+        if (!extractionEnabled)
+        {
+            ImGui::EndDisabled();
+        }
+
         ImGui::PopStyleVar();
     }
     ImGui::EndChild();
-    
-    if (!extractionEnabled)
-    {
-        ImGui::EndDisabled();
-    }
 
     ImGui::PopStyleVar();
 }

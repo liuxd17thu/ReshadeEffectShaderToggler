@@ -35,22 +35,23 @@ namespace Rendering
         void OnInitResource(reshade::api::device* device, const reshade::api::resource_desc& desc, const reshade::api::subresource_data* initData, reshade::api::resource_usage usage, reshade::api::resource handle);
         void OnDestroyResource(reshade::api::device* device, reshade::api::resource res);
         bool OnCreateResourceView(reshade::api::device* device, reshade::api::resource resource, reshade::api::resource_usage usage_type, reshade::api::resource_view_desc& desc);
-        void OnInitResourceView(device* device, resource resource, resource_usage usage_type, const resource_view_desc& desc, resource_view view);
-        void OnDestroyResourceView(device* device, resource_view view);
+        void OnInitResourceView(reshade::api::device* device, reshade::api::resource resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc& desc, reshade::api::resource_view view);
+        void OnDestroyResourceView(reshade::api::device* device, reshade::api::resource_view view);
         bool OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd);
         void OnInitSwapchain(reshade::api::swapchain* swapchain);
         void OnDestroySwapchain(reshade::api::swapchain* swapchain);
         void OnDestroyDevice(reshade::api::device*);
 
-        void DisposeView(device* device, uint64_t handle);
+        void DisposeView(reshade::api::device* device, uint64_t handle);
         void SetResourceViewHandles(uint64_t handle, reshade::api::resource_view* non_srgb_view, reshade::api::resource_view* srgb_view);
         void SetShaderResourceViewHandles(uint64_t handle, reshade::api::resource_view* non_srgb_view, reshade::api::resource_view* srgb_view);
         void SetResourceShim(const std::string& shim) { _shimType = ResolveResourceShimType(shim); }
         void Init();
 
         void DisposePreview(reshade::api::effect_runtime* runtime);
-        void CreatePreview(reshade::api::effect_runtime* runtime, reshade::api::resource originalRes);
+        void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime);
         void SetPreviewViewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
+        bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);
     private:
         static ResourceShimType ResolveResourceShimType(const std::string&);
 

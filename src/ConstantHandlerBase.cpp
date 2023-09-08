@@ -1,6 +1,7 @@
 #include <cstring>
 #include "ConstantHandlerBase.h"
 #include "PipelinePrivateData.h"
+#include "StateTracking.h"
 
 using namespace Shim::Constants;
 using namespace reshade::api;
@@ -10,6 +11,7 @@ using namespace std;
 unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>> ConstantHandlerBase::restVariables;
 char ConstantHandlerBase::charBuffer[CHAR_BUFFER_SIZE];
 ConstantCopyBase* ConstantHandlerBase::_constCopy;
+std::shared_mutex ConstantHandlerBase::groupBufferMutex;
 
 ConstantHandlerBase::ConstantHandlerBase()
 {
@@ -152,54 +154,70 @@ void ConstantHandlerBase::OnReshadeReloadedEffects(effect_runtime* runtime, int3
     previousEnableCount = enabledCount;
 }
 
+
+constexpr shader_stage indexToStage[] = { shader_stage::vertex, shader_stage::hull, shader_stage::domain, shader_stage::geometry, shader_stage::pixel, shader_stage::compute, shader_stage::all, shader_stage::all_compute, shader_stage::all_graphics };
+
 bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, ToggleGroup* group, uint32_t index)
 {
-    uint32_t slot_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index].size());
-    uint32_t slot = std::min(group->getCBSlotIndex(), slot_size - 1);
+    state_tracking& state = cmd_list->get_private_data<state_tracking>();
+    shader_stage stage = indexToStage[index];
 
-    if (slot_size == 0)
+    if (!state.descriptors.contains(stage))
+    {
+        return false;
+    }
+
+    const auto& [_, current_descriptors] = state.descriptors[stage];
+
+    int32_t slot_size = static_cast<int32_t>(current_descriptors.size());
+    int32_t slot = std::min(static_cast<int32_t>(group->getCBSlotIndex()), slot_size - 1);
+
+    if (slot_size <= 0)
         return false;
 
-    uint32_t desc_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot].size());
-    uint32_t desc = std::min(group->getCBDescriptorIndex(), desc_size - 1);
+    int32_t desc_size = static_cast<int32_t>(current_descriptors[slot].size());
+    int32_t desc = std::min(static_cast<int32_t>(group->getCBDescriptorIndex()), desc_size - 1);
 
-    if (desc_size == 0)
+    if (desc_size <= 0)
         return false;
 
-    buffer_range buf = cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot][desc];
+    descriptor_tracking::descriptor_data buf = current_descriptors[slot][desc];
+
     DescriptorCycle cycle = group->consumeCBCycle();
     if (cycle != CYCLE_NONE)
     {
         if (cycle == CYCLE_UP)
         {
-            uint32_t newDescIndex = std::min(++desc, desc_size - 1);
-            buf = cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot][newDescIndex];
+            desc = std::min(++desc, desc_size - 1);
+            buf = current_descriptors[slot][desc];
 
-            while (buf.buffer == 0 && desc < desc_size - 2)
+            while (buf.constant.buffer == 0 && desc < desc_size - 2)
             {
-                buf = cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot][++desc];
+                buf = current_descriptors[slot][++desc];
             }
         }
         else
         {
-            uint32_t newDescIndex = desc > 0 ? --desc : 0;
-            buf = cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot][newDescIndex];
+            desc = desc > 0 ? --desc : 0;
+            buf = current_descriptors[slot][desc];
 
-            while (buf.buffer == 0 && desc > 0)
+            while (buf.constant.buffer == 0 && desc > 0)
             {
-                buf = cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot][--desc];
+                buf = current_descriptors[slot][--desc];
             }
         }
 
-        if (buf.buffer != 0)
+        if (buf.constant.buffer != 0)
         {
             group->setCBDescriptorIndex(desc);
         }
     }
 
-    if (buf.buffer != 0)
+    if (buf.constant.buffer != 0)
     {
-        SetBufferRange(group, buf, cmd_list->get_device(), cmd_list);
+        unique_lock<shared_mutex>(groupBufferMutex);
+
+        SetBufferRange(group, buf.constant, cmd_list->get_device(), cmd_list);
         ApplyConstantValues(devData.current_runtime, group, restVariables);
         devData.constantsUpdated.insert(group);
 
@@ -211,18 +229,25 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
 
 bool ConstantHandlerBase::UpdateConstantEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, ToggleGroup* group, uint32_t index)
 {
-    uint32_t slot_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushConstantsState()->current_constants[index].size());
-    uint32_t slot = min(group->getCBSlotIndex(), slot_size - 1);
+    state_tracking& state = cmd_list->get_private_data<state_tracking>();
+    shader_stage stage = indexToStage[index];
 
-    if (slot_size == 0)
+    const auto& [_, current_constants] = state.push_constants[stage];
+
+    int32_t slot_size = static_cast<int32_t>(current_constants.size());
+    int32_t slot = std::min(static_cast<int32_t>(group->getCBSlotIndex()), slot_size - 1);
+    
+    if (slot_size <= 0)
         return false;
-
-    size_t const_buffer_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushConstantsState()->current_constants[index].at(slot).size());
-
+    
+    int32_t const_buffer_size = static_cast<int32_t>(current_constants.at(slot).size());
+    
     if (const_buffer_size == 0)
         return false;
+    
+    const vector<uint32_t>& buf = current_constants.at(slot);
 
-    const vector<uint32_t>& buf = cmdData.stateTracker.GetPushConstantsState()->current_constants[index].at(slot);
+    unique_lock<shared_mutex>(groupBufferMutex);
 
     SetConstants(group, buf, cmd_list->get_device(), cmd_list);
     ApplyConstantValues(devData.current_runtime, group, restVariables);
@@ -255,8 +280,8 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
     {
         if (!deviceData.constantsUpdated.contains(cb))
         {
-            if (!cb->getCBIsPushMode() && UpdateConstantBufferEntries(cmd_list, commandListData, deviceData, cb, 0) ||
-                cb->getCBIsPushMode() && UpdateConstantEntries(cmd_list, commandListData, deviceData, cb, 0))
+            if (!cb->getCBIsPushMode() && UpdateConstantBufferEntries(cmd_list, commandListData, deviceData, cb, cb->getCBShaderStage()) ||
+                cb->getCBIsPushMode() && UpdateConstantEntries(cmd_list, commandListData, deviceData, cb, cb->getCBShaderStage()))
             {
                 psRemovalList.push_back(cb);
             }
@@ -267,8 +292,8 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
     {
         if (!deviceData.constantsUpdated.contains(cb))
         {
-            if (!cb->getCBIsPushMode() && UpdateConstantBufferEntries(cmd_list, commandListData, deviceData, cb, 1) ||
-                cb->getCBIsPushMode() && UpdateConstantEntries(cmd_list, commandListData, deviceData, cb, 1))
+            if (!cb->getCBIsPushMode() && UpdateConstantBufferEntries(cmd_list, commandListData, deviceData, cb, cb->getCBShaderStage()) ||
+                cb->getCBIsPushMode() && UpdateConstantEntries(cmd_list, commandListData, deviceData, cb, cb->getCBShaderStage()))
             {
                 vsRemovalList.push_back(cb);
             }
@@ -279,8 +304,8 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
     {
         if (!deviceData.constantsUpdated.contains(cb))
         {
-            if (!cb->getCBIsPushMode() && UpdateConstantBufferEntries(cmd_list, commandListData, deviceData, cb, 2) ||
-                cb->getCBIsPushMode() && UpdateConstantEntries(cmd_list, commandListData, deviceData, cb, 2))
+            if (!cb->getCBIsPushMode() && UpdateConstantBufferEntries(cmd_list, commandListData, deviceData, cb, cb->getCBShaderStage()) ||
+                cb->getCBIsPushMode() && UpdateConstantEntries(cmd_list, commandListData, deviceData, cb, cb->getCBShaderStage()))
             {
                 csRemovalList.push_back(cb);
             }

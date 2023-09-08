@@ -54,9 +54,6 @@
     <ClInclude Include="ConstantCopyBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PipelineStateTracker.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PipelinePrivateData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -102,6 +99,12 @@
     <ClInclude Include="ConstantCopyGPUReadback.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DescriptorTracking.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StateTracking.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -126,9 +129,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ConstantCopyBase.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PipelineStateTracker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ConstantCopyFFXIV.cpp">
@@ -162,6 +162,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ConstantCopyGPUReadback.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DescriptorTracking.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="StateTracking.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

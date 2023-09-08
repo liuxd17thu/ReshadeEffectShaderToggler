@@ -220,6 +220,7 @@ namespace ShaderToggler
         iniFile.SetUInt("ConstantPipelineSlot", _cbSlotIndex, "", sectionRoot);
         iniFile.SetUInt("ConstantDescriptorIndex", _cbDescIndex, "", sectionRoot);
         iniFile.SetBool("ConstantPushMode", _cbModePush, "", sectionRoot);
+        iniFile.SetUInt("ConstantShaderStage", _cbShaderStage, "", sectionRoot);
 
         iniFile.SetBool("ExtractSRVs", _extractResourceViews, "", sectionRoot);
         iniFile.SetUInt("SRVPipelineSlot", _bindingSrvSlotIndex, "", sectionRoot);
@@ -392,6 +393,16 @@ namespace ShaderToggler
         }
 
         bool _cbPushMode = iniFile.GetBoolOrDefault("ConstantPushMode", sectionRoot, false);
+
+        uint32_t shaderStage = iniFile.GetUInt("ConstantShaderStage", sectionRoot);
+        if (shaderStage != UINT_MAX)
+        {
+            _cbShaderStage = shaderStage;
+        }
+        else
+        {
+            _cbShaderStage = 4;
+        }
 
         _extractResourceViews = iniFile.GetBool("ExtractSRVs", sectionRoot);
 

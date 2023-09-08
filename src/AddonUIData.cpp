@@ -200,6 +200,8 @@ void AddonUIData::LoadShaderTogglerIniFile(const string& fileName)
         return;
     }
 
+    _trackDescriptors = iniFile.GetBoolOrDefault("TrackDescriptors", "General", true);
+
     _resourceShim = iniFile.GetValue("ResourceShim", "General");
     if (_resourceShim.size() <= 0)
     {
@@ -279,6 +281,7 @@ void AddonUIData::SaveShaderTogglerIniFile(const string& fileName)
 
     iniFile.SetValue("ConstantBufferHookType", _constHookType, "", "General");
     iniFile.SetValue("ConstantBufferHookCopyType", _constHookCopyType, "", "General");
+    iniFile.SetBool("TrackDescriptors", _trackDescriptors, "", "General");
 
     for (uint32_t i = 0; i < ARRAYSIZE(KeybindNames); i++)
     {

@@ -89,6 +89,7 @@ namespace ShaderToggler
         uint32_t getShaderHash(uint64_t handle);
         void addActivePipelineHandle(uint64_t handle);
         void toggleMarkOnHuntedShader();
+        void resetActiveHuntedShader();
 
         size_t getPipelineCount() { return _handleToShaderHash.size(); }
         size_t getShaderCount() { return _shaderHashes.size(); }

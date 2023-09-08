@@ -111,6 +111,7 @@ namespace AddonImGui
         std::string _constHookType = "default";
         std::string _constHookCopyType = "gpu_readback";
         std::string _resourceShim = "none";
+        bool _trackDescriptors = true;
         std::filesystem::path _basePath;
         TabType _currentTab = TabType::TAB_NONE;
     public:
@@ -159,6 +160,7 @@ namespace AddonImGui
         void SetResourceShim(std::string& shim) { _resourceShim = shim; }
         void SetKeybinding(Keybind keybind, uint32_t keys);
         const std::unordered_map<std::string, std::tuple<Shim::Constants::constant_type, std::vector<reshade::api::effect_uniform_variable>>>* GetRESTVariables() { return _constantHandler->GetRESTVariables(); };
-        reshade::api::format cFormat;
+        bool GetTrackDescriptors() const { return _trackDescriptors; }
+        void SetTrackDescriptors(bool track) { _trackDescriptors = track; }
     };
 }

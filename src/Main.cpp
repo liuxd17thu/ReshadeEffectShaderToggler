@@ -47,16 +47,15 @@
 #include "AddonUIData.h"
 #include "AddonUIDisplay.h"
 #include "ConstantManager.h"
-#include "PipelineStateTracker.h"
 #include "PipelinePrivateData.h"
 #include "ResourceManager.h"
 #include "RenderingManager.h"
+#include "StateTracking.h"
 
 using namespace reshade::api;
 using namespace ShaderToggler;
 using namespace AddonImGui;
 using namespace Shim::Constants;
-using namespace StateTracker;
 using namespace std;
 
 extern "C" __declspec(dllexport) const char* NAME = "Reshade Effect Shader Toggler";
@@ -84,7 +83,6 @@ static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, 
 static Rendering::ResourceManager resourceManager;
 static Rendering::RenderingManager renderingManager(g_addonUIData, resourceManager);
 
-static shared_mutex pipeline_layout_mutex;
 // TODO: was this needed? might need to re-check
 //static shared_mutex render_mutex;
 static char g_charBuffer[CHAR_BUFFER_SIZE];
@@ -126,10 +124,6 @@ static void onDestroyDevice(device* device)
 static void onInitCommandList(command_list* commandList)
 {
     commandList->create_private_data<CommandListDataContainer>();
-    CommandListDataContainer& commandListData = commandList->get_private_data<CommandListDataContainer>();
-    //commandListData.ps.id = 1;
-    //commandListData.vs.id = 2;
-    //commandListData.cs.id = 3;
 }
 
 
@@ -379,11 +373,6 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
     {
         return;
     }
-    
-    if (commandList->get_device()->get_api() == device_api::vulkan || commandList->get_device()->get_api() == device_api::d3d12)
-    {
-        commandListData.stateTracker.OnBindPipeline(commandList, stages, pipelineHandle);
-    }
 
     uint32_t pipelineChanged = 0;
 
@@ -475,8 +464,6 @@ static void onBindRenderTargetsAndDepthStencil(command_list* cmd_list, uint32_t 
     CommandListDataContainer& commandListData = cmd_list->get_private_data<CommandListDataContainer>();
     DeviceDataContainer& deviceData = device->get_private_data<DeviceDataContainer>();
 
-    commandListData.stateTracker.OnBindRenderTargetsAndDepthStencil(cmd_list, count, rtvs, dsv);
-
     //if (count > 0)
     //{
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_RENDERTARGET_PREVIEW && !(commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_PREVIEW))
@@ -510,7 +497,7 @@ static void onBeginRenderPass(command_list* cmd_list, uint32_t count, const rend
     CommandListDataContainer& commandListData = cmd_list->get_private_data<CommandListDataContainer>();
     DeviceDataContainer& deviceData = device->get_private_data<DeviceDataContainer>();
     
-    commandListData.stateTracker.OnBeginRenderPass(cmd_list, count, rts, ds);
+    //commandListData.stateTracker.OnBeginRenderPass(cmd_list, count, rts, ds);
     
     if (!deviceData.current_runtime->get_effects_state())
     {
@@ -526,74 +513,6 @@ static void onBeginRenderPass(command_list* cmd_list, uint32_t count, const rend
     {
         renderingManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT_PS | Rendering::MATCH_EFFECT_VS);
     }
-}
-
-
-static void onPushDescriptors(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t layout_param, const reshade::api::descriptor_table_update& tables)
-{
-    auto& data = cmd_list->get_private_data<CommandListDataContainer>();
-    data.stateTracker.OnPushDescriptors(cmd_list, stages, layout, layout_param, tables);
-}
-
-
-static void onPushConstants(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void* values)
-{
-    auto& data = cmd_list->get_private_data<CommandListDataContainer>();
-    data.stateTracker.OnPushConstants(cmd_list, stages, layout, layout_param, first, count, values);
-}
-
-
-static void onBindDescriptorSets(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const reshade::api::descriptor_table* tables)
-{
-    auto& data = cmd_list->get_private_data<CommandListDataContainer>();
-    data.stateTracker.OnBindDescriptorSets(cmd_list, stages, layout, first, count, tables);
-}
-
-
-static void onBindViewports(command_list* cmd_list, uint32_t first, uint32_t count, const viewport* viewports)
-{
-    auto& data = cmd_list->get_private_data<CommandListDataContainer>();
-    data.stateTracker.OnBindViewports(cmd_list, first, count, viewports);
-}
-
-
-static void onBindScissorRects(command_list* cmd_list, uint32_t first, uint32_t count, const rect* rects)
-{
-    auto& data = cmd_list->get_private_data<CommandListDataContainer>();
-    data.stateTracker.OnBindScissorRects(cmd_list, first, count, rects);
-}
-
-
-static void onBindPipelineStates(command_list* cmd_list, uint32_t count, const dynamic_state* states, const uint32_t* values)
-{
-    auto& data = cmd_list->get_private_data<CommandListDataContainer>();
-    data.stateTracker.OnBindPipelineStates(cmd_list, count, states, values);
-}
-
-
-static void onInitPipelineLayout(device* device, uint32_t param_count, const pipeline_layout_param* params, pipeline_layout layout)
-{
-    unique_lock<shared_mutex> lock(pipeline_layout_mutex);
-    
-    auto& data = device->get_private_data<DeviceDataContainer>();
-    data.transient_mask[layout.handle].resize(param_count);
-    
-    for (uint32_t i = 0; i < param_count; i++)
-    {
-        if (params[i].type == pipeline_layout_param_type::push_constants)
-        {
-            data.transient_mask[layout.handle][i] = true;
-        }
-    }
-}
-
-
-static void onDestroyPipelineLayout(device* device, pipeline_layout layout)
-{
-    unique_lock<shared_mutex> lock(pipeline_layout_mutex);
-    
-    auto& data = device->get_private_data<DeviceDataContainer>();
-    data.transient_mask.erase(layout.handle);
 }
 
 
@@ -619,6 +538,7 @@ static void onPresent(command_queue* queue, swapchain* swapchain, const rect* so
         if (runtime->get_effects_state())
         {
             renderingManager.RenderRemainingEffects(runtime);
+            resourceManager.CheckPreview(queue->get_immediate_command_list(), dev, runtime);
             renderingManager.ClearUnmatchedTextureBindings(runtime->get_command_queue()->get_immediate_command_list());
         }
     }
@@ -778,7 +698,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
         g_addonUIData.SetBasePath(g_dllPath.parent_path());
         g_addonUIData.LoadShaderTogglerIniFile();
+
+        state_tracking::register_events(g_addonUIData.GetTrackDescriptors());
         Init();
+
         reshade::register_event<reshade::addon_event::init_swapchain>(onInitSwapchain);
         reshade::register_event<reshade::addon_event::destroy_swapchain>(onDestroySwapchain);
         reshade::register_event<reshade::addon_event::init_resource>(onInitResource);
@@ -791,12 +714,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::register_event<reshade::addon_event::destroy_resource_view>(onDestroyResourceView);
         reshade::register_event<reshade::addon_event::init_resource_view>(onInitResourceView);
         reshade::register_event<reshade::addon_event::init_pipeline>(onInitPipeline);
-        reshade::register_event<reshade::addon_event::bind_viewports>(onBindViewports);
-        reshade::register_event<reshade::addon_event::bind_scissor_rects>(onBindScissorRects);
-        reshade::register_event<reshade::addon_event::bind_descriptor_tables>(onBindDescriptorSets);
-        reshade::register_event<reshade::addon_event::init_pipeline_layout>(onInitPipelineLayout);
-        reshade::register_event<reshade::addon_event::destroy_pipeline_layout>(onDestroyPipelineLayout);
-        reshade::register_event<reshade::addon_event::bind_pipeline_states>(onBindPipelineStates);
         reshade::register_event<reshade::addon_event::init_command_list>(onInitCommandList);
         reshade::register_event<reshade::addon_event::destroy_command_list>(onDestroyCommandList);
         reshade::register_event<reshade::addon_event::reset_command_list>(onResetCommandList);
@@ -812,8 +729,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::register_event<reshade::addon_event::begin_render_pass>(onBeginRenderPass);
         reshade::register_event<reshade::addon_event::init_effect_runtime>(onInitEffectRuntime);
         reshade::register_event<reshade::addon_event::destroy_effect_runtime>(onDestroyEffectRuntime);
-        reshade::register_event<reshade::addon_event::push_descriptors>(onPushDescriptors);
-        reshade::register_event<reshade::addon_event::push_constants>(onPushConstants);
         reshade::register_event<reshade::addon_event::present>(onPresent);
 
         reshade::register_event<reshade::addon_event::draw>(onDraw);
@@ -837,12 +752,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::unregister_event<reshade::addon_event::reshade_reloaded_effects>(onReshadeReloadedEffects);
         reshade::unregister_event<reshade::addon_event::reshade_set_technique_state>(onReshadeSetTechniqueState);
         reshade::unregister_event<reshade::addon_event::bind_pipeline>(onBindPipeline);
-        reshade::unregister_event<reshade::addon_event::bind_viewports>(onBindViewports);
-        reshade::unregister_event<reshade::addon_event::bind_scissor_rects>(onBindScissorRects);
-        reshade::unregister_event<reshade::addon_event::bind_descriptor_tables>(onBindDescriptorSets);
-        reshade::unregister_event<reshade::addon_event::init_pipeline_layout>(onInitPipelineLayout);
-        reshade::unregister_event<reshade::addon_event::destroy_pipeline_layout>(onDestroyPipelineLayout);
-        reshade::unregister_event<reshade::addon_event::bind_pipeline_states>(onBindPipelineStates);
         reshade::unregister_event<reshade::addon_event::init_command_list>(onInitCommandList);
         reshade::unregister_event<reshade::addon_event::destroy_command_list>(onDestroyCommandList);
         reshade::unregister_event<reshade::addon_event::reset_command_list>(onResetCommandList);
@@ -852,8 +761,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::unregister_event<reshade::addon_event::begin_render_pass>(onBeginRenderPass);
         reshade::unregister_event<reshade::addon_event::init_effect_runtime>(onInitEffectRuntime);
         reshade::unregister_event<reshade::addon_event::destroy_effect_runtime>(onDestroyEffectRuntime);
-        reshade::unregister_event<reshade::addon_event::push_descriptors>(onPushDescriptors);
-        reshade::unregister_event<reshade::addon_event::push_constants>(onPushConstants);
         reshade::unregister_event<reshade::addon_event::create_resource>(onCreateResource);
         reshade::unregister_event<reshade::addon_event::init_resource>(onInitResource);
         reshade::unregister_event<reshade::addon_event::destroy_resource>(onDestroyResource);
@@ -868,6 +775,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(onDrawOrDispatchIndirect);
 
         reshade::unregister_overlay(nullptr, &displaySettings);
+
+        state_tracking::unregister_events();
+
         reshade::unregister_addon(hModule);
 
         break;

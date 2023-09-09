@@ -225,6 +225,7 @@ namespace ShaderToggler
         iniFile.SetBool("ExtractSRVs", _extractResourceViews, "", sectionRoot);
         iniFile.SetUInt("SRVPipelineSlot", _bindingSrvSlotIndex, "", sectionRoot);
         iniFile.SetUInt("SRVDescriptorIndex", _bindingSrvDescIndex, "", sectionRoot);
+        iniFile.SetUInt("SRVShaderStage", _bindingSrvShaderStage, "", sectionRoot);
         iniFile.SetUInt("BindingRenderTargetIndex", _bindingRTIndex, "", sectionRoot);
         iniFile.SetUInt("BindingInvocationLocation", _bindingInvocationLocation, "", sectionRoot);
         iniFile.SetUInt("BindingMatchSwapchainResolutionOnly", _bindingMatchSwapchainResolution, "", sectionRoot);
@@ -424,6 +425,16 @@ namespace ShaderToggler
         else
         {
             _bindingSrvDescIndex = 0;
+        }
+
+        uint32_t srvShaderStage = iniFile.GetUInt("SRVShaderStage", sectionRoot);
+        if (srvShaderStage != UINT_MAX)
+        {
+            _bindingSrvShaderStage = srvShaderStage;
+        }
+        else
+        {
+            _bindingSrvShaderStage = 4;
         }
 
         uint32_t rtvIndex = iniFile.GetUInt("RenderTargetIndex", sectionRoot);

@@ -611,6 +611,28 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
                 }
 
                 ImGui::TableNextColumn();
+                ImGui::Text("Shader Stage");
+                ImGui::TableNextColumn();
+                if (ImGui::BeginCombo("##ShaderStage", selectedStage, ImGuiComboFlags_None))
+                {
+                    for (int n = 0; n < IM_ARRAYSIZE(stageItems); n++)
+                    {
+                        bool is_selected = (selectedStage == stageItems[n]);
+                        if (ImGui::Selectable(stageItems[n], is_selected))
+                        {
+                            selectedStageIndex = n;
+                            selectedStage = stageItems[n];
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+                group->setSRVShaderStage(selectedStageIndex);
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
                 ImGui::Text("Slot");
                 ImGui::TableNextColumn();
                 ImGui::Text("%u", group->getBindingSRVSlotIndex());

@@ -446,6 +446,8 @@ static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::Resou
     {
         for (auto h : hashes)
         {
+            ImGui::TableNextColumn();
+
             bool marked = false;
             if (shaderManager->isHuntedShaderMarked(shaderManager->getCollectedShaderHash(index)))
             {
@@ -469,9 +471,6 @@ static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::Resou
                 instance.UpdateToggleGroupsForShaderHashes();
                 selected = index;
             };
-
-            if (index < hashes.size() - 1)
-                ImGui::TableNextColumn();
 
             index++;
         }

@@ -3,9 +3,9 @@
 #include "PipelinePrivateData.h"
 
 using namespace Shim::Constants;
-using namespace std;
 using namespace reshade::api;
 using namespace ShaderToggler;
+using namespace std;
 
 unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>> ConstantHandlerBase::restVariables;
 char ConstantHandlerBase::charBuffer[CHAR_BUFFER_SIZE];
@@ -111,14 +111,17 @@ void ConstantHandlerBase::ReloadConstantVariables(effect_runtime* runtime)
 
         string id(charBuffer);
         const auto& vars = restVariables.find(id);
-        
+
         if (vars == restVariables.end())
         {
             restVariables.emplace(id, make_tuple(type, vector<effect_uniform_variable>{variable}));
         }
-        else if(get<0>(vars->second) == type)
-        {
-            get<1>(vars->second).push_back(variable);
+        else {
+            auto& [varType, varVec] = vars->second;
+            if (varType == type)
+            {
+                varVec.push_back(variable);
+            }
         }
         });
 }
@@ -135,7 +138,7 @@ void ConstantHandlerBase::OnReshadeSetTechniqueState(effect_runtime* runtime, in
 
 void ConstantHandlerBase::OnReshadeReloadedEffects(effect_runtime* runtime, int32_t enabledCount)
 {
-    std::unique_lock<shared_mutex> lock(varMutex);
+    unique_lock<shared_mutex> lock(varMutex);
 
     if (enabledCount == 0 || enabledCount - previousEnableCount < 0)
     {
@@ -152,13 +155,13 @@ void ConstantHandlerBase::OnReshadeReloadedEffects(effect_runtime* runtime, int3
 bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, ToggleGroup* group, uint32_t index)
 {
     uint32_t slot_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index].size());
-    uint32_t slot = min(group->getCBSlotIndex(), slot_size - 1);
+    uint32_t slot = std::min(group->getCBSlotIndex(), slot_size - 1);
 
     if (slot_size == 0)
         return false;
 
     uint32_t desc_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot].size());
-    uint32_t desc = min(group->getCBDescriptorIndex(), desc_size - 1);
+    uint32_t desc = std::min(group->getCBDescriptorIndex(), desc_size - 1);
 
     if (desc_size == 0)
         return false;
@@ -169,7 +172,7 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
     {
         if (cycle == CYCLE_UP)
         {
-            uint32_t newDescIndex = min(++desc, desc_size - 1);
+            uint32_t newDescIndex = std::min(++desc, desc_size - 1);
             buf = cmdData.stateTracker.GetPushDescriptorState()->current_descriptors[index][slot][newDescIndex];
 
             while (buf.buffer == 0 && desc < desc_size - 2)
@@ -214,7 +217,6 @@ bool ConstantHandlerBase::UpdateConstantEntries(command_list* cmd_list, CommandL
     if (slot_size == 0)
         return false;
 
-    const auto& blah = cmdData.stateTracker.GetPushConstantsState()->current_constants[index];
     size_t const_buffer_size = static_cast<uint32_t>(cmdData.stateTracker.GetPushConstantsState()->current_constants[index].at(slot).size());
 
     if (const_buffer_size == 0)
@@ -286,7 +288,7 @@ void ConstantHandlerBase::UpdateConstants(command_list* cmd_list)
 void ConstantHandlerBase::ApplyConstantValues(effect_runtime* runtime, const ToggleGroup* group,
     const unordered_map<string, tuple<constant_type, vector<effect_uniform_variable>>>& constants)
 {
-    std::unique_lock<shared_mutex> lock(varMutex);
+    unique_lock<shared_mutex> lock(varMutex);
 
     if (!groupBufferContent.contains(group) || runtime == nullptr)
     {
@@ -296,20 +298,18 @@ void ConstantHandlerBase::ApplyConstantValues(effect_runtime* runtime, const Tog
     const uint8_t* buffer = groupBufferContent.at(group).data();
     const uint8_t* prevBuffer = groupPrevBufferContent.at(group).data();
 
-    for (const auto& vars : group->GetVarOffsetMapping())
+    for (const auto& [varName,varData] : group->GetVarOffsetMapping())
     {
-        const string& var = get<0>(vars);
-        uintptr_t offset = get<0>(get<1>(vars));
-        bool prevValue = get<1>(get<1>(vars));
+        const auto& [offset, prevValue] = varData;
 
         const uint8_t* bufferInUse = prevValue ? prevBuffer : buffer;
 
-        if (!constants.contains(var))
+        if (!constants.contains(varName))
         {
             continue;
         }
 
-        constant_type type = std::get<0>(constants.at(var));
+        const auto& [type, effect_variables] = constants.at(varName);
         uint32_t typeIndex = static_cast<uint32_t>(type);
         size_t bufferSize = groupBufferSize.at(group);
 
@@ -318,7 +318,6 @@ void ConstantHandlerBase::ApplyConstantValues(effect_runtime* runtime, const Tog
             continue;
         }
 
-        const vector<effect_uniform_variable>& effect_variables = std::get<1>(constants.at(var));
 
         for (const auto& effect_var : effect_variables)
         {

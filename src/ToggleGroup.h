@@ -50,7 +50,8 @@ namespace ShaderToggler
     {
         SWAPCHAIN_MATCH_MODE_RESOLUTION = 0,
         SWAPCHAIN_MATCH_MODE_ASPECT_RATIO = 1,
-        SWAPCHAIN_MATCH_MODE_NONE = 2
+        SWAPCHAIN_MATCH_MODE_EXTENDED_ASPECT_RATIO = 2,
+        SWAPCHAIN_MATCH_MODE_NONE = 3
     };
 
     class ToggleGroup

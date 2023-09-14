@@ -95,9 +95,9 @@ namespace ShaderToggler
         const std::unordered_set<uint32_t>& getCollectedShaderHashes() const { return _collectedActiveShaderHashes; }
         void setActivedHuntedShaderIndex(uint32_t index);
         size_t getAmountShaderHashesCollected() { return _collectedActiveShaderHashes.size(); }
-        bool isInHuntingMode() { return _isInHuntingMode; }
-        uint32_t getActiveHuntedShaderHash() { return _activeHuntedShaderHash; }
-        int getActiveHuntedShaderIndex() { return _activeHuntedShaderIndex; }
+        bool isInHuntingMode() const { return _isInHuntingMode; }
+        uint32_t getActiveHuntedShaderHash() const { return _activeHuntedShaderHash; }
+        int getActiveHuntedShaderIndex() const { return _activeHuntedShaderIndex; }
         void toggleHideMarkedShaders() { _hideMarkedShaders = !_hideMarkedShaders; }
 
         bool isHuntedShaderMarked()

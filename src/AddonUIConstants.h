@@ -203,12 +203,12 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGuiListClipper clipper;
 
             double clipElements = (static_cast<double>(elements) + static_cast<double>(elements) / static_cast<double>(columns)) / static_cast<double>(columns + 1);
-            clipper.Begin(ceil(clipElements));
+            clipper.Begin(static_cast<int>(std::ceil(clipElements)));
             while (clipper.Step())
             {
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++)
                 {
-                    for (int i = row * (columns + 1); i < row * (columns + 1) + (columns + 1); i++)
+                    for (int i = row * (columns + 1); i < row * static_cast<ptrdiff_t>(columns + 1) + static_cast<ptrdiff_t>(columns + 1); i++)
                     {
                         if (i % (columns + 1) == 0)
                         {
@@ -343,23 +343,23 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
             ImGui::TableHeadersRow();
 
-            for (const auto& varMapping : varMap)
+            for (const auto& [varName, varData] : varMap)
             {
-                if (!instance.GetRESTVariables()->contains(varMapping.first))
+                if (!instance.GetRESTVariables()->contains(varName))
                     continue;
-
+                const auto& [varOffset, varEnabled] = varData;
                 ImGui::TableNextColumn();
-                ImGui::Text(varMapping.first.c_str());
+                ImGui::Text(varName.c_str());
                 ImGui::TableNextColumn();
-                ImGui::Text(std::format("{:#05x}", std::get<0>(varMapping.second)).c_str());
+                ImGui::Text(std::format("{:#05x}", varOffset).c_str());
                 ImGui::TableNextColumn();
-                ImGui::Text(Shim::Constants::type_desc[static_cast<uint32_t>(std::get<0>(instance.GetRESTVariables()->at(varMapping.first)))]);
+                ImGui::Text(Shim::Constants::type_desc[static_cast<uint32_t>(std::get<0>(instance.GetRESTVariables()->at(varName)))]);
                 ImGui::TableNextColumn();
-                ImGui::Text(std::format("{}", std::get<1>(varMapping.second)).c_str());
+                ImGui::Text(std::format("{}", varEnabled).c_str());
                 ImGui::TableNextColumn();
-                if (ImGui::Button(std::format("移除##{}", varMapping.first).c_str()))
+                if (ImGui::Button(std::format("移除##{}", varName).c_str()))
                 {
-                    removal.push_back(varMapping.first);
+                    removal.push_back(varName);
                 }
             }
 

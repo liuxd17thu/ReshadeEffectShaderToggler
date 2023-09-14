@@ -1,22 +1,23 @@
 #include "GameHookT.h"
 
 using namespace Shim;
+using namespace std;
 
 bool GameHook::_hooked = false;
 
 template<typename T>
-std::string GameHookT<T>::GetExecutableName()
+string GameHookT<T>::GetExecutableName()
 {
     char fileName[MAX_PATH + 1];
     DWORD charsWritten = GetModuleFileNameA(NULL, fileName, MAX_PATH + 1);
     if (charsWritten != 0)
     {
-        std::string ret(fileName);
-        std::size_t found = ret.find_last_of("/\\");
+        string ret(fileName);
+        size_t found = ret.find_last_of("/\\");
         return ret.substr(found + 1);
     }
 
-    return std::string();
+    return string();
 }
 
 template<typename T>
@@ -55,7 +56,7 @@ bool GameHookT<T>::Hook(T** original, T* detour, const sigmatch::signature& sig)
         _hooked = true;
     }
 
-    std::string exe = GetExecutableName();
+    string exe = GetExecutableName();
     if (exe.length() == 0)
         return false;
 

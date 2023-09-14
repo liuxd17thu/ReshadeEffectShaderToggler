@@ -38,7 +38,7 @@ using namespace std;
 
 namespace ShaderToggler
 {
-    ToggleGroup::ToggleGroup(std::string name, int id)
+    ToggleGroup::ToggleGroup(string name, int id)
     {
         _name = name.size() > 0 ? name : "Default";
         _id = id;
@@ -69,7 +69,7 @@ namespace ShaderToggler
     }
 
 
-    void ToggleGroup::storeCollectedHashes(const std::unordered_set<uint32_t> pixelShaderHashes, const std::unordered_set<uint32_t> vertexShaderHashes)
+    void ToggleGroup::storeCollectedHashes(const unordered_set<uint32_t> pixelShaderHashes, const unordered_set<uint32_t> vertexShaderHashes)
     {
         _vertexShaderHashes.clear();
         _pixelShaderHashes.clear();
@@ -104,7 +104,7 @@ namespace ShaderToggler
     }
 
 
-    void ToggleGroup::setName(std::string newName)
+    void ToggleGroup::setName(string newName)
     {
         if (newName.size() <= 0)
         {
@@ -132,10 +132,10 @@ namespace ShaderToggler
 
     void ToggleGroup::saveState(CDataFile& iniFile, int groupCounter) const
     {
-        const std::string sectionRoot = "Group" + std::to_string(groupCounter);
-        const std::string vertexHashesCategory = sectionRoot + "_VertexShaders";
-        const std::string pixelHashesCategory = sectionRoot + "_PixelShaders";
-        const std::string constantsCategory = sectionRoot + "_Constants";
+        const string sectionRoot = "Group" + std::to_string(groupCounter);
+        const string vertexHashesCategory = sectionRoot + "_VertexShaders";
+        const string pixelHashesCategory = sectionRoot + "_PixelShaders";
+        const string constantsCategory = sectionRoot + "_Constants";
 
         int counter = 0;
         for (const auto hash : _vertexShaderHashes)
@@ -154,11 +154,12 @@ namespace ShaderToggler
         iniFile.SetUInt("AmountHashes", counter, "", pixelHashesCategory);
 
         counter = 0;
-        for (const auto var : _varOffsetMapping)
+        for (const auto& [varName, varData] : _varOffsetMapping)
         {
-            iniFile.SetUInt("Offset" + std::to_string(counter), std::get<0>(var.second), "", constantsCategory);
-            iniFile.SetValue("Variable" + std::to_string(counter), var.first, "", constantsCategory);
-            iniFile.SetBool("UsePreviousValue" + std::to_string(counter), std::get<1>(var.second), "", constantsCategory);
+            const auto& [varOffset, varUsePref] = varData;
+            iniFile.SetUInt("Offset" + std::to_string(counter), varOffset, "", constantsCategory);
+            iniFile.SetValue("Variable" + std::to_string(counter), varName, "", constantsCategory);
+            iniFile.SetBool("UsePreviousValue" + std::to_string(counter), varUsePref, "", constantsCategory);
             counter++;
         }
         iniFile.SetUInt("AmountConstants", counter, "", constantsCategory);
@@ -167,7 +168,7 @@ namespace ShaderToggler
         iniFile.SetUInt("ToggleKey", _keybind, "", sectionRoot);
         iniFile.SetBool("Active", _isActive, "", sectionRoot);
 
-        std::stringstream ss("");
+        stringstream ss("");
         bool firstElement = true;
         for (const auto& el : _preferredTechniques)
         {
@@ -235,10 +236,10 @@ namespace ShaderToggler
             return;
         }
 
-        const std::string sectionRoot = "Group" + std::to_string(groupCounter);
-        const std::string vertexHashesCategory = sectionRoot + "_VertexShaders";
-        const std::string pixelHashesCategory = sectionRoot + "_PixelShaders";
-        const std::string constantsCategory = sectionRoot + "_Constants";
+        const string sectionRoot = "Group" + std::to_string(groupCounter);
+        const string vertexHashesCategory = sectionRoot + "_VertexShaders";
+        const string pixelHashesCategory = sectionRoot + "_PixelShaders";
+        const string constantsCategory = sectionRoot + "_Constants";
 
         int amountShaders = iniFile.GetInt("AmountHashes", vertexHashesCategory);
         for (int i = 0; i < amountShaders; i++)
@@ -307,9 +308,9 @@ namespace ShaderToggler
 
         _requeueAfterRTMatchingFailure = iniFile.GetBoolOrDefault("RequeueAfterRTMatchingFailure", sectionRoot, false);
 
-        std::string techniques = iniFile.GetString("Techniques", sectionRoot);
+        string techniques = iniFile.GetString("Techniques", sectionRoot);
         if (techniques.size() > 0) {
-            std::stringstream ss(techniques);
+            stringstream ss(techniques);
 
             while (ss.good())
             {

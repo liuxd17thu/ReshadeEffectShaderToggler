@@ -4,7 +4,7 @@ using namespace Shim::Constants;
 using namespace reshade::api;
 using namespace std;
 
-std::unordered_map<uint64_t, vector<uint8_t>> ConstantCopyBase::deviceToHostConstantBuffer;
+unordered_map<uint64_t, vector<uint8_t>> ConstantCopyBase::deviceToHostConstantBuffer;
 shared_mutex ConstantCopyBase::deviceHostMutex;
 
 ConstantCopyBase::ConstantCopyBase()
@@ -20,10 +20,11 @@ ConstantCopyBase::~ConstantCopyBase()
 void ConstantCopyBase::GetHostConstantBuffer(reshade::api::command_list* cmd_list, vector<uint8_t>& dest, size_t size, uint64_t resourceHandle)
 {
     shared_lock<shared_mutex> lock(deviceHostMutex);
-    const auto& ret = deviceToHostConstantBuffer.find(resourceHandle);
-    if (ret != deviceToHostConstantBuffer.end())
+    const auto& it = deviceToHostConstantBuffer.find(resourceHandle);
+    if (it != deviceToHostConstantBuffer.end())
     {
-        std::memcpy(dest.data(), get<1>(*ret).data(), size);
+        auto& [_, buffer] = *it;
+        std::memcpy(dest.data(), buffer.data(), size);
     }
 }
 
@@ -42,9 +43,12 @@ void ConstantCopyBase::DeleteHostConstantBuffer(resource resource)
 inline void ConstantCopyBase::SetHostConstantBuffer(const uint64_t handle, const void* buffer, size_t size, uintptr_t offset, uint64_t bufferSize)
 {
     unique_lock<shared_mutex> lock(deviceHostMutex);
-    const auto& blah = deviceToHostConstantBuffer.find(handle);
-    if (blah != deviceToHostConstantBuffer.end())
-        memcpy(get<1>(*blah).data() + offset, buffer, size);
+    const auto& it = deviceToHostConstantBuffer.find(handle);
+    if (it != deviceToHostConstantBuffer.end())
+    {
+        auto& [_, cBuffer] = *it;
+        memcpy(&cBuffer[offset], buffer, size);
+    }
 }
 
 void ConstantCopyBase::OnInitResource(device* device, const resource_desc& desc, const subresource_data* initData, resource_usage usage, reshade::api::resource handle)

@@ -147,7 +147,7 @@ namespace AddonImGui
         ShaderToggler::ShaderManager* GetVertexShaderManager() { return _vertexShaderManager; }
         void SetConstantHandler(Shim::Constants::ConstantHandlerBase* handler) { _constantHandler = handler; }
         Shim::Constants::ConstantHandlerBase* GetConstantHandler() { return _constantHandler; }
-        uint32_t GetKeybinding(Keybind keybind);
+        uint32_t GetKeybinding(Keybind keybind) const;
         const std::string& GetConstHookType() { return _constHookType; }
         const std::string& GetConstHookCopyType()  { return _constHookCopyType; }
         const std::string& GetResourceShim() { return _resourceShim; }

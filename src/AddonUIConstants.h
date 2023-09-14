@@ -30,7 +30,7 @@ static const std::unordered_set<std::string> varExclusionSet({
 static void DisplayConstantSettings(ShaderToggler::ToggleGroup* group)
 {
     ImGui::TableNextColumn();
-    ImGui::Text("Slot");
+    ImGui::Text("槽");
     ImGui::TableNextColumn();
     ImGui::Text("%u", group->getCBSlotIndex());
 
@@ -56,7 +56,7 @@ static void DisplayConstantSettings(ShaderToggler::ToggleGroup* group)
     ImGui::TableNextRow();
 
     ImGui::TableNextColumn();
-    ImGui::Text("Binding");
+    ImGui::Text("绑定");
     ImGui::TableNextColumn();
     ImGui::Text("%u", group->getCBDescriptorIndex());
 
@@ -94,7 +94,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
     const uint32_t columns = 4;
     const char* typeItems[] = { "byte", "float", "int", "uint" };
-    const char* cbModeItems[] = { "BUFFER", "PUSH" };
+    const char* cbModeItems[] = { "缓冲区[BUFFER]", "推送[PUSH]" };
     const uint32_t typeSizes[] = { 1, 4, 4, 4 };
     static int typeSelectionIndex = 1;
     static const char* typeSelectedItem = typeItems[1];
@@ -118,14 +118,14 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::TableSetupColumn("##CBcolumnsetup", ImGuiTableColumnFlags_WidthFixed, ImGui::GetWindowWidth() / 3);
 
             ImGui::TableNextColumn();
-            ImGui::Text("Extract constant buffer");
+            ImGui::Text("抽取常量缓冲区");
             ImGui::TableNextColumn();
             ImGui::Checkbox("##Extractconstantbuffer", &extractionEnabled);
 
             ImGui::TableNextRow();
 
             ImGui::TableNextColumn();
-            ImGui::Text("View mode");
+            ImGui::Text("视图模式");
             ImGui::TableNextColumn();
             if (ImGui::BeginCombo("##Viewmode", typeSelectedItem, ImGuiComboFlags_None))
             {
@@ -146,7 +146,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::TableNextRow();
 
             ImGui::TableNextColumn();
-            ImGui::Text("Constant mode");
+            ImGui::Text("常量模式");
             ImGui::TableNextColumn();
             if (ImGui::BeginCombo("##CBmode", cbModeSelection, ImGuiComboFlags_None))
             {
@@ -264,16 +264,16 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
-        if (ImGui::Button("Add Variable Binding"))
+        if (ImGui::Button("添加变量绑定"))
         {
-            ImGui::OpenPopup("Add###const_variables");
+            ImGui::OpenPopup("添加###const_variables");
         }
 
         ImGui::Separator();
 
-        if (ImGui::BeginPopupModal("Add###const_variables", nullptr, ImGuiWindowFlags_AlwaysAutoResize) && instance.GetRESTVariables()->size() > 0)
+        if (ImGui::BeginPopupModal("添加###const_variables", nullptr, ImGuiWindowFlags_AlwaysAutoResize) && instance.GetRESTVariables()->size() > 0)
         {
-            ImGui::Text("Add constant buffer offset to variable binding:");
+            ImGui::Text("添加常量缓冲区偏移量至变量绑定：");
 
             static int varSelectionIndex = 0;
             std::vector<std::string> varNames;
@@ -287,7 +287,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
             static std::string varSelectedItem = filteredVars.size() > 0 ? filteredVars[0] : "";
 
-            if (ImGui::BeginCombo("Variable", varSelectedItem.c_str(), ImGuiComboFlags_None))
+            if (ImGui::BeginCombo("变量", varSelectedItem.c_str(), ImGuiComboFlags_None))
             {
                 for (auto& v : filteredVars)
                 {
@@ -304,16 +304,16 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
             ImGui::Text("0x");
             ImGui::SameLine();
-            ImGui::InputText("Offset", offsetInputBuf, offsetInputBufSize, ImGuiInputTextFlags_CharsHexadecimal);
+            ImGui::InputText("偏移量", offsetInputBuf, offsetInputBufSize, ImGuiInputTextFlags_CharsHexadecimal);
 
             static bool prevValue = false;
 
-            ImGui::Checkbox("Use previous value", &prevValue);
+            ImGui::Checkbox("使用前值", &prevValue);
 
             ImGui::Separator();
 
             ImGui::SetCursorPosX(ImGui::GetWindowWidth() / 2 - 120 - ImGui::GetStyle().ItemSpacing.x / 2 - ImGui::GetStyle().FramePadding.x / 2);
-            if (ImGui::Button("OK", ImVec2(120, 0)))
+            if (ImGui::Button("确认", ImVec2(120, 0)))
             {
                 if (varSelectedItem.size() > 0)
                 {
@@ -323,7 +323,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             }
             ImGui::SetItemDefaultFocus();
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0)))
+            if (ImGui::Button("取消", ImVec2(120, 0)))
             {
                 ImGui::CloseCurrentPopup();
             }
@@ -331,7 +331,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::EndPopup();
         }
 
-        const char* varColumns[] = { "Variable", "Offset", "Type", "Use Previous Value" };
+        const char* varColumns[] = { "变量", "偏移量", "类型", "使用前值" };
         std::vector<std::string> removal;
 
         if (varMap.size() > 0 && ImGui::BeginTable("Buffer View Grid##vartable", IM_ARRAYSIZE(varColumns) + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody))
@@ -357,7 +357,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
                 ImGui::TableNextColumn();
                 ImGui::Text(std::format("{}", std::get<1>(varMapping.second)).c_str());
                 ImGui::TableNextColumn();
-                if (ImGui::Button(std::format("Remove##{}", varMapping.first).c_str()))
+                if (ImGui::Button(std::format("移除##{}", varMapping.first).c_str()))
                 {
                     removal.push_back(varMapping.first);
                 }

@@ -33,7 +33,7 @@ static void DisplayAbout()
     static bool wndOpen = false;
 
     ImGui::PushItemWidth(ImGui::GetWindowWidth());
-    if (ImGui::Button("About", ImVec2(ImGui::GetWindowWidth(), 0.0f)))
+    if (ImGui::Button("关于", ImVec2(ImGui::GetWindowWidth(), 0.0f)))
     {
         wndOpen = !wndOpen;
     }
@@ -42,9 +42,9 @@ static void DisplayAbout()
     if (wndOpen)
     {
         ImGui::SetNextWindowSize({ 500, 800 }, ImGuiCond_Once);
-        if (ImGui::Begin("About##Wnd", &wndOpen))
+        if (ImGui::Begin("关于##Wnd", &wndOpen))
         {
-            if (ImGui::BeginChild("About##Licenses", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
+            if (ImGui::BeginChild("关于##Licenses", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
             {
                 auto lic_REST = GetResourceData(LICENSE_REST);
                 ImGui::TextWrapped("%s", lic_REST.c_str());

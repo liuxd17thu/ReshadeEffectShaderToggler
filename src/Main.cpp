@@ -59,7 +59,7 @@ using namespace Shim::Constants;
 using namespace StateTracker;
 
 extern "C" __declspec(dllexport) const char* NAME = "Reshade Effect Shader Toggler";
-extern "C" __declspec(dllexport) const char* DESCRIPTION = "Addon which allows you to define groups of shaders to render Reshade effects on.";
+extern "C" __declspec(dllexport) const char* DESCRIPTION = "一个ReShade插件，允许你定义在哪些游戏着色器分组上渲染ReShade滤镜效果。";
 
 constexpr auto MAX_EFFECT_HANDLES = 128;
 constexpr auto REST_VAR_ANNOTATION = "source";

@@ -452,20 +452,7 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
             renderingEffectManager.RenderEffects(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_EFFECT);
         }
 
-        // Make sure we dequeue whatever is left over scheduled for CALL_DRAW/CALL_BIND_PIPELINE in case re-queueing was enabled for some group
-        if (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING))
-        {
-            uint64_t drawflagmask = (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING)) >> (Rendering::CALL_BIND_RENDER_TARGET * Rendering::MATCH_DELIMITER);
-            drawflagmask &= commandListData.commandQueue;
-            drawflagmask &= pipelineChanged;
-
-            // Clear RT commands if their draw flags have not been cleared before a pipeline change
-            renderingQueueManager.ClearQueue(commandListData, drawflagmask, Rendering::CALL_BIND_RENDER_TARGET);
-        }
-
-        renderingQueueManager.ClearQueue(commandListData, pipelineChanged, Rendering::CALL_DRAW);
-        renderingQueueManager.ClearQueue(commandListData, pipelineChanged, Rendering::CALL_BIND_PIPELINE);
-
+        renderingQueueManager.ClearQueue(commandListData, pipelineChanged);
         renderingQueueManager.CheckCallForCommandList(commandList);
     }
 }

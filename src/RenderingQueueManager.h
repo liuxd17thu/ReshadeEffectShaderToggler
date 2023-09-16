@@ -12,6 +12,7 @@ namespace Rendering
 
         void RescheduleGroups(CommandListDataContainer& commandListData, DeviceDataContainer& deviceData);
         void ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange, const uint64_t location) const;
+        void ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange) const;
         void CheckCallForCommandList(reshade::api::command_list* commandList);
     private:
         AddonImGui::AddonUIData& uiData;

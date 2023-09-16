@@ -178,7 +178,6 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
         }
     }
 
-
     commandListData.commandQueue |= queue_mask;
 }
 
@@ -240,4 +239,21 @@ void RenderingQueueManager::ClearQueue(CommandListDataContainer& commandListData
         clearStage(commandListData, commandListData.vs.bindingsToUpdate, pipelineChange, MATCH_BINDING_VS, location);
         clearStage(commandListData, commandListData.cs.bindingsToUpdate, pipelineChange, MATCH_BINDING_CS, location);
     }
+}
+
+void RenderingQueueManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange) const
+{
+    // Make sure we dequeue whatever is left over scheduled for CALL_DRAW/CALL_BIND_PIPELINE in case re-queueing was enabled for some group
+    if (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING))
+    {
+        uint64_t drawflagmask = (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING)) >> (Rendering::CALL_BIND_RENDER_TARGET * Rendering::MATCH_DELIMITER);
+        drawflagmask &= commandListData.commandQueue;
+        drawflagmask &= pipelineChange;
+
+        // Clear RT commands if their draw flags have not been cleared before a pipeline change
+        ClearQueue(commandListData, drawflagmask, Rendering::CALL_BIND_RENDER_TARGET);
+    }
+
+    ClearQueue(commandListData, pipelineChange, Rendering::CALL_DRAW);
+    ClearQueue(commandListData, pipelineChange, Rendering::CALL_BIND_PIPELINE);
 }

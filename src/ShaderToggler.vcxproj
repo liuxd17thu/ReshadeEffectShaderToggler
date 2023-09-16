@@ -201,6 +201,10 @@
     <ClInclude Include="crc32_hash.hpp" />
     <ClInclude Include="DescriptorTracking.h" />
     <ClInclude Include="GameHookT.h" />
+    <ClInclude Include="RenderingBindingManager.h" />
+    <ClInclude Include="RenderingEffectManager.h" />
+    <ClInclude Include="RenderingPreviewManager.h" />
+    <ClInclude Include="RenderingQueueManager.h" />
     <ClInclude Include="ResourceShim.h" />
     <ClInclude Include="ResourceShimFFXIV.h" />
     <ClInclude Include="ResourceShimSRGB.h" />
@@ -228,6 +232,10 @@
     <ClCompile Include="ConstantManager.cpp" />
     <ClCompile Include="DescriptorTracking.cpp" />
     <ClCompile Include="GameHookT.cpp" />
+    <ClCompile Include="RenderingBindingManager.cpp" />
+    <ClCompile Include="RenderingEffectManager.cpp" />
+    <ClCompile Include="RenderingPreviewManager.cpp" />
+    <ClCompile Include="RenderingQueueManager.cpp" />
     <ClCompile Include="ResourceShimFFXIV.cpp" />
     <ClCompile Include="ResourceShimSRGB.cpp" />
     <ClCompile Include="Main.cpp" />

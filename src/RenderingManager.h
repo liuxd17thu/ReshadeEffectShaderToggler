@@ -58,52 +58,11 @@ namespace Rendering
     class __declspec(novtable) RenderingManager final
     {
     public:
-        RenderingManager(AddonImGui::AddonUIData& data, ResourceManager& rManager);
-        ~RenderingManager();
-
-        const reshade::api::resource_view GetCurrentResourceView(reshade::api::command_list* cmd_list, DeviceDataContainer& deviceData, ShaderToggler::ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action);
-        const reshade::api::resource_view GetCurrentPreviewResourceView(reshade::api::command_list* cmd_list, DeviceDataContainer& deviceData, const ShaderToggler::ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action);
-        void UpdatePreview(reshade::api::command_list* cmd_list, uint64_t callLocation, uint64_t invocation);
-        void RenderEffects(reshade::api::command_list* cmd_list, uint64_t callLocation = CALL_DRAW, uint64_t invocation = MATCH_NONE);
-        bool RenderRemainingEffects(reshade::api::effect_runtime* runtime);
-
-        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::resource_view* rtv, const reshade::api::resource_desc& desc);
-        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::resource_view* rtv, reshade::api::format format);
-        uint32_t UpdateTextureBinding(reshade::api::effect_runtime* runtime, const std::string& binding, const reshade::api::resource_desc& desc);
-        void DestroyTextureBinding(reshade::api::effect_runtime* runtime, const std::string& binding);
-        void InitTextureBingings(reshade::api::effect_runtime* runtime);
-        void DisposeTextureBindings(reshade::api::effect_runtime* runtime);
-        void UpdateTextureBindings(reshade::api::command_list* cmd_list, uint64_t callLocation = CALL_DRAW, uint64_t invocation = MATCH_NONE);
-        void ClearUnmatchedTextureBindings(reshade::api::command_list* cmd_list);
-
-        void _CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData) const;
-        void CheckCallForCommandList(reshade::api::command_list* commandList);
-
-        void RescheduleGroups(CommandListDataContainer& commandListData, DeviceDataContainer& deviceData);
-
-        void ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange, const uint64_t location) const;
+        static const reshade::api::resource_view GetCurrentResourceView(reshade::api::command_list* cmd_list, DeviceDataContainer& deviceData, ShaderToggler::ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action);
+        static const reshade::api::resource_view GetCurrentPreviewResourceView(reshade::api::command_list* cmd_list, DeviceDataContainer& deviceData, const ShaderToggler::ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action);
 
         static void EnumerateTechniques(reshade::api::effect_runtime* runtime, std::function<void(reshade::api::effect_runtime*, reshade::api::effect_technique, std::string&)> func);
-    private:
-        bool _RenderEffects(
-            reshade::api::command_list* cmd_list,
-            DeviceDataContainer& deviceData,
-            const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& techniquesToRender,
-            std::vector<std::string>& removalList,
-            const std::unordered_set<std::string>& toRenderNames);
-        void _UpdateTextureBindings(reshade::api::command_list* cmd_list,
-            DeviceDataContainer& deviceData,
-            const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& bindingsToUpdate,
-            std::vector<std::string>& removalList,
-            const std::unordered_set<std::string>& toUpdateBindings);
-        bool _CreateTextureBinding(reshade::api::effect_runtime* runtime,
-            reshade::api::resource* res,
-            reshade::api::resource_view* srv,
-            reshade::api::resource_view* rtv,
-            reshade::api::format format,
-            uint32_t width,
-            uint32_t height);
-        void _QueueOrDequeue(
+        static void QueueOrDequeue(
             reshade::api::command_list* cmd_list,
             DeviceDataContainer& deviceData,
             CommandListDataContainer& commandListData,
@@ -112,18 +71,7 @@ namespace Rendering
             uint64_t callLocation,
             uint32_t layoutIndex,
             uint64_t action);
-        void _RescheduleGroups(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData);
-
-        AddonImGui::AddonUIData& uiData;
-        ResourceManager& resourceManager;
-
-        std::shared_mutex render_mutex;
-        std::shared_mutex binding_mutex;
-
-        reshade::api::resource empty_res = { 0 };
-        reshade::api::resource_view empty_rtv = { 0 };
-        reshade::api::resource_view empty_srv = { 0 };
-
+    private:
         static constexpr size_t CHAR_BUFFER_SIZE = 256;
         static size_t g_charBufferSize;
         static char g_charBuffer[CHAR_BUFFER_SIZE];

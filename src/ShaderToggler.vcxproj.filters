@@ -105,6 +105,18 @@
     <ClInclude Include="StateTracking.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RenderingQueueManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderingEffectManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderingBindingManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderingPreviewManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -168,6 +180,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="StateTracking.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderingQueueManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderingEffectManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderingBindingManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderingPreviewManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

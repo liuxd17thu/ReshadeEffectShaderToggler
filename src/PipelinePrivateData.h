@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <tuple>
+#include <shared_mutex>
 #include "reshade.hpp"
 #include "CDataFile.h"
 #include "ToggleGroup.h"
@@ -90,7 +91,9 @@ struct __declspec(novtable) HuntPreview final
 struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContainer {
     reshade::api::effect_runtime* current_runtime = nullptr;
     std::atomic_bool rendered_effects = false;
+    std::shared_mutex render_mutex;
     std::unordered_map<std::string, bool> allEnabledTechniques;
+    std::shared_mutex binding_mutex;
     std::unordered_map<std::string, TextureBindingData> bindingMap;
     std::unordered_set<std::string> bindingsUpdated;
     std::unordered_set<const ShaderToggler::ToggleGroup*> constantsUpdated;

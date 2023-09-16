@@ -50,6 +50,10 @@
 #include "PipelinePrivateData.h"
 #include "ResourceManager.h"
 #include "RenderingManager.h"
+#include "RenderingQueueManager.h"
+#include "RenderingEffectManager.h"
+#include "RenderingBindingManager.h"
+#include "RenderingPreviewManager.h"
 #include "StateTracking.h"
 
 using namespace reshade::api;
@@ -81,7 +85,10 @@ static vector<string> allTechniques;
 static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, &g_computeShaderManager, constantHandler, &g_activeCollectorFrameCounter, &allTechniques);
 
 static Rendering::ResourceManager resourceManager;
-static Rendering::RenderingManager renderingManager(g_addonUIData, resourceManager);
+static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, resourceManager);
+static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager);
+static Rendering::RenderingPreviewManager renderingPreviewManager(g_addonUIData, resourceManager);
+static Rendering::RenderingQueueManager renderingQueueManager(g_addonUIData, resourceManager);
 
 // TODO: was this needed? might need to re-check
 //static shared_mutex render_mutex;
@@ -254,14 +261,14 @@ static void onInitEffectRuntime(effect_runtime* runtime)
     // Dispose of texture bindings created from the runtime below
     if (data.current_runtime != nullptr)
     {
-        renderingManager.DisposeTextureBindings(data.current_runtime);
+        renderingBindingManager.DisposeTextureBindings(data.current_runtime);
     }
 
     // Push new runtime on top
     runtimes.push_back(runtime);
     data.current_runtime = runtime;
 
-    renderingManager.InitTextureBingings(runtime);
+    renderingBindingManager.InitTextureBingings(runtime);
 
     if (constantHandler != nullptr)
     {
@@ -289,13 +296,13 @@ static void onDestroyEffectRuntime(effect_runtime* runtime)
     // Pick the runtime on top of our stack if there are any
     if (runtime == data.current_runtime)
     {
-        renderingManager.DisposeTextureBindings(runtime);
+        renderingBindingManager.DisposeTextureBindings(runtime);
 
         if (runtimes.size() > 0)
         {
             data.current_runtime = runtimes[runtimes.size() - 1];
 
-            renderingManager.InitTextureBingings(data.current_runtime);
+            renderingBindingManager.InitTextureBingings(data.current_runtime);
 
             if (constantHandler != nullptr)
             {
@@ -432,17 +439,17 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
         // Perform updates scheduled for after a shader has been applied. Only do so once the draw flag has been cleared.
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_PIPELINE_PREVIEW && !(commandListData.commandQueue & pipelineChanged & Rendering::MATCH_PREVIEW))
         {
-            renderingManager.UpdatePreview(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_PREVIEW);
+            renderingPreviewManager.UpdatePreview(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_PREVIEW);
         }
 
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_PIPELINE_BINDING && !(commandListData.commandQueue & pipelineChanged & Rendering::MATCH_BINDING))
         {
-            renderingManager.UpdateTextureBindings(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_BINDING);
+            renderingBindingManager.UpdateTextureBindings(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_BINDING);
         }
 
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_PIPELINE_EFFECT && !(commandListData.commandQueue & pipelineChanged & Rendering::MATCH_EFFECT))
         {
-            renderingManager.RenderEffects(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_EFFECT);
+            renderingEffectManager.RenderEffects(commandList, Rendering::CALL_BIND_PIPELINE, pipelineChanged & Rendering::MATCH_EFFECT);
         }
 
         // Make sure we dequeue whatever is left over scheduled for CALL_DRAW/CALL_BIND_PIPELINE in case re-queueing was enabled for some group
@@ -453,13 +460,13 @@ static void onBindPipeline(command_list* commandList, pipeline_stage stages, pip
             drawflagmask &= pipelineChanged;
 
             // Clear RT commands if their draw flags have not been cleared before a pipeline change
-            renderingManager.ClearQueue(commandListData, drawflagmask, Rendering::CALL_BIND_RENDER_TARGET);
+            renderingQueueManager.ClearQueue(commandListData, drawflagmask, Rendering::CALL_BIND_RENDER_TARGET);
         }
 
-        renderingManager.ClearQueue(commandListData, pipelineChanged, Rendering::CALL_DRAW);
-        renderingManager.ClearQueue(commandListData, pipelineChanged, Rendering::CALL_BIND_PIPELINE);
+        renderingQueueManager.ClearQueue(commandListData, pipelineChanged, Rendering::CALL_DRAW);
+        renderingQueueManager.ClearQueue(commandListData, pipelineChanged, Rendering::CALL_BIND_PIPELINE);
 
-        renderingManager.CheckCallForCommandList(commandList);
+        renderingQueueManager.CheckCallForCommandList(commandList);
     }
 }
 
@@ -479,20 +486,20 @@ static void onBindRenderTargetsAndDepthStencil(command_list* cmd_list, uint32_t 
     //{
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_RENDERTARGET_PREVIEW && !(commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_PREVIEW))
         {
-            renderingManager.UpdatePreview(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_PREVIEW);
+            renderingPreviewManager.UpdatePreview(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_PREVIEW);
         }
         
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING && !(commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_BINDING))
         {
-            renderingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_BINDING);
+            renderingBindingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_BINDING);
         }
         
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT && !(commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_EFFECT))
         {
-            renderingManager.RenderEffects(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_EFFECT);
+            renderingEffectManager.RenderEffects(cmd_list, Rendering::CALL_BIND_RENDER_TARGET, Rendering::MATCH_EFFECT);
         }
         
-        renderingManager.RescheduleGroups(commandListData, deviceData);
+        renderingQueueManager.RescheduleGroups(commandListData, deviceData);
     //}
 }
 
@@ -508,8 +515,6 @@ static void onBeginRenderPass(command_list* cmd_list, uint32_t count, const rend
     CommandListDataContainer& commandListData = cmd_list->get_private_data<CommandListDataContainer>();
     DeviceDataContainer& deviceData = device->get_private_data<DeviceDataContainer>();
     
-    //commandListData.stateTracker.OnBeginRenderPass(cmd_list, count, rts, ds);
-    
     if (!deviceData.current_runtime->get_effects_state())
     {
         return;
@@ -517,12 +522,12 @@ static void onBeginRenderPass(command_list* cmd_list, uint32_t count, const rend
 
     if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_BINDING)
     {
-        renderingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_BINDING_PS | Rendering::MATCH_BINDING_VS);
+        renderingBindingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_BINDING_PS | Rendering::MATCH_BINDING_VS);
     }
 
     if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_EFFECT)
     {
-        renderingManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT_PS | Rendering::MATCH_EFFECT_VS);
+        renderingEffectManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT_PS | Rendering::MATCH_EFFECT_VS);
     }
 }
 
@@ -548,9 +553,9 @@ static void onPresent(command_queue* queue, swapchain* swapchain, const rect* so
     {
         if (runtime->get_effects_state())
         {
-            renderingManager.RenderRemainingEffects(runtime);
+            renderingEffectManager.RenderRemainingEffects(runtime);
             resourceManager.CheckPreview(queue->get_immediate_command_list(), dev, runtime);
-            renderingManager.ClearUnmatchedTextureBindings(runtime->get_command_queue()->get_immediate_command_list());
+            renderingBindingManager.ClearUnmatchedTextureBindings(runtime->get_command_queue()->get_immediate_command_list());
         }
     }
 
@@ -575,8 +580,8 @@ static void onReshadePresent(effect_runtime* runtime)
 
     if (deviceData.reload_bindings)
     {
-        renderingManager.DisposeTextureBindings(runtime);
-        renderingManager.InitTextureBingings(runtime);
+        renderingBindingManager.DisposeTextureBindings(runtime);
+        renderingBindingManager.InitTextureBingings(runtime);
 
         deviceData.reload_bindings = false;
     }
@@ -642,17 +647,17 @@ static void CheckDrawCall(command_list* cmd_list)
 
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_PREVIEW)
         {
-            renderingManager.UpdatePreview(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_PREVIEW);
+            renderingPreviewManager.UpdatePreview(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_PREVIEW);
         }
 
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_BINDING)
         {
-            renderingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_BINDING);
+            renderingBindingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_BINDING);
         }
 
         if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_EFFECT)
         {
-            renderingManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT);
+            renderingEffectManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT);
         }
     }
 }

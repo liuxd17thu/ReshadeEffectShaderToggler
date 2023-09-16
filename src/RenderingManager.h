@@ -81,7 +81,7 @@ namespace Rendering
 
         void RescheduleGroups(CommandListDataContainer& commandListData, DeviceDataContainer& deviceData);
 
-        void ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange) const;
+        void ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange, const uint64_t location) const;
 
         static void EnumerateTechniques(reshade::api::effect_runtime* runtime, std::function<void(reshade::api::effect_runtime*, reshade::api::effect_technique, std::string&)> func);
     private:

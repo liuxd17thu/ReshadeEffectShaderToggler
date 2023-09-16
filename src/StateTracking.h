@@ -28,6 +28,9 @@ struct state_block
     std::vector<reshade::api::resource_view> render_targets;
     reshade::api::resource_view depth_stencil = { 0 };
     std::unordered_map<reshade::api::pipeline_stage, reshade::api::pipeline> pipelines;
+    reshade::api::pipeline_stage current_graphics_vertex_stage;
+    reshade::api::pipeline_stage current_graphics_pixel_stage;
+    reshade::api::pipeline_stage current_compute_stage;
     reshade::api::primitive_topology primitive_topology = reshade::api::primitive_topology::undefined;
     uint32_t blend_constant = 0;
     std::vector<reshade::api::viewport> viewports;

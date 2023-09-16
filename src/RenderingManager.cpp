@@ -61,12 +61,6 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                     if(uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
                     {
                         queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
-                        //queue_mask |= match_preview << (group->getInvocationLocation() * MATCH_DELIMITER);
-                        //if (group->getInvocationLocation() == CALL_BIND_PIPELINE)
-                        //{
-                        //    queue_mask |= match_preview << (CALL_DRAW * MATCH_DELIMITER);
-                        //}
-                
                         deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
                     }
                 }
@@ -84,11 +78,6 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                         {
                             sData.bindingsToUpdate.emplace(group->getTextureBindingName(), std::make_tuple(group, group->getBindingInvocationLocation(), resource_view{ 0 }));
                             queue_mask |= (match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
-                            //queue_mask |= match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER);
-                            //if (group->getBindingInvocationLocation() == CALL_BIND_PIPELINE)
-                            //{
-                            //    queue_mask |= match_binding << (CALL_DRAW * MATCH_DELIMITER);
-                            //}
                         }
                     }
                 }
@@ -108,11 +97,6 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                             {
                                 sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
                                 queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
-                                //queue_mask |= match_effect << (group->getInvocationLocation() * MATCH_DELIMITER);
-                                //if (group->getInvocationLocation() == CALL_BIND_PIPELINE)
-                                //{
-                                //    queue_mask |= match_effect << (CALL_DRAW * MATCH_DELIMITER);
-                                //}
                             }
                         }
                     }
@@ -126,11 +110,6 @@ void RenderingManager::_CheckCallForCommandList(ShaderData& sData, CommandListDa
                             {
                                 sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
                                 queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
-                                //queue_mask |= match_effect << (group->getInvocationLocation() * MATCH_DELIMITER);
-                                //if (group->getInvocationLocation() == CALL_BIND_PIPELINE)
-                                //{
-                                //    queue_mask |= match_effect << (CALL_DRAW * MATCH_DELIMITER);
-                                //}
                             }
                         }
                     }
@@ -596,8 +575,7 @@ void RenderingManager::_QueueOrDequeue(
             }
             else if(group->getRequeueAfterRTMatchingFailure())
             {
-                // Re-issue draw call queue command
-                //commandListData.commandQueue |= (action << (callLocation * MATCH_DELIMITER));
+                // Leave loaded up in the effect/bind list and re-issue command on RT change
                 it++;
                 continue;
             }
@@ -745,12 +723,6 @@ void RenderingManager::UpdatePreview(command_list* cmd_list, uint64_t callLocati
             deviceData.huntPreview.width = desc.texture.width;
             deviceData.huntPreview.height = desc.texture.height;
         }
-        //else if (group.getRequeueAfterRTMatchingFailure())
-        //{
-        //    // Re-issue draw call queue command
-        //    commandListData.commandQueue |= (invocation << (callLocation * MATCH_DELIMITER));
-        //    return;
-        //}
         else
         {
             return;
@@ -1218,25 +1190,15 @@ void RenderingManager::ClearUnmatchedTextureBindings(reshade::api::command_list*
     }
 }
 
-static void clearStage(CommandListDataContainer& commandListData, effect_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag)
+static void clearStage(CommandListDataContainer& commandListData, effect_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag, uint64_t location)
 {
-    const uint64_t qdraw = (clearFlag & pipelineChange) << (CALL_DRAW * Rendering::MATCH_DELIMITER);
-    const uint64_t qbind = (clearFlag & pipelineChange) << (CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER);
-
     if (queuedTasks.size() > 0 && (pipelineChange & clearFlag))
     {
         for (auto it = queuedTasks.begin(); it != queuedTasks.end();)
         {
             uint64_t callLocation = std::get<1>(it->second);
-            if (callLocation == CALL_DRAW)
+            if (callLocation == location)
             {
-                commandListData.commandQueue &= ~(qdraw);
-                it = queuedTasks.erase(it);
-                continue;
-            }
-            else if (callLocation == CALL_BIND_PIPELINE)
-            {
-                commandListData.commandQueue &= ~(qbind);
                 it = queuedTasks.erase(it);
                 continue;
             }
@@ -1245,28 +1207,20 @@ static void clearStage(CommandListDataContainer& commandListData, effect_queue& 
     }
 }
 
-void RenderingManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange) const
+void RenderingManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange, const uint64_t location) const
 {
-    const uint64_t qdraw = pipelineChange << CALL_DRAW * Rendering::MATCH_DELIMITER;
-    const uint64_t qbind = pipelineChange << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
+    const uint64_t qloc = pipelineChange << (location * Rendering::MATCH_DELIMITER);
 
-    const uint64_t qdraw_pre = (pipelineChange & MATCH_PREVIEW) << CALL_DRAW * Rendering::MATCH_DELIMITER;
-    const uint64_t qbind_pre = (pipelineChange & MATCH_PREVIEW) << CALL_BIND_PIPELINE * Rendering::MATCH_DELIMITER;
-
-    if (commandListData.commandQueue & (qdraw | qbind))
+    if (commandListData.commandQueue & qloc)
     {
-        commandListData.commandQueue &= ~(qdraw_pre);
-        commandListData.commandQueue &= ~(qbind_pre);
+        commandListData.commandQueue &= ~qloc;
 
-        clearStage(commandListData, commandListData.ps.techniquesToRender, pipelineChange, MATCH_EFFECT_PS);
-        clearStage(commandListData, commandListData.ps.bindingsToUpdate, pipelineChange, MATCH_BINDING_PS);
+        clearStage(commandListData, commandListData.ps.techniquesToRender, pipelineChange, MATCH_EFFECT_PS, location);
+        clearStage(commandListData, commandListData.vs.techniquesToRender, pipelineChange, MATCH_EFFECT_VS, location);
+        clearStage(commandListData, commandListData.cs.techniquesToRender, pipelineChange, MATCH_EFFECT_CS, location);
 
-        clearStage(commandListData, commandListData.vs.techniquesToRender, pipelineChange, MATCH_EFFECT_VS);
-        clearStage(commandListData, commandListData.vs.bindingsToUpdate, pipelineChange, MATCH_BINDING_VS);
-
-        clearStage(commandListData, commandListData.cs.techniquesToRender, pipelineChange, MATCH_EFFECT_CS);
-        clearStage(commandListData, commandListData.cs.bindingsToUpdate, pipelineChange, MATCH_BINDING_CS);
-
-        commandListData.commandQueue &= ~(MATCH_CONST & pipelineChange);
+        clearStage(commandListData, commandListData.ps.bindingsToUpdate, pipelineChange, MATCH_BINDING_PS, location);
+        clearStage(commandListData, commandListData.vs.bindingsToUpdate, pipelineChange, MATCH_BINDING_VS, location);
+        clearStage(commandListData, commandListData.cs.bindingsToUpdate, pipelineChange, MATCH_BINDING_CS, location);
     }
 }

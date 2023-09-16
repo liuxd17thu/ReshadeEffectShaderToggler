@@ -15,8 +15,14 @@ void state_block::apply(command_list* cmd_list) const
     if (!render_targets.empty() || depth_stencil != 0)
         cmd_list->bind_render_targets_and_depth_stencil(static_cast<uint32_t>(render_targets.size()), render_targets.data(), depth_stencil);
 
-    for (const auto& [stages, pipeline] : pipelines)
-        cmd_list->bind_pipeline(stages, pipeline);
+    if (static_cast<uint32_t>(current_graphics_pixel_stage) != 0)
+        cmd_list->bind_pipeline(current_graphics_pixel_stage, pipelines.at(current_graphics_pixel_stage));
+
+    if (static_cast<uint32_t>(current_graphics_vertex_stage) != 0)
+        cmd_list->bind_pipeline(current_graphics_vertex_stage, pipelines.at(current_graphics_vertex_stage));
+
+    if (static_cast<uint32_t>(current_compute_stage) != 0)
+        cmd_list->bind_pipeline(current_compute_stage, pipelines.at(current_compute_stage));
 
     if (primitive_topology != primitive_topology::undefined)
         cmd_list->bind_pipeline_state(dynamic_state::primitive_topology, static_cast<uint32_t>(primitive_topology));
@@ -70,6 +76,10 @@ void state_block::clear()
     descriptor_tables.clear();
     push_constants.clear();
     descriptors.clear();
+
+    current_compute_stage = static_cast<pipeline_stage>(0);
+    current_graphics_pixel_stage = static_cast<pipeline_stage>(0);
+    current_graphics_vertex_stage = static_cast<pipeline_stage>(0);
 }
 
 static void on_init_command_list(command_list* cmd_list)
@@ -92,6 +102,15 @@ static void on_bind_pipeline(command_list* cmd_list, pipeline_stage stages, pipe
 {
     auto& state = cmd_list->get_private_data<state_tracking>();
     state.pipelines[stages] = pipeline;
+
+    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(pipeline_stage::pixel_shader))
+        state.current_graphics_pixel_stage = stages;
+
+    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(pipeline_stage::vertex_shader))
+        state.current_graphics_vertex_stage = stages;
+
+    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(pipeline_stage::compute_shader))
+        state.current_compute_stage = stages;
 }
 
 static void on_bind_pipeline_states(command_list* cmd_list, uint32_t count, const dynamic_state* states, const uint32_t* values)

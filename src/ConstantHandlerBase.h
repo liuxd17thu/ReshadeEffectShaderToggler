@@ -82,6 +82,7 @@ namespace Shim
 
             void SetBufferRange(const ShaderToggler::ToggleGroup* group, reshade::api::buffer_range range, reshade::api::device * dev, reshade::api::command_list* cmd_list);
             void SetConstants(const ShaderToggler::ToggleGroup* group, const std::vector<uint32_t>& buf, reshade::api::device* dev, reshade::api::command_list* cmd_list);
+            std::shared_mutex& GetBufferMutex() { return groupBufferMutex; }
             void RemoveGroup(const ShaderToggler::ToggleGroup*, reshade::api::device* dev);
             const uint8_t* GetConstantBuffer(const ShaderToggler::ToggleGroup* group);
             size_t GetConstantBufferSize(const ShaderToggler::ToggleGroup* group);
@@ -102,6 +103,7 @@ namespace Shim
             std::unordered_map<const ShaderToggler::ToggleGroup*, size_t> groupBufferSize;
             int32_t previousEnableCount = std::numeric_limits<int32_t>::max();
             std::shared_mutex varMutex;
+            static std::shared_mutex groupBufferMutex;
 
             static std::unordered_map<std::string, std::tuple<constant_type, std::vector<reshade::api::effect_uniform_variable>>> restVariables;
             static char charBuffer[CHAR_BUFFER_SIZE];

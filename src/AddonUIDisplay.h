@@ -186,8 +186,9 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
                 }
             }
         }
+
+        ImGui::EndTable();
     }
-    ImGui::EndTable();
 
     if (allowAll && !exceptions)
     {
@@ -196,7 +197,9 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
 
     group->setHasTechniqueExceptions(exceptions);
     group->setAllowAllTechniques(allowAll);
-    group->setPreferredTechniques(newTechniques);
+
+    if(techniquesPtr != nullptr && techniquesPtr->size() > 0)
+        group->setPreferredTechniques(newTechniques);
 }
 
 struct DrawCallData
@@ -215,9 +218,9 @@ static void render_function(const ImDrawList* parent_list, const ImDrawCmd* cmd)
     reshade::api::command_list* cmd_list = runtime->get_command_queue()->get_immediate_command_list();
 
     if(!callData->isAfter)
-        cmd_list->bind_pipeline_state(dynamic_state::blend_constant, 0x00FFFFFF);
+        cmd_list->bind_pipeline_state(reshade::api::dynamic_state::blend_constant, 0x00FFFFFF);
     else
-        cmd_list->bind_pipeline_state(dynamic_state::blend_constant, 0xffffffff);
+        cmd_list->bind_pipeline_state(reshade::api::dynamic_state::blend_constant, 0xffffffff);
 }
 
 static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_t srcHeight)
@@ -249,7 +252,7 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
-        resource_view srv = resource_view{ 0 };
+        reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
         resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
 
         if (srv != 0)
@@ -264,13 +267,13 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
             if (ImGui::BeginChild("RTPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
             {
                 DrawPreview(srv.handle, deviceData.huntPreview.width, deviceData.huntPreview.height);
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
         }
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 }
 
 static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, const std::string& binding)
@@ -280,7 +283,7 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
-        resource_view srv = resource_view{ 0 };
+        reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
         resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
         const auto& it = deviceData.bindingMap.find(binding);
 
@@ -297,13 +300,13 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
             if (ImGui::BeginChild("BindingPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
             {
                 DrawPreview(texData.srv.handle, texData.width, texData.height);
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
         }
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 }
 
 static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, ShaderToggler::ToggleGroup* group)
@@ -410,8 +413,8 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
         DisplayTechniqueSelection(instance, group, ImGui::GetWindowWidth() / 3);
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 
     ImGui::PushID(4);
     ImGui::Button("", ImVec2(-1, 8.0f));
@@ -443,6 +446,8 @@ static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::Resou
     {
         for (auto h : hashes)
         {
+            ImGui::TableNextColumn();
+
             bool marked = false;
             if (shaderManager->isHuntedShaderMarked(shaderManager->getCollectedShaderHash(index)))
             {
@@ -467,9 +472,6 @@ static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::Resou
                 selected = index;
             };
 
-            if (index < hashes.size() - 1)
-                ImGui::TableNextColumn();
-
             index++;
         }
 
@@ -490,6 +492,10 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
     static const char* swapchainMatchOptions[] = { "RESOLUTION", "ASPECT RATIO", "EXTENDED ASPECT RATIO", "NONE" };
     uint32_t selectedSwapchainMatchMode = group->getBindingMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
+
+    static const char* stageItems[] = { "VERTEX", "HULL", "DOMAIN", "GEOMETRY", "PIXEL", "COMPUTE", "ALL", "ALL_COMPUTE", "ALL_GRAPHICS" };
+    uint32_t selectedStageIndex = group->getSRVShaderStage();
+    const char* selectedStage = stageItems[selectedStageIndex];
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     if (ImGui::BeginChild("Texture bindings viewer", { 0, height / 2.0f }, true, ImGuiWindowFlags_AlwaysAutoResize))
@@ -593,7 +599,37 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
 
             if (selectedIndex == 1)
             {
-                group->setExtractResourceViews(true);
+                if (!instance.GetTrackDescriptors())
+                {
+                    ImGui::BeginDisabled();
+                    group->setExtractResourceViews(false);
+                }
+                else
+                {
+                    group->setExtractResourceViews(true);
+                }
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Shader Stage");
+                ImGui::TableNextColumn();
+                if (ImGui::BeginCombo("##ShaderStage", selectedStage, ImGuiComboFlags_None))
+                {
+                    for (int n = 0; n < IM_ARRAYSIZE(stageItems); n++)
+                    {
+                        bool is_selected = (selectedStage == stageItems[n]);
+                        if (ImGui::Selectable(stageItems[n], is_selected))
+                        {
+                            selectedStageIndex = n;
+                            selectedStage = stageItems[n];
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+                group->setSRVShaderStage(selectedStageIndex);
+
+                ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
                 ImGui::Text("Slot");
@@ -641,6 +677,11 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
                         group->dispatchSRVCycle(ShaderToggler::CYCLE_DOWN);
                     }
                     ImGui::PopID();
+                }
+
+                if (!instance.GetTrackDescriptors())
+                {
+                    ImGui::EndDisabled();
                 }
             }
             else
@@ -736,8 +777,8 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
         }
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
     }
+    ImGui::EndChild();
 
     ImGui::PushID(3);
     ImGui::Button("", ImVec2(-1, 8.0f));
@@ -773,16 +814,16 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
         static float height = ImGui::GetWindowHeight();
         static float width = ImGui::GetWindowWidth();
 
-        const char* typeItems[] = { "Pixel shader", "Vertex shader"};
+        const char* typeItems[] = { "Pixel shader", "Vertex shader", "Compute Shader"};
         static const char* typeSelectedItem = typeItems[0];
         static uint32_t selectedIndex = 0;
 
-        ShaderToggler::ShaderManager* selectedShaderManager = selectedIndex == 0 ? instance.GetPixelShaderManager() : instance.GetVertexShaderManager();
+        ShaderToggler::ShaderManager* selectedShaderManager = selectedIndex == 0 ? instance.GetPixelShaderManager() : (selectedIndex == 1 ? instance.GetVertexShaderManager() : instance.GetComputeShaderManager());
 
         if (ImGui::Begin(std::format("Group settings ({})", editingGroupName).c_str(), &wndOpen))
         {
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-            if (ImGui::BeginChild("GroupView", { width / 3.0f, 0 }, true, ImGuiWindowFlags_None))
+            if (ImGui::BeginChild("GroupView", { width / 3.0f, 0 }, true, ImGuiWindowFlags_NoScrollbar))
             {
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
@@ -796,6 +837,36 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
                         bool is_selected = (typeSelectedItem == typeItems[n]);
                         if (ImGui::Selectable(typeItems[n], is_selected))
                         {
+                            if (n != selectedIndex)
+                            {
+                                // Reset hunting selections in other managers on switch
+                                switch (n)
+                                {
+                                case 0:
+                                {
+                                    instance.GetVertexShaderManager()->resetActiveHuntedShader();
+                                    instance.GetComputeShaderManager()->resetActiveHuntedShader();
+                                }
+                                    break;
+                                case 1:
+                                {
+                                    instance.GetPixelShaderManager()->resetActiveHuntedShader();
+                                    instance.GetComputeShaderManager()->resetActiveHuntedShader();
+                                }
+                                    break;
+                                case 2:
+                                {
+                                    instance.GetPixelShaderManager()->resetActiveHuntedShader();
+                                    instance.GetVertexShaderManager()->resetActiveHuntedShader();
+                                }
+                                    break;
+                                default:
+                                    break;
+                                }
+
+                                instance.UpdateToggleGroupsForShaderHashes();
+                            }
+
                             typeSelectedItem = typeItems[n];
                             selectedIndex = n;
                         }
@@ -807,8 +878,8 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
                 ImGui::PopItemWidth();
 
                 ImGui::PopStyleVar();
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
 
             ImGui::SameLine();
 
@@ -849,12 +920,12 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
                 }
 
                 ImGui::PopStyleVar();
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
 
             ImGui::PopStyleVar();
-            ImGui::End();
         }
+        ImGui::End();
 
         if (!wndOpen)
         {
@@ -963,6 +1034,11 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
             ImGui::EndCombo();
         }
         instance.SetConstHookCopyType(varSelectedCopyMethod);
+
+        ImGui::AlignTextToFramePadding();
+        bool trackDescriptors = instance.GetTrackDescriptors();
+        ImGui::Checkbox("Track descriptors", &trackDescriptors);
+        instance.SetTrackDescriptors(trackDescriptors);
     }
 
     if (ImGui::CollapsingHeader("Keybindings", ImGuiTreeNodeFlags_None))

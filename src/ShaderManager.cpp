@@ -90,6 +90,14 @@ namespace ShaderToggler
     }
 
 
+
+    void ShaderManager::resetActiveHuntedShader()
+    {
+        _activeHuntedShaderIndex = -1;
+        _activeHuntedShaderHash = 0;
+    }
+
+
     void ShaderManager::stopHuntingMode()
     {
         _isInHuntingMode = false;

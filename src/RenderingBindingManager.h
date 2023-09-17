@@ -10,8 +10,8 @@ namespace Rendering
         RenderingBindingManager(AddonImGui::AddonUIData& data, ResourceManager& rManager);
         ~RenderingBindingManager();
 
-        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::resource_view* rtv, const reshade::api::resource_desc& desc);
-        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::resource_view* rtv, reshade::api::format format);
+        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, const reshade::api::resource_desc& desc);
+        bool CreateTextureBinding(reshade::api::effect_runtime* runtime, reshade::api::resource* res, reshade::api::resource_view* srv, reshade::api::format format);
         uint32_t UpdateTextureBinding(reshade::api::effect_runtime* runtime, const std::string& binding, const reshade::api::resource_desc& desc);
         void DestroyTextureBinding(reshade::api::effect_runtime* runtime, const std::string& binding);
         void InitTextureBingings(reshade::api::effect_runtime* runtime);
@@ -23,7 +23,6 @@ namespace Rendering
         ResourceManager& resourceManager;
 
         reshade::api::resource empty_res = { 0 };
-        reshade::api::resource_view empty_rtv = { 0 };
         reshade::api::resource_view empty_srv = { 0 };
 
         void _UpdateTextureBindings(reshade::api::command_list* cmd_list,
@@ -34,9 +33,9 @@ namespace Rendering
         bool _CreateTextureBinding(reshade::api::effect_runtime* runtime,
             reshade::api::resource* res,
             reshade::api::resource_view* srv,
-            reshade::api::resource_view* rtv,
             reshade::api::format format,
             uint32_t width,
-            uint32_t height);
+            uint32_t height,
+            uint16_t levels);
     };
 }

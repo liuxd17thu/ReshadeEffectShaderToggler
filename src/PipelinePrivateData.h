@@ -34,7 +34,6 @@ struct __declspec(novtable) ShaderData final {
 
 struct __declspec(uuid("222F7169-3C09-40DB-9BC9-EC53842CE537")) CommandListDataContainer {
     uint64_t commandQueue = 0;
-    //StateTracker::PipelineStateTracker stateTracker;
     ShaderData ps{ 0 };
     ShaderData vs{ 1 };
     ShaderData cs{ 2 };
@@ -44,7 +43,6 @@ struct __declspec(uuid("222F7169-3C09-40DB-9BC9-EC53842CE537")) CommandListDataC
         ps.Reset();
         vs.Reset();
         cs.Reset();
-        //stateTracker.Reset();
 
         commandQueue = 0;
     }
@@ -54,10 +52,10 @@ struct __declspec(novtable) TextureBindingData final
 {
     reshade::api::resource res;
     reshade::api::format format;
-    reshade::api::resource_view rtv;
     reshade::api::resource_view srv;
     uint32_t width;
     uint32_t height;
+    uint16_t levels;
     bool enabled_reset_on_miss;
     bool copy;
     bool reset = false;
@@ -71,7 +69,6 @@ struct __declspec(novtable) HuntPreview final
     uint32_t width = 0;
     uint32_t height = 0;
     reshade::api::format format = reshade::api::format::unknown;
-    uint32_t targets_sum = 0;
     reshade::api::resource_desc target_desc;
     bool recreate_preview = false;
 
@@ -83,7 +80,6 @@ struct __declspec(novtable) HuntPreview final
         width = 0;
         height = 0;
         format = reshade::api::format::unknown;
-        targets_sum = 0;
         recreate_preview = false;
     }
 };

@@ -107,16 +107,16 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
 
         const auto& [_, current_srv] = state.descriptors[stage];
 
-        uint32_t slot_size = static_cast<uint32_t>(current_srv.size());
-        uint32_t slot = std::min(group->getBindingSRVSlotIndex(), slot_size - 1);
+        int32_t slot_size = static_cast<uint32_t>(current_srv.size());
+        int32_t slot = std::min(static_cast<int32_t>(group->getBindingSRVSlotIndex()), slot_size - 1);
 
-        if (slot_size == 0)
+        if (slot_size <= 0)
             return active_rtv;
 
-        uint32_t desc_size = static_cast<uint32_t>(current_srv[slot].size());
-        uint32_t desc = std::min(group->getBindingSRVDescriptorIndex(), desc_size - 1);
+        int32_t desc_size = static_cast<uint32_t>(current_srv[slot].size());
+        int32_t desc = std::min(static_cast<int32_t>(group->getBindingSRVDescriptorIndex()), desc_size - 1);
 
-        if (desc_size == 0)
+        if (desc_size <= 0)
             return active_rtv;
 
         descriptor_tracking::descriptor_data buf = current_srv[slot][desc];
@@ -126,8 +126,8 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
         {
             if (cycle == CYCLE_UP)
             {
-                uint32_t newDescIndex = std::min(++desc, desc_size - 1);
-                buf = current_srv[slot][newDescIndex];
+                desc = std::min(++desc, desc_size - 1);
+                buf = current_srv[slot][desc];
 
                 while (buf.view == 0 && desc < desc_size - 2)
                 {
@@ -136,8 +136,8 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
             }
             else
             {
-                uint32_t newDescIndex = desc > 0 ? --desc : 0;
-                buf = current_srv[slot][newDescIndex];
+                desc = desc > 0 ? --desc : 0;
+                buf = current_srv[slot][desc];
 
                 while (buf.view == 0 && desc > 0)
                 {

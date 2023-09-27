@@ -493,7 +493,7 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
     uint32_t selectedSwapchainMatchMode = group->getBindingMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
 
-    static const char* stageItems[] = { "VERTEX", "HULL", "DOMAIN", "GEOMETRY", "PIXEL", "COMPUTE", "ALL", "ALL_COMPUTE", "ALL_GRAPHICS" };
+    static const char* stageItems[] = { "PIXEL", "VERTEX", "COMPUTE" };
     uint32_t selectedStageIndex = group->getSRVShaderStage();
     const char* selectedStage = stageItems[selectedStageIndex];
 

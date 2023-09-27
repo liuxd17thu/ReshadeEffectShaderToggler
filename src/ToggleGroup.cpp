@@ -396,13 +396,13 @@ namespace ShaderToggler
         bool _cbPushMode = iniFile.GetBoolOrDefault("ConstantPushMode", sectionRoot, false);
 
         uint32_t shaderStage = iniFile.GetUInt("ConstantShaderStage", sectionRoot);
-        if (shaderStage != UINT_MAX)
+        if (shaderStage != UINT_MAX && shaderStage < 3)
         {
             _cbShaderStage = shaderStage;
         }
         else
         {
-            _cbShaderStage = 4;
+            _cbShaderStage = 0;
         }
 
         _extractResourceViews = iniFile.GetBool("ExtractSRVs", sectionRoot);
@@ -428,13 +428,13 @@ namespace ShaderToggler
         }
 
         uint32_t srvShaderStage = iniFile.GetUInt("SRVShaderStage", sectionRoot);
-        if (srvShaderStage != UINT_MAX)
+        if (srvShaderStage != UINT_MAX && srvShaderStage < 3)
         {
             _bindingSrvShaderStage = srvShaderStage;
         }
         else
         {
-            _bindingSrvShaderStage = 4;
+            _bindingSrvShaderStage = 0;
         }
 
         uint32_t rtvIndex = iniFile.GetUInt("RenderTargetIndex", sectionRoot);

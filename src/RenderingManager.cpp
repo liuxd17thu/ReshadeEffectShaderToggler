@@ -73,8 +73,6 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, uint
     return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (matchingMode == ShaderToggler::SWAPCHAIN_MATCH_MODE_EXTENDED_ASPECT_RATIO && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
-constexpr shader_stage indexToStage[] = { shader_stage::vertex, shader_stage::hull, shader_stage::domain, shader_stage::geometry, shader_stage::pixel, shader_stage::compute, shader_stage::all, shader_stage::all_compute, shader_stage::all_graphics };
-
 const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
 {
     resource_view active_rtv = { 0 };
@@ -98,14 +96,8 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
     // Only return SRVs in case of bindings
     if(action & MATCH_BINDING && group->getExtractResourceViews())
     {
-        shader_stage stage = indexToStage[group->getSRVShaderStage()];
-
-        if (!state.descriptors.contains(stage))
-        {
-            return active_rtv;
-        }
-
-        const auto& [_, current_srv] = state.descriptors[stage];
+        uint32_t stageIndex = std::min(static_cast<uint32_t>(2), group->getSRVShaderStage());
+        const auto& [_, current_srv] = state.descriptors[stageIndex];
 
         int32_t slot_size = static_cast<uint32_t>(current_srv.size());
         int32_t slot = std::min(static_cast<int32_t>(group->getBindingSRVSlotIndex()), slot_size - 1);

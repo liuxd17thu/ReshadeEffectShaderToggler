@@ -7,6 +7,7 @@
 #include "StateTracking.h"
 
 using namespace reshade::api;
+using namespace StateTracking;
 
 bool state_tracking::track_descriptors = true;
 
@@ -15,14 +16,15 @@ void state_block::apply(command_list* cmd_list) const
     if (!render_targets.empty() || depth_stencil != 0)
         cmd_list->bind_render_targets_and_depth_stencil(static_cast<uint32_t>(render_targets.size()), render_targets.data(), depth_stencil);
 
-    if (static_cast<uint32_t>(current_graphics_pixel_stage) != 0)
-        cmd_list->bind_pipeline(current_graphics_pixel_stage, pipelines.at(current_graphics_pixel_stage));
-
-    if (static_cast<uint32_t>(current_graphics_vertex_stage) != 0)
-        cmd_list->bind_pipeline(current_graphics_vertex_stage, pipelines.at(current_graphics_vertex_stage));
-
-    if (static_cast<uint32_t>(current_compute_stage) != 0)
-        cmd_list->bind_pipeline(current_compute_stage, pipelines.at(current_compute_stage));
+    uint32_t pipeline_stages_set = 0;
+    for (uint32_t s = 0; s < ALL_PIPELINE_STAGES_SIZE; s++)
+    {
+        if ((static_cast<uint32_t>(current_pipeline_stage[s]) | pipeline_stages_set) > pipeline_stages_set)
+        {
+            pipeline_stages_set |= static_cast<uint32_t>(current_pipeline_stage[s]);
+            cmd_list->bind_pipeline(current_pipeline_stage[s], current_pipeline[s]);
+        }
+    }
 
     if (primitive_topology != primitive_topology::undefined)
         cmd_list->bind_pipeline_state(dynamic_state::primitive_topology, static_cast<uint32_t>(primitive_topology));
@@ -34,11 +36,19 @@ void state_block::apply(command_list* cmd_list) const
     if (!scissor_rects.empty())
         cmd_list->bind_scissor_rects(0, static_cast<uint32_t>(scissor_rects.size()), scissor_rects.data());
 
-    for (const auto& [stages, descriptor_state] : descriptor_tables)
+    uint32_t shader_stages_set = 0;
+    for (uint32_t stageIdx = 0; stageIdx < ALL_SHADER_STAGES_SIZE; stageIdx++)
     {
         auto& descriptor_data = cmd_list->get_device()->get_private_data<descriptor_tracking>();
-        const auto& [pipelinelayout, descriptor_set] = descriptor_state;
+        const auto& [pipelinelayout, descriptor_set] = descriptor_tables[stageIdx];
+        shader_stage stages = descriptor_tables_stages[stageIdx];
 
+        if ((static_cast<uint32_t>(stages) | shader_stages_set) <= shader_stages_set)
+        {
+            continue;
+        }
+
+        shader_stages_set |= static_cast<uint32_t>(stages);
         bool done = false;
         uint32_t start_index = 0;
         uint32_t end_index = 0;
@@ -68,18 +78,46 @@ void state_block::clear()
 {
     render_targets.clear();
     depth_stencil = { 0 };
-    pipelines.clear();
     primitive_topology = primitive_topology::undefined;
     blend_constant = 0;
     viewports.clear();
     scissor_rects.clear();
-    descriptor_tables.clear();
-    push_constants.clear();
-    descriptors.clear();
+    descriptor_tables.fill(make_pair(pipeline_layout{ 0 }, std::vector<descriptor_table>()));
+    descriptor_tables_stages.fill(static_cast<shader_stage>(0));
+    push_constants.fill(make_pair(pipeline_layout{ 0 }, std::vector<std::vector<uint32_t>>()));
+    descriptors.fill(make_pair(pipeline_layout{ 0 }, std::vector<std::vector<descriptor_tracking::descriptor_data>>()));
+    current_pipeline.fill(pipeline{ 0 });
+    current_pipeline_stage.fill(static_cast<pipeline_stage>(0));
+}
 
-    current_compute_stage = static_cast<pipeline_stage>(0);
-    current_graphics_pixel_stage = static_cast<pipeline_stage>(0);
-    current_graphics_vertex_stage = static_cast<pipeline_stage>(0);
+static inline int32_t get_shader_stage_index(shader_stage stages)
+{
+    const uint32_t stage_value = static_cast<uint32_t>(stages);
+
+    for (int32_t index = 0; index < ALL_SHADER_STAGES_SIZE; ++index)
+    {
+        if (stage_value & static_cast<uint32_t>(ALL_SHADER_STAGES[index]))
+        {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
+static inline int32_t get_pipeline_stage_index(pipeline_stage stages)
+{
+    const uint32_t stage_value = static_cast<uint32_t>(stages);
+
+    for (int32_t index = 0; index < ALL_PIPELINE_STAGES_SIZE; ++index)
+    {
+        if (stage_value & static_cast<uint32_t>(ALL_PIPELINE_STAGES[index]))
+        {
+            return index;
+        }
+    }
+
+    return -1;
 }
 
 static void on_init_command_list(command_list* cmd_list)
@@ -101,16 +139,11 @@ static void on_bind_render_targets_and_depth_stencil(command_list* cmd_list, uin
 static void on_bind_pipeline(command_list* cmd_list, pipeline_stage stages, pipeline pipeline)
 {
     auto& state = cmd_list->get_private_data<state_tracking>();
-    state.pipelines[stages] = pipeline;
 
-    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(pipeline_stage::pixel_shader))
-        state.current_graphics_pixel_stage = stages;
+    uint32_t idx = get_pipeline_stage_index(stages);
 
-    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(pipeline_stage::vertex_shader))
-        state.current_graphics_vertex_stage = stages;
-
-    if (static_cast<uint32_t>(stages) & static_cast<uint32_t>(pipeline_stage::compute_shader))
-        state.current_compute_stage = stages;
+    state.current_pipeline[idx] = pipeline;
+    state.current_pipeline_stage[idx] = stages;
 }
 
 static void on_bind_pipeline_states(command_list* cmd_list, uint32_t count, const dynamic_state* states, const uint32_t* values)
@@ -170,9 +203,16 @@ static void clear_descriptors(std::vector<std::vector<descriptor_tracking::descr
 
 static void on_bind_descriptor_tables(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table* tables)
 {
-    auto& state = cmd_list->get_private_data<state_tracking>().descriptor_tables[stages];
-    auto& [desc_layout, descriptors] = cmd_list->get_private_data<state_tracking>().descriptors[stages];
-    auto& [_, push_constants] = cmd_list->get_private_data<state_tracking>().push_constants[stages];
+    int32_t idx = get_shader_stage_index(stages);
+
+    if (idx < 0)
+        return;
+
+    auto& state_tracker = cmd_list->get_private_data<state_tracking>();
+    auto& state = state_tracker.descriptor_tables[idx];
+    auto& state_stages = state_tracker.descriptor_tables_stages[idx];
+    auto& [desc_layout, descriptors] = state_tracker.descriptors[idx];
+    auto& [_, push_constants] = state_tracker.push_constants[idx];
     const auto& descriptor_state = cmd_list->get_device()->get_private_data<descriptor_tracking>();
 
     if (layout != state.first)
@@ -184,6 +224,7 @@ static void on_bind_descriptor_tables(command_list* cmd_list, shader_stage stage
 
     state.first = layout;
     desc_layout = layout;
+    state_stages = stages;
 
     if (state.second.size() < (first + count))
         state.second.resize(first + count);
@@ -228,7 +269,13 @@ static void on_bind_descriptor_tables(command_list* cmd_list, shader_stage stage
 
 static void on_bind_descriptor_tables_no_track(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table* tables)
 {
-    auto& state = cmd_list->get_private_data<state_tracking>().descriptor_tables[stages];
+    int32_t idx = get_shader_stage_index(stages);
+
+    if (idx < 0)
+        return;
+
+    auto& state = cmd_list->get_private_data<state_tracking>().descriptor_tables[idx];
+    auto& state_stages = cmd_list->get_private_data<state_tracking>().descriptor_tables_stages[idx];
 
     if (layout != state.first)
     {
@@ -236,6 +283,7 @@ static void on_bind_descriptor_tables_no_track(command_list* cmd_list, shader_st
     }
 
     state.first = layout;
+    state_stages = stages;
 
     if (state.second.size() < (first + count))
         state.second.resize(first + count);
@@ -248,7 +296,12 @@ static void on_bind_descriptor_tables_no_track(command_list* cmd_list, shader_st
 
 static void on_push_descriptors(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t layout_param, const descriptor_table_update& update)
 {
-    auto& [desc_layout, descriptors] = cmd_list->get_private_data<state_tracking>().descriptors[stages];
+    int32_t idx = get_shader_stage_index(stages);
+
+    if (idx < 0)
+        return;
+
+    auto& [desc_layout, descriptors] = cmd_list->get_private_data<state_tracking>().descriptors[idx];
 
     desc_layout = layout;
 
@@ -290,7 +343,12 @@ static void on_push_descriptors(command_list* cmd_list, shader_stage stages, pip
 
 static void on_push_constants(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void* values)
 {
-    auto& [desc_layout, constants] = cmd_list->get_private_data<state_tracking>().push_constants[stages];
+    int32_t idx = get_shader_stage_index(stages);
+
+    if (idx < 0)
+        return;
+
+    auto& [desc_layout, constants] = cmd_list->get_private_data<state_tracking>().push_constants[idx];
 
     desc_layout = layout;
 

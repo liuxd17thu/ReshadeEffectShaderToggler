@@ -374,6 +374,12 @@ static void on_reset_command_list(command_list* cmd_list)
     state.clear();
 }
 
+static void on_reshade_present(effect_runtime* runtime)
+{
+    if (runtime->get_device()->get_api() != device_api::d3d12 && runtime->get_device()->get_api() != device_api::vulkan)
+        on_reset_command_list(runtime->get_command_queue()->get_immediate_command_list());
+}
+
 void state_tracking::register_events(bool track)
 {
     track_descriptors = track;
@@ -387,6 +393,7 @@ void state_tracking::register_events(bool track)
     reshade::register_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
     reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewports);
     reshade::register_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
+    reshade::register_event<reshade::addon_event::reshade_present>(on_reshade_present);
 
     if (track_descriptors)
     {
@@ -413,6 +420,7 @@ void state_tracking::unregister_events()
     reshade::unregister_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
     reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewports);
     reshade::unregister_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
+    reshade::unregister_event<reshade::addon_event::reshade_present>(on_reshade_present);
 
     if (track_descriptors)
     {

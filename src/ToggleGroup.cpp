@@ -178,7 +178,7 @@ namespace ShaderToggler
         for (const auto& [varName, varData] : _varOffsetMapping)
         {
             const auto& [varOffset, varUsePref] = varData;
-            iniFile.SetUInt("Offset" + std::to_string(counter), varOffset, "", constantsCategory);
+            iniFile.SetUInt("Offset" + std::to_string(counter), static_cast<uint32_t>(varOffset), "", constantsCategory);
             iniFile.SetValue("Variable" + std::to_string(counter), varName, "", constantsCategory);
             iniFile.SetBool("UsePreviousValue" + std::to_string(counter), varUsePref, "", constantsCategory);
             counter++;

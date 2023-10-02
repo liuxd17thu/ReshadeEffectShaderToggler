@@ -397,7 +397,7 @@ void ConstantHandlerBase::SetBufferRange(const ToggleGroup* group, buffer_range 
     }
 
     resource_desc targetBufferDesc = dev->get_resource_desc(range.buffer);
-    uint64_t size = targetBufferDesc.buffer.size;
+    size_t size = static_cast<size_t>(targetBufferDesc.buffer.size);
 
     InitBuffers(group, size);
 

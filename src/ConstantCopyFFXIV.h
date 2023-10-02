@@ -81,7 +81,7 @@ namespace Shim
             static std::vector<std::tuple<const void*, uint64_t, size_t>> _hostResourceBuffer;
             static sig_ffxiv_cbload* org_ffxiv_cbload;
             static int64_t __fastcall detour_ffxiv_cbload(ResourceData* param_1, param_2_struct* param_2, param_3_struct param_3, HostBufferData* param_4);
-            static inline void set_host_resource_data_location(void* origin, size_t len, int64_t resource_handle, uint64_t index);
+            static inline void set_host_resource_data_location(void* origin, size_t len, int64_t resource_handle, size_t index);
         };
     }
 }

@@ -111,6 +111,10 @@ LICENSE_REST            RCDATA                  "..\\LICENSE"
 
 LICENSE_IMGUI           RCDATA                  "..\\deps\\reshade\\deps\\imgui\\LICENSE.txt"
 
+SHADER_FULLSCREEN_VS_4_0 RCDATA                  "shader\\fullscreen_vs_4_0.cso"
+
+SHADER_PREVIEW_COPY_PS_4_0 RCDATA                  "shader\\preview_copy_ps_4_0.cso"
+
 #endif    // English (United Kingdom) resources
 /////////////////////////////////////////////////////////////////////////////
 

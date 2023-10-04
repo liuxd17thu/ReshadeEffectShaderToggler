@@ -145,7 +145,7 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
         {
             queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
 
-            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_rtv == 0)
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_view == 0)
             {
                 if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
                 {
@@ -166,7 +166,7 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
         {
             queue_mask |= (match_binding << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
 
-            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_rtv == 0)
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_view == 0)
             {
                 if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
                 {

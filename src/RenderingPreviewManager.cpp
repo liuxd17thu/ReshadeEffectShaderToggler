@@ -16,13 +16,13 @@ RenderingPreviewManager::~RenderingPreviewManager()
 
 }
 
-const resource_view RenderingPreviewManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
+const std::tuple<resource_view, bool> RenderingPreviewManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
 {
-    resource_view active_rtv = { 0 };
+    resource_view active_view = { 0 };
 
     if (deviceData.current_runtime == nullptr)
     {
-        return active_rtv;
+        return make_tuple(active_view, false);
     }
 
     device* device = deviceData.current_runtime->get_device();
@@ -40,7 +40,7 @@ const resource_view RenderingPreviewManager::GetCurrentPreviewResourceView(comma
         if (rs == 0)
         {
             // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return active_rtv;
+            return make_tuple(active_view, false);
         }
 
         // Don't apply effects to non-RGB buffers
@@ -56,21 +56,27 @@ const resource_view RenderingPreviewManager::GetCurrentPreviewResourceView(comma
                 !RenderingManager::check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, group->getMatchSwapchainResolution())) ||
                 (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION && (width != desc.texture.width || height != desc.texture.height)))
             {
-                return active_rtv;
+                return make_tuple(active_view, false);
             }
         }
 
         if (group->getClearPreviewAlpha() && (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
         {
-            resourceManager.SetShaderResourceViewHandles(rs.handle, &active_rtv, nullptr);
+            resourceManager.SetShaderResourceViewHandles(rs.handle, &active_view, nullptr);
+
+            if (active_view != 0)
+            {
+                return make_tuple(active_view, true);
+            }
         }
-        else
+
+        if (!group->getClearPreviewAlpha() || !(device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12) || active_view == 0)
         {
-            active_rtv = rtvs[index];
+            active_view = rtvs[index];
         }
     }
 
-    return active_rtv;
+    return make_tuple(active_view, false);
 }
 
 void RenderingPreviewManager::OnInitDevice(reshade::api::device* device)
@@ -163,29 +169,32 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
     const ToggleGroup& group = uiData.GetToggleGroups().at(uiData.GetToggleGroupIdShaderEditing());
 
     // Set views during draw call since we can be sure the correct ones are bound at that point
-    if (!callLocation && deviceData.huntPreview.target_rtv == 0)
+    if (!callLocation && deviceData.huntPreview.target_view == 0)
     {
-        resource_view active_rtv = resource_view{ 0 };
+        std::tuple<resource_view, bool> active_data = make_tuple(resource_view{0}, false);
 
         if (invocation & MATCH_PREVIEW_PS)
         {
-            active_rtv = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
+            active_data = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
         }
         else if (invocation & MATCH_PREVIEW_VS)
         {
-            active_rtv = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
+            active_data = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
         }
         else if (invocation & MATCH_PREVIEW_CS)
         {
-            active_rtv = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
+            active_data = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
         }
 
-        if (active_rtv != 0)
+        const auto& [active_view, is_srv] = active_data;
+
+        if (active_view != 0)
         {
-            resource res = device->get_resource_from_view(active_rtv);
+            resource res = device->get_resource_from_view(active_view);
             resource_desc desc = device->get_resource_desc(res);
 
-            deviceData.huntPreview.target_rtv = active_rtv;
+            deviceData.huntPreview.target_view = active_view;
+            deviceData.huntPreview.is_srv = is_srv;
             deviceData.huntPreview.format = desc.texture.format;
             deviceData.huntPreview.width = desc.texture.width;
             deviceData.huntPreview.height = desc.texture.height;
@@ -196,14 +205,14 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
         }
     }
 
-    if (deviceData.huntPreview.target_rtv == 0 || !(!callLocation && !deviceData.huntPreview.target_invocation_location || callLocation & deviceData.huntPreview.target_invocation_location))
+    if (deviceData.huntPreview.target_view == 0 || !(!callLocation && !deviceData.huntPreview.target_invocation_location || callLocation & deviceData.huntPreview.target_invocation_location))
     {
         return;
     }
 
     if (group.getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched)
     {
-        resource rs = device->get_resource_from_view(deviceData.huntPreview.target_rtv);
+        resource rs = device->get_resource_from_view(deviceData.huntPreview.target_view);
 
         if (rs == 0)
         {
@@ -221,13 +230,13 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
             resource_view preview_rtv = resource_view{ 0 };
             resourceManager.SetPreviewViewHandles(&previewRes, &preview_rtv, nullptr);
 
-            if (previewRes != 0 && !group.getClearPreviewAlpha())
+            if (previewRes != 0 && (!group.getClearPreviewAlpha() || !deviceData.huntPreview.is_srv))
             {
                 cmd_list->copy_resource(rs, previewRes);
             }
-            else if (previewRes != 0 && preview_rtv != 0 && group.getClearPreviewAlpha() && (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
+            else if (previewRes != 0 && preview_rtv != 0 && group.getClearPreviewAlpha() && (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12) && deviceData.huntPreview.is_srv)
             {
-                CopyResource(cmd_list, deviceData.huntPreview.target_rtv, preview_rtv, deviceData.huntPreview.width, deviceData.huntPreview.height);
+                CopyResource(cmd_list, deviceData.huntPreview.target_view, preview_rtv, deviceData.huntPreview.width, deviceData.huntPreview.height);
             }
         }
 

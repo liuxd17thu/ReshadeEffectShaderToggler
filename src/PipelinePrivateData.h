@@ -63,7 +63,8 @@ struct __declspec(novtable) TextureBindingData final
 
 struct __declspec(novtable) HuntPreview final
 {
-    reshade::api::resource_view target_rtv = reshade::api::resource_view{ 0 };
+    reshade::api::resource_view target_view = reshade::api::resource_view{ 0 };
+    bool is_srv = false;
     bool matched = false;
     uint64_t target_invocation_location = 0;
     uint32_t width = 0;
@@ -75,7 +76,8 @@ struct __declspec(novtable) HuntPreview final
     void Reset()
     {
         matched = false;
-        target_rtv = reshade::api::resource_view{ 0 };
+        is_srv = false;
+        target_view = reshade::api::resource_view{ 0 };
         target_invocation_location = 0;
         width = 0;
         height = 0;

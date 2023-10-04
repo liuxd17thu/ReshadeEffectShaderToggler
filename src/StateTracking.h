@@ -62,6 +62,8 @@ namespace StateTracking
         std::array<reshade::api::pipeline_stage, ALL_PIPELINE_STAGES_SIZE> current_pipeline_stage;
         reshade::api::primitive_topology primitive_topology = reshade::api::primitive_topology::undefined;
         uint32_t blend_constant = 0;
+        uint32_t front_stencil_reference_value = 0;
+        uint32_t back_stencil_reference_value = 0;
         std::vector<reshade::api::viewport> viewports;
         std::vector<reshade::api::rect> scissor_rects;
         std::array<std::pair<reshade::api::pipeline_layout, std::vector<reshade::api::descriptor_table>>, ALL_SHADER_STAGES_SIZE> descriptor_tables;

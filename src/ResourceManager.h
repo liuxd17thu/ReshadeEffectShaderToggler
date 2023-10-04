@@ -25,6 +25,12 @@ namespace Rendering
         "ffxiv"
     };
 
+    struct EmbeddedResourceData
+    {
+        const void* data;
+        size_t size;
+    };
+
     class __declspec(novtable) ResourceManager final
     {
     public:
@@ -52,6 +58,8 @@ namespace Rendering
         void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime);
         void SetPreviewViewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);
+
+        static EmbeddedResourceData GetResourceData(uint16_t id);
     private:
         static ResourceShimType ResolveResourceShimType(const std::string&);
 

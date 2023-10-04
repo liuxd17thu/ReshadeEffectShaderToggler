@@ -143,6 +143,8 @@ namespace ShaderToggler
         const std::unordered_map<std::string, std::tuple<uintptr_t, bool>>& GetVarOffsetMapping() const { return _varOffsetMapping; }
         bool SetVarMapping(uintptr_t, std::string&, bool);
         bool RemoveVarMapping(std::string&);
+        bool getClearPreviewAlpha() const { return _previewClearAlpha; }
+        void setClearPreviewAlpha(bool previewClearAlpha) { _previewClearAlpha = previewClearAlpha; }
         void dispatchCBCycle(DescriptorCycle cycle) { _cbCycle = cycle; }
         DescriptorCycle consumeCBCycle() 
         { 
@@ -195,6 +197,7 @@ namespace ShaderToggler
         bool _extractConstants;
         bool _extractResourceViews;
         bool _clearBindings;
+        bool _previewClearAlpha = true;
         bool _hasTechniqueExceptions; // _preferredTechniques are handled as exception to _allowAllTechniques
         uint32_t _matchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;
         uint32_t _bindingMatchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;

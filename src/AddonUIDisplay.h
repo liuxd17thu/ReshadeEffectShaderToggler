@@ -245,7 +245,7 @@ static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_
     ImGui::PopStyleVar();
 }
 
-static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, float width = 0)
+static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, ShaderToggler::ToggleGroup* group, float width = 0)
 {
     if (ImGui::BeginChild("RTPreview##child", { width, 0 }, true, ImGuiWindowFlags_None))
     {
@@ -254,6 +254,7 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
         resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
+        bool clearAlpha = group->getClearPreviewAlpha();
 
         if (srv != 0)
         {
@@ -262,6 +263,10 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
             ImGui::Text(std::format("Width: {} ", deviceData.huntPreview.width).c_str());
             ImGui::SameLine();
             ImGui::Text(std::format("Height: {} ", deviceData.huntPreview.height).c_str());
+            ImGui::SameLine();
+            ImGui::Text("Clear alpha channel");
+            ImGui::SameLine();
+            ImGui::Checkbox("##Clearalpha", &clearAlpha);
             ImGui::Separator();
 
             if (ImGui::BeginChild("RTPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
@@ -270,6 +275,8 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
             }
             ImGui::EndChild();
         }
+
+        group->setClearPreviewAlpha(clearAlpha);
 
         ImGui::PopStyleVar();
     }
@@ -422,7 +429,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     if (ImGui::IsItemActive())
         height += ImGui::GetIO().MouseDelta.y;
 
-    DisplayPreview(instance, resManager, runtime);
+    DisplayPreview(instance, resManager, runtime, group);
 
     ImGui::PopStyleVar();
 }

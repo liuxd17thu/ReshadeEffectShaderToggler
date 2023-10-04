@@ -129,12 +129,20 @@ void ResourceManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
 
 bool ResourceManager::OnCreateResource(device* device, resource_desc& desc, subresource_data* initial_data, resource_usage initial_state)
 {
+    bool ret = false;
+
+    if (static_cast<uint32_t>(desc.usage) & (static_cast<uint32_t>(resource_usage::render_target)))
+    {
+        desc.usage |= resource_usage::shader_resource;
+        ret = true;
+    }
+
     if (rShim != nullptr)
     {
-        return rShim->OnCreateResource(device, desc, initial_data, initial_state);
+        ret |= rShim->OnCreateResource(device, desc, initial_data, initial_state);
     }
     
-    return false;
+    return ret;
 }
 
 void ResourceManager::OnInitResource(device* device, const resource_desc& desc, const subresource_data* initData, resource_usage usage, reshade::api::resource handle)
@@ -347,7 +355,15 @@ void ResourceManager::SetShaderResourceViewHandles(uint64_t handle, reshade::api
     const auto& it = s_SRVs.find(handle);
     if (it != s_SRVs.end())
     {
-        std::tie(*non_srgb_view, *srgb_view) = it->second;
+        if (non_srgb_view != nullptr)
+        {
+            *non_srgb_view = it->second.first;
+        }
+
+        if (srgb_view != nullptr)
+        {
+            *srgb_view = it->second.second;
+        }
     }
 }
 
@@ -433,4 +449,28 @@ bool ResourceManager::IsCompatibleWithPreviewFormat(reshade::api::effect_runtime
     }
 
     return false;
+}
+
+EmbeddedResourceData ResourceManager::GetResourceData(uint16_t id) {
+    HMODULE hModule = NULL;
+    GetModuleHandleEx(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+        (LPCTSTR)GetResourceData,
+        &hModule);
+
+    HRSRC myResource = ::FindResource(hModule, MAKEINTRESOURCE(id), RT_RCDATA);
+
+    if (myResource != 0)
+    {
+        DWORD myResourceSize = SizeofResource(hModule, myResource);
+        HGLOBAL myResourceData = LoadResource(hModule, myResource);
+
+        if (myResourceData != 0)
+        {
+            const char* pMyBinaryData = static_cast<const char*>(LockResource(myResourceData));
+            return EmbeddedResourceData{ pMyBinaryData, myResourceSize };
+        }
+    }
+
+    return EmbeddedResourceData{ nullptr, 0 };
 }

@@ -72,6 +72,47 @@ void state_block::apply(command_list* cmd_list) const
             start_index = end_index;
         }
     }
+
+    // Restores descriptors potentially overwritten by our preview copy pipeline
+    // TODO: check how this works for DX12
+    auto& [desc_layout, descriptors] = cmd_list->get_private_data<state_tracking>().descriptors[0];
+
+    std::array<descriptor_tracking::descriptor_data*, 2> copyDescriptors;
+
+    if (descriptors.size() > 0 && descriptors[0].size() > 0)
+        copyDescriptors[0] = &descriptors[0][0];
+    else
+        copyDescriptors[0] = nullptr;
+
+    if (descriptors.size() > 1 && descriptors[1].size() > 0)
+        copyDescriptors[1] = &descriptors[1][0];
+    else
+        copyDescriptors[1] = nullptr;
+
+    for (uint32_t i = 0; i < copyDescriptors.size(); ++i)
+    {
+        if (copyDescriptors[i] == nullptr)
+            continue;
+    
+        switch (copyDescriptors[i]->type)
+        {
+        case descriptor_type::sampler:
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, &copyDescriptors[i]->sampler });
+            break;
+        case descriptor_type::constant_buffer:
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::constant_buffer, &copyDescriptors[i]->constant });
+            break;
+        case descriptor_type::sampler_with_resource_view:
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler_with_resource_view, &copyDescriptors[i]->sampler_and_view });
+            break;
+        case descriptor_type::shader_resource_view:
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::shader_resource_view, &copyDescriptors[i]->view });
+            break;
+        case descriptor_type::unordered_access_view:
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::unordered_access_view, &copyDescriptors[i]->view });
+            break;
+        }
+    }
 }
 
 void state_block::clear()

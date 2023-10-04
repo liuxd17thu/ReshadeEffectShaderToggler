@@ -117,12 +117,14 @@ static uint32_t calculateShaderHash(void* shaderData)
 static void onInitDevice(device* device)
 {
     device->create_private_data<DeviceDataContainer>();
+    renderingPreviewManager.OnInitDevice(device);
 }
 
 
 static void onDestroyDevice(device* device)
 {
     resourceManager.OnDestroyDevice(device);
+    renderingPreviewManager.OnDestroyDevice(device);
 
     device->destroy_private_data<DeviceDataContainer>();
 }

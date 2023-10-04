@@ -58,7 +58,7 @@ static inline bool IsColorBuffer(reshade::api::format value)
 }
 
 // Checks whether the aspect ratio of the two sets of dimensions is similar or not, stolen from ReShade's generic_depth addon
-static bool check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height, uint32_t matchingMode)
+bool RenderingManager::check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height, uint32_t matchingMode)
 {
     if (width_to_check == 0.0f || height_to_check == 0.0f)
         return true;
@@ -200,56 +200,6 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
                 !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, group->getMatchSwapchainResolution())) ||
                 (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION &&
                     (width != desc.texture.width || height != desc.texture.height)))
-            {
-                return active_rtv;
-            }
-        }
-
-        active_rtv = rtvs[index];
-    }
-
-    return active_rtv;
-}
-
-const resource_view RenderingManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
-{
-    resource_view active_rtv = { 0 };
-
-    if (deviceData.current_runtime == nullptr)
-    {
-        return active_rtv;
-    }
-
-    device* device = deviceData.current_runtime->get_device();
-
-    state_tracking& state = cmd_list->get_private_data<state_tracking>();
-    const vector<resource_view>& rtvs = state.render_targets;
-
-    size_t index = group->getRenderTargetIndex();
-    index = std::min(index, rtvs.size() - 1);
-
-    if (rtvs.size() > 0 && rtvs[index] != 0)
-    {
-        resource rs = device->get_resource_from_view(rtvs[index]);
-
-        if (rs == 0)
-        {
-            // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return active_rtv;
-        }
-
-        // Don't apply effects to non-RGB buffers
-        resource_desc desc = device->get_resource_desc(rs);
-
-        // Make sure our target matches swap buffer dimensions when applying effects or it's explicitly requested
-        if (group->getMatchSwapchainResolution() < ShaderToggler::SWAPCHAIN_MATCH_MODE_NONE)
-        {
-            uint32_t width, height;
-            deviceData.current_runtime->get_screenshot_width_and_height(&width, &height);
-
-            if ((group->getMatchSwapchainResolution() >= ShaderToggler::SWAPCHAIN_MATCH_MODE_ASPECT_RATIO &&
-                !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, group->getMatchSwapchainResolution())) ||
-                (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION && (width != desc.texture.width || height != desc.texture.height)))
             {
                 return active_rtv;
             }

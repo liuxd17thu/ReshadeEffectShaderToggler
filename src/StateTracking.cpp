@@ -30,6 +30,8 @@ void state_block::apply(command_list* cmd_list) const
         cmd_list->bind_pipeline_state(dynamic_state::primitive_topology, static_cast<uint32_t>(primitive_topology));
     if (blend_constant != 0)
         cmd_list->bind_pipeline_state(dynamic_state::blend_constant, blend_constant);
+    if (front_stencil_reference_value != 0)
+        cmd_list->bind_pipeline_state(dynamic_state::front_stencil_reference_value, front_stencil_reference_value);
 
     if (!viewports.empty())
         cmd_list->bind_viewports(0, static_cast<uint32_t>(viewports.size()), viewports.data());
@@ -80,6 +82,8 @@ void state_block::clear()
     depth_stencil = { 0 };
     primitive_topology = primitive_topology::undefined;
     blend_constant = 0;
+    front_stencil_reference_value = 0;
+    back_stencil_reference_value = 0;
     viewports.clear();
     scissor_rects.clear();
     descriptor_tables.fill(make_pair(pipeline_layout{ 0 }, std::vector<descriptor_table>()));
@@ -159,6 +163,12 @@ static void on_bind_pipeline_states(command_list* cmd_list, uint32_t count, cons
             break;
         case dynamic_state::blend_constant:
             state.blend_constant = values[i];
+            break;
+        case dynamic_state::front_stencil_reference_value:
+            state.front_stencil_reference_value = values[i];
+            break;
+        case dynamic_state::back_stencil_reference_value:
+            state.back_stencil_reference_value = values[i];
             break;
         }
     }

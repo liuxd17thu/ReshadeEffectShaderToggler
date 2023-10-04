@@ -256,17 +256,18 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
         resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
         bool clearAlpha = group->getClearPreviewAlpha();
 
+        ImGui::Text("Clear alpha channel");
+        ImGui::SameLine();
+        ImGui::Checkbox("##Clearalpha", &clearAlpha);
+
         if (srv != 0)
         {
-            ImGui::Text(std::format("Format: {} ", static_cast<uint32_t>(deviceData.huntPreview.format)).c_str());
+            ImGui::SameLine();
+            ImGui::Text(std::format(" Format: {} ", static_cast<uint32_t>(deviceData.huntPreview.format)).c_str());
             ImGui::SameLine();
             ImGui::Text(std::format("Width: {} ", deviceData.huntPreview.width).c_str());
             ImGui::SameLine();
             ImGui::Text(std::format("Height: {} ", deviceData.huntPreview.height).c_str());
-            ImGui::SameLine();
-            ImGui::Text("Clear alpha channel");
-            ImGui::SameLine();
-            ImGui::Checkbox("##Clearalpha", &clearAlpha);
             ImGui::Separator();
 
             if (ImGui::BeginChild("RTPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))

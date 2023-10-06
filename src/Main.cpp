@@ -117,14 +117,12 @@ static uint32_t calculateShaderHash(void* shaderData)
 static void onInitDevice(device* device)
 {
     device->create_private_data<DeviceDataContainer>();
-    renderingPreviewManager.OnInitDevice(device);
 }
 
 
 static void onDestroyDevice(device* device)
 {
     resourceManager.OnDestroyDevice(device);
-    renderingPreviewManager.OnDestroyDevice(device);
 
     device->destroy_private_data<DeviceDataContainer>();
 }
@@ -151,12 +149,14 @@ static void onResetCommandList(command_list* commandList)
 static void onInitSwapchain(reshade::api::swapchain* swapchain)
 {
     resourceManager.OnInitSwapchain(swapchain);
+    renderingPreviewManager.OnInitSwapchain(swapchain);
 }
 
 
 static void onDestroySwapchain(reshade::api::swapchain* swapchain)
 {
     resourceManager.OnDestroySwapchain(swapchain);
+    renderingPreviewManager.OnDestroySwapchain(swapchain);
 }
 
 

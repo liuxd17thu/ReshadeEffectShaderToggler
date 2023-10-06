@@ -79,10 +79,12 @@ const std::tuple<resource_view, bool> RenderingPreviewManager::GetCurrentPreview
     return make_tuple(active_view, false);
 }
 
-void RenderingPreviewManager::OnInitDevice(reshade::api::device* device)
+void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
 {
     // Create copy pipeline in order to omit alpha channel in preview. Only SM4.0 for now
-    if (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12)
+    reshade::api::device* device = swapchain->get_device();
+
+    if (copyPipeline == 0 && (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
     {
         sampler_desc sampler_desc = {};
         sampler_desc.filter = filter_mode::min_mag_mip_point;
@@ -108,19 +110,28 @@ void RenderingPreviewManager::OnInitDevice(reshade::api::device* device)
             !device->create_pipeline(copyPipelineLayout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &copyPipeline) ||
             !device->create_sampler(sampler_desc, &copyPipelineSampler))
         {
+            copyPipeline = {};
+            copyPipelineLayout = {};
+            copyPipelineSampler = {};
             reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline");
         }
     }
 }
 
-void RenderingPreviewManager::OnDestroyDevice(reshade::api::device* device)
+void RenderingPreviewManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
 {
-    device->destroy_pipeline(copyPipeline);
-    device->destroy_pipeline_layout(copyPipelineLayout);
-    device->destroy_sampler(copyPipelineSampler);
-    copyPipeline = {};
-    copyPipelineLayout = {};
-    copyPipelineSampler = {};
+    if (copyPipeline != 0)
+    {
+        reshade::api::device* device = swapchain->get_device();
+
+        device->destroy_pipeline(copyPipeline);
+        device->destroy_pipeline_layout(copyPipelineLayout);
+        device->destroy_sampler(copyPipelineSampler);
+
+        copyPipeline = {};
+        copyPipelineLayout = {};
+        copyPipelineSampler = {};
+    }
 }
 
 void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view srv_src, resource_view rtv_dst, uint32_t width, uint32_t height)
@@ -132,17 +143,17 @@ void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view
     }
 
     cmd_list->bind_render_targets_and_depth_stencil(1, &rtv_dst);
-
+    
     cmd_list->bind_pipeline(pipeline_stage::all_graphics, copyPipeline);
-
+    
     cmd_list->push_descriptors(shader_stage::pixel, copyPipelineLayout, 0, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, &copyPipelineSampler });
     cmd_list->push_descriptors(shader_stage::pixel, copyPipelineLayout, 1, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::shader_resource_view, &srv_src });
-
+    
     const viewport viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
     cmd_list->bind_viewports(0, 1, &viewport);
     const rect scissor_rect = { 0, 0, static_cast<int32_t>(width), static_cast<int32_t>(height) };
     cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
-
+    
     cmd_list->draw(3, 1, 0, 0);
 
     cmd_list->get_private_data<state_tracking>().apply(cmd_list);

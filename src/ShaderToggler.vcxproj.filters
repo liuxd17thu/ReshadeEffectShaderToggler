@@ -210,5 +210,11 @@
     <FxCompile Include="shader\preview_copy_ps_4_0.hlsl">
       <Filter>Source Files\Shader</Filter>
     </FxCompile>
+    <FxCompile Include="shader\preview_copy_ps_3_0.hlsl">
+      <Filter>Source Files\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="shader\fullscreen_vs_3_0.hlsl">
+      <Filter>Source Files\Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -253,7 +253,7 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
 
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
-        resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
+        resManager.SetPongPreviewHandles(nullptr, nullptr, &srv);
         bool clearAlpha = group->getClearPreviewAlpha();
 
         ImGui::Text("Clear alpha channel");
@@ -292,7 +292,7 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
 
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
-        resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
+        resManager.SetPongPreviewHandles(nullptr, nullptr, &srv);
         const auto& it = deviceData.bindingMap.find(binding);
 
         if (it != deviceData.bindingMap.end())

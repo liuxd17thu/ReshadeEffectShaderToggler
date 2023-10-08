@@ -186,6 +186,7 @@ bool descriptor_tracking::on_update_descriptor_tables(device* device, uint32_t c
                 descriptor.view = static_cast<const resource_view*>(update.descriptors)[k];
                 break;
             case descriptor_type::constant_buffer:
+            case descriptor_type::shader_storage_buffer:
                 descriptor.constant = static_cast<const buffer_range*>(update.descriptors)[k];
             }
         }

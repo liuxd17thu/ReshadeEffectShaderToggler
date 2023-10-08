@@ -16,13 +16,13 @@ RenderingPreviewManager::~RenderingPreviewManager()
 
 }
 
-const std::tuple<resource_view, bool> RenderingPreviewManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
+const resource_view RenderingPreviewManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
 {
     resource_view active_view = { 0 };
 
     if (deviceData.current_runtime == nullptr)
     {
-        return make_tuple(active_view, false);
+        return active_view;
     }
 
     device* device = deviceData.current_runtime->get_device();
@@ -40,7 +40,7 @@ const std::tuple<resource_view, bool> RenderingPreviewManager::GetCurrentPreview
         if (rs == 0)
         {
             // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return make_tuple(active_view, false);
+            return active_view;
         }
 
         // Don't apply effects to non-RGB buffers
@@ -56,35 +56,32 @@ const std::tuple<resource_view, bool> RenderingPreviewManager::GetCurrentPreview
                 !RenderingManager::check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, group->getMatchSwapchainResolution())) ||
                 (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION && (width != desc.texture.width || height != desc.texture.height)))
             {
-                return make_tuple(active_view, false);
+                return active_view;
             }
         }
 
-        if (group->getClearPreviewAlpha() && (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
-        {
-            resourceManager.SetShaderResourceViewHandles(rs.handle, &active_view, nullptr);
-
-            if (active_view != 0)
-            {
-                return make_tuple(active_view, true);
-            }
-        }
-
-        if (!group->getClearPreviewAlpha() || !(device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12) || active_view == 0)
-        {
-            active_view = rtvs[index];
-        }
+        active_view = rtvs[index];
     }
 
-    return make_tuple(active_view, false);
+    return active_view;
 }
+
+struct vert_uv
+{
+    float x, y;
+};
+
+struct vert_input
+{
+    vert_uv uv;
+};
 
 void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
 {
     // Create copy pipeline in order to omit alpha channel in preview. Only SM4.0 for now
     reshade::api::device* device = swapchain->get_device();
 
-    if (copyPipeline == 0 && (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
+    if (copyPipeline == 0 && (device->get_api() == device_api::d3d9 || device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
     {
         sampler_desc sampler_desc = {};
         sampler_desc.filter = filter_mode::min_mag_mip_point;
@@ -96,8 +93,21 @@ void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain
         layout_params[0] = descriptor_range{ 0, 0, 0, 1, shader_stage::all, 1, descriptor_type::sampler };
         layout_params[1] = descriptor_range{ 0, 0, 0, 1, shader_stage::all, 1, descriptor_type::shader_resource_view };
 
-        const EmbeddedResourceData vs = resourceManager.GetResourceData(SHADER_FULLSCREEN_VS_4_0);
-        const EmbeddedResourceData ps = resourceManager.GetResourceData(SHADER_PREVIEW_COPY_PS_4_0);
+        uint16_t embedPS = 0;
+        uint16_t embedVS = 0;
+        if (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12)
+        {
+            embedPS = SHADER_PREVIEW_COPY_PS_4_0;
+            embedVS = SHADER_FULLSCREEN_VS_4_0;
+        }
+        else if (device->get_api() == device_api::d3d9)
+        {
+            embedPS = SHADER_PREVIEW_COPY_PS_3_0;
+            embedVS = SHADER_FULLSCREEN_VS_3_0;
+        }
+
+        const EmbeddedResourceData vs = resourceManager.GetResourceData(embedVS);
+        const EmbeddedResourceData ps = resourceManager.GetResourceData(embedPS);
 
         shader_desc vs_desc = { vs.data, vs.size };
         shader_desc ps_desc = { ps.data, ps.size };
@@ -105,6 +115,33 @@ void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain
         std::vector<pipeline_subobject> subobjects;
         subobjects.push_back({ pipeline_subobject_type::vertex_shader, 1, &vs_desc });
         subobjects.push_back({ pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+
+        if (device->get_api() == device_api::d3d9)
+        {
+            const input_element input_layout[1] = {
+                { 0, "TEXCOORD", 0, format::r32g32_float, 0, offsetof(vert_input, uv), sizeof(vert_input), 0},
+            };
+
+            subobjects.push_back({ pipeline_subobject_type::input_layout, 1, (void*)input_layout });
+        }
+
+        blend_desc blend_state;
+        blend_state.blend_enable[0] = true;
+        blend_state.source_color_blend_factor[0] = blend_factor::source_alpha;
+        blend_state.dest_color_blend_factor[0] = blend_factor::one_minus_source_alpha;
+        blend_state.color_blend_op[0] = blend_op::add;
+        blend_state.source_alpha_blend_factor[0] = blend_factor::one;
+        blend_state.dest_alpha_blend_factor[0] = blend_factor::one_minus_source_alpha;
+        blend_state.alpha_blend_op[0] = blend_op::add;
+        blend_state.render_target_write_mask[0] = 0xF;
+
+        subobjects.push_back({ pipeline_subobject_type::blend_state, 1, &blend_state });
+
+        rasterizer_desc rasterizer_state;
+        rasterizer_state.cull_mode = cull_mode::none;
+        rasterizer_state.scissor_enable = true;
+
+        subobjects.push_back({ pipeline_subobject_type::rasterizer_state, 1, &rasterizer_state });
 
         if (!device->create_pipeline_layout(2, layout_params, &copyPipelineLayout) ||
             !device->create_pipeline(copyPipelineLayout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &copyPipeline) ||
@@ -115,15 +152,40 @@ void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain
             copyPipelineSampler = {};
             reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline");
         }
+
+        if (vertexBuffer == 0 && device->get_api() == device_api::d3d9)
+        {
+            if (!device->create_resource(resource_desc(4 * sizeof(vert_input), memory_heap::cpu_to_gpu, resource_usage::vertex_buffer), nullptr, resource_usage::cpu_access, &vertexBuffer))
+            {
+                reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline vertex buffer");
+            }
+            else
+            {
+                vert_input vertices[4] = {
+                    vert_input { vert_uv { 0.0f, 0.0f } },
+                    vert_input { vert_uv { 0.0f, 1.0f } },
+                    vert_input { vert_uv { 1.0f, 0.0f } },
+                    vert_input { vert_uv { 1.0f, 1.0f } }
+                };
+
+                void* host_memory;
+
+                if (device->map_buffer_region(vertexBuffer, 0, UINT64_MAX, map_access::write_only, &host_memory))
+                {
+                    memcpy(host_memory, vertices, 4 * sizeof(vert_input));
+                    device->unmap_buffer_region(vertexBuffer);
+                }
+            }
+        }
     }
 }
 
 void RenderingPreviewManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
 {
+    reshade::api::device* device = swapchain->get_device();
+
     if (copyPipeline != 0)
     {
-        reshade::api::device* device = swapchain->get_device();
-
         device->destroy_pipeline(copyPipeline);
         device->destroy_pipeline_layout(copyPipelineLayout);
         device->destroy_sampler(copyPipelineSampler);
@@ -132,18 +194,26 @@ void RenderingPreviewManager::OnDestroySwapchain(reshade::api::swapchain* swapch
         copyPipelineLayout = {};
         copyPipelineSampler = {};
     }
+
+    if (vertexBuffer != 0)
+    {
+        device->destroy_resource(vertexBuffer);
+    }
 }
 
 void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view srv_src, resource_view rtv_dst, uint32_t width, uint32_t height)
 {
     device* device = cmd_list->get_device();
-    if (copyPipeline == 0 || !(device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
+    if (copyPipeline == 0 || !(device->get_api() == device_api::d3d9 || device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
     {
         return;
     }
 
-    cmd_list->bind_render_targets_and_depth_stencil(1, &rtv_dst);
-    
+    cmd_list->get_private_data<state_tracking>().capture(cmd_list);
+
+    render_pass_render_target_desc rt_desc = { rtv_dst, render_pass_load_op::clear };
+    cmd_list->begin_render_pass(1, &rt_desc, nullptr);
+
     cmd_list->bind_pipeline(pipeline_stage::all_graphics, copyPipeline);
     
     cmd_list->push_descriptors(shader_stage::pixel, copyPipelineLayout, 0, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, &copyPipelineSampler });
@@ -151,10 +221,22 @@ void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view
     
     const viewport viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
     cmd_list->bind_viewports(0, 1, &viewport);
+
     const rect scissor_rect = { 0, 0, static_cast<int32_t>(width), static_cast<int32_t>(height) };
     cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
-    
-    cmd_list->draw(3, 1, 0, 0);
+
+    if (cmd_list->get_device()->get_api() == device_api::d3d9)
+    {
+        cmd_list->bind_pipeline_state(dynamic_state::primitive_topology, static_cast<uint32_t>(primitive_topology::triangle_strip));
+        cmd_list->bind_vertex_buffer(0, vertexBuffer, 0, sizeof(vert_input));
+        cmd_list->draw(4, 1, 0, 0);
+    }
+    else
+    {
+        cmd_list->draw(3, 1, 0, 0);
+    }
+
+    cmd_list->end_render_pass();
 
     cmd_list->get_private_data<state_tracking>().apply(cmd_list);
 }
@@ -182,30 +264,29 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
     // Set views during draw call since we can be sure the correct ones are bound at that point
     if (!callLocation && deviceData.huntPreview.target_view == 0)
     {
-        std::tuple<resource_view, bool> active_data = make_tuple(resource_view{0}, false);
+        resource_view active_view = resource_view{ 0 };
 
         if (invocation & MATCH_PREVIEW_PS)
         {
-            active_data = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
+            active_view = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
         }
         else if (invocation & MATCH_PREVIEW_VS)
         {
-            active_data = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
+            active_view = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
         }
         else if (invocation & MATCH_PREVIEW_CS)
         {
-            active_data = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
+            active_view = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
         }
-
-        const auto& [active_view, is_srv] = active_data;
 
         if (active_view != 0)
         {
             resource res = device->get_resource_from_view(active_view);
             resource_desc desc = device->get_resource_desc(res);
+            //cmd_list->get_private_data<state_tracking>().start_resource_barrier_tracking(res, resource_usage::render_target);
 
             deviceData.huntPreview.target_view = active_view;
-            deviceData.huntPreview.is_srv = is_srv;
+            deviceData.huntPreview.is_srv = false;
             deviceData.huntPreview.format = desc.texture.format;
             deviceData.huntPreview.width = desc.texture.width;
             deviceData.huntPreview.height = desc.texture.height;
@@ -230,6 +311,8 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
             return;
         }
 
+        resource_usage rs_usage = {}; //cmd_list->get_private_data<state_tracking>().stop_resource_barrier_tracking(rs);
+
         if (!resourceManager.IsCompatibleWithPreviewFormat(deviceData.current_runtime, rs))
         {
             deviceData.huntPreview.target_desc = cmd_list->get_device()->get_resource_desc(rs);
@@ -237,17 +320,39 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
         }
         else
         {
-            resource previewRes = resource{ 0 };
-            resource_view preview_rtv = resource_view{ 0 };
-            resourceManager.SetPreviewViewHandles(&previewRes, &preview_rtv, nullptr);
+            bool supportsAlphaClear = device->get_api() == device_api::d3d9 || device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12;
 
-            if (previewRes != 0 && (!group.getClearPreviewAlpha() || !deviceData.huntPreview.is_srv))
+            resource previewResPing = resource{ 0 };
+            resource previewResPong = resource{ 0 };
+            resource_view preview_pong_rtv = resource_view{ 0 };
+            resource_view preview_ping_srv = resource_view{ 0 };
+
+            resourceManager.SetPingPreviewHandles(&previewResPing, nullptr, &preview_ping_srv);
+            resourceManager.SetPongPreviewHandles(&previewResPong, &preview_pong_rtv, nullptr);
+
+            if (previewResPong != 0 && (!group.getClearPreviewAlpha() || !supportsAlphaClear))
             {
-                cmd_list->copy_resource(rs, previewRes);
+                resource resources[2] = { rs, previewResPong };
+                resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
+                resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
+
+                //cmd_list->barrier(2, resources, from, to);
+                cmd_list->copy_resource(rs, previewResPong);
+                //cmd_list->barrier(2, resources, to, from);
             }
-            else if (previewRes != 0 && preview_rtv != 0 && group.getClearPreviewAlpha() && (device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12) && deviceData.huntPreview.is_srv)
+            else if (previewResPing != 0 && previewResPong != 0 && preview_ping_srv != 0 && preview_pong_rtv != 0 && supportsAlphaClear)
             {
-                CopyResource(cmd_list, deviceData.huntPreview.target_view, preview_rtv, deviceData.huntPreview.width, deviceData.huntPreview.height);
+                resource resources[2] = { rs, previewResPing };
+                resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
+                resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
+
+                //cmd_list->barrier(2, resources, from, to);
+                cmd_list->copy_resource(rs, previewResPing);
+                //cmd_list->barrier(2, resources, to, from);
+
+                //cmd_list->barrier(previewResPong, resource_usage::shader_resource, resource_usage::render_target);
+                CopyResource(cmd_list, preview_ping_srv, preview_pong_rtv, deviceData.huntPreview.width, deviceData.huntPreview.height);
+                //cmd_list->barrier(previewResPong, resource_usage::render_target, resource_usage::shader_resource);
             }
         }
 

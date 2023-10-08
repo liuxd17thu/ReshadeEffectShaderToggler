@@ -8,6 +8,7 @@
 #include <vector>
 #include <array>
 #include <unordered_map>
+#include <d3d9.h>
 #include "DescriptorTracking.h"
 
  /// <summary>
@@ -43,13 +44,30 @@ namespace StateTracking
 
     constexpr uint32_t ALL_SHADER_STAGES_SIZE = sizeof(ALL_SHADER_STAGES) / sizeof(reshade::api::shader_stage);
 
+    struct barrier_track
+    {
+        reshade::api::resource_usage usage = reshade::api::resource_usage::undefined;
+        int32_t ref_count = 0;
+    };
+
     struct state_block
     {
         /// <summary>
         /// Binds all state captured by this state block on the specified command list.
         /// </summary>
         /// <param name="cmd_list">Target command list to bind the state on.</param>
-        void apply(reshade::api::command_list* cmd_list) const;
+
+        void capture(reshade::api::command_list* cmd_list);
+
+        void apply(reshade::api::command_list* cmd_list);
+        void apply_dx9(reshade::api::command_list* cmd_list);
+        void apply_dx12_vulkan(reshade::api::command_list* cmd_list) const;
+        void apply_default(reshade::api::command_list* cmd_list) const;
+        void apply_descriptors_dx12_vulkan(reshade::api::command_list* cmd_list) const;
+        void apply_descriptors(reshade::api::command_list* cmd_list) const;
+
+        void start_resource_barrier_tracking(reshade::api::resource res, reshade::api::resource_usage current_usage);
+        reshade::api::resource_usage stop_resource_barrier_tracking(reshade::api::resource res);
 
         /// <summary>
         /// Removes all state in this state block.
@@ -62,14 +80,20 @@ namespace StateTracking
         std::array<reshade::api::pipeline_stage, ALL_PIPELINE_STAGES_SIZE> current_pipeline_stage;
         reshade::api::primitive_topology primitive_topology = reshade::api::primitive_topology::undefined;
         uint32_t blend_constant = 0;
+        uint32_t sample_mask = 0xFFFFFFFF;
         uint32_t front_stencil_reference_value = 0;
         uint32_t back_stencil_reference_value = 0;
+        uint32_t srgb_write_enable = 0;
         std::vector<reshade::api::viewport> viewports;
         std::vector<reshade::api::rect> scissor_rects;
         std::array<std::pair<reshade::api::pipeline_layout, std::vector<reshade::api::descriptor_table>>, ALL_SHADER_STAGES_SIZE> descriptor_tables;
         std::array<reshade::api::shader_stage, ALL_SHADER_STAGES_SIZE> descriptor_tables_stages;
-        std::array<std::pair<reshade::api::pipeline_layout, std::vector<std::vector<descriptor_tracking::descriptor_data>>>, ALL_SHADER_STAGES_SIZE> descriptors;
+        std::array<std::pair<reshade::api::pipeline_layout, std::vector<std::vector<descriptor_tracking::descriptor_data>>>, ALL_SHADER_STAGES_SIZE> push_descriptors;
         std::array<std::pair<reshade::api::pipeline_layout, std::vector<std::vector<uint32_t>>>, ALL_SHADER_STAGES_SIZE> push_constants;
+
+        std::unordered_map<uint64_t, barrier_track> resource_barrier_track;
+
+        IDirect3DStateBlock9* dx_state;
     };
 }
 

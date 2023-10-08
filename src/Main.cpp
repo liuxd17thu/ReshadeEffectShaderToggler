@@ -145,6 +145,10 @@ static void onResetCommandList(command_list* commandList)
     commandListData.Reset();
 }
 
+static bool onCreateSwapchain(swapchain_desc& desc, void* hwnd)
+{
+    return resourceManager.OnCreateSwapchain(desc, hwnd);
+}
 
 static void onInitSwapchain(reshade::api::swapchain* swapchain)
 {
@@ -163,6 +167,7 @@ static void onDestroySwapchain(reshade::api::swapchain* swapchain)
 static bool onCreateResource(device* device, resource_desc& desc, subresource_data* initial_data, resource_usage initial_state)
 {
     return resourceManager.OnCreateResource(device, desc, initial_data, initial_state);
+    return false;
 }
 
 
@@ -707,6 +712,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         state_tracking::register_events(g_addonUIData.GetTrackDescriptors());
         Init();
 
+        reshade::register_event<reshade::addon_event::create_swapchain>(onCreateSwapchain);
         reshade::register_event<reshade::addon_event::init_swapchain>(onInitSwapchain);
         reshade::register_event<reshade::addon_event::destroy_swapchain>(onDestroySwapchain);
         reshade::register_event<reshade::addon_event::init_resource>(onInitResource);
@@ -745,6 +751,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         break;
     case DLL_PROCESS_DETACH:
         UnInit();
+        reshade::unregister_event<reshade::addon_event::create_swapchain>(onCreateSwapchain);
         reshade::unregister_event<reshade::addon_event::init_swapchain>(onInitSwapchain);
         reshade::unregister_event<reshade::addon_event::destroy_swapchain>(onDestroySwapchain);
         reshade::unregister_event<reshade::addon_event::reshade_present>(onReshadePresent);

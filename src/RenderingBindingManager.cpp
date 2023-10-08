@@ -396,11 +396,19 @@ void RenderingBindingManager::ClearUnmatchedTextureBindings(reshade::api::comman
 
     if (!data.huntPreview.matched && uiData.GetToggleGroupIdShaderEditing() >= 0)
     {
-        resource_view rtv = resource_view{ 0 };
-        resourceManager.SetPreviewViewHandles(nullptr, &rtv, nullptr);
-        if (rtv != 0)
+        resource_view rtv_ping = resource_view{ 0 };
+        resource_view rtv_pong = resource_view{ 0 };
+
+        resourceManager.SetPingPreviewHandles(nullptr, &rtv_ping, nullptr);
+        resourceManager.SetPongPreviewHandles(nullptr, &rtv_pong, nullptr);
+
+        if (rtv_ping != 0)
         {
-            cmd_list->clear_render_target_view(rtv, clearColor);
+            cmd_list->clear_render_target_view(rtv_ping, clearColor);
+        }
+        if (rtv_pong != 0)
+        {
+            cmd_list->clear_render_target_view(rtv_pong, clearColor);
         }
     }
 }

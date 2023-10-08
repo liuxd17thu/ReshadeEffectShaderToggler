@@ -97,7 +97,7 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
     if(action & MATCH_BINDING && group->getExtractResourceViews())
     {
         uint32_t stageIndex = std::min(static_cast<uint32_t>(2), group->getSRVShaderStage());
-        const auto& [_, current_srv] = state.descriptors[stageIndex];
+        const auto& [_, current_srv] = state.push_descriptors[stageIndex];
 
         int32_t slot_size = static_cast<uint32_t>(current_srv.size());
         int32_t slot = std::min(static_cast<int32_t>(group->getBindingSRVSlotIndex()), slot_size - 1);

@@ -159,7 +159,7 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
     state_tracking& state = cmd_list->get_private_data<state_tracking>();
     index = std::min(static_cast<uint32_t>(2), index);
 
-    const auto& [_, current_descriptors] = state.descriptors[index];
+    const auto& [_, current_descriptors] = state.push_descriptors[index];
 
     int32_t slot_size = static_cast<int32_t>(current_descriptors.size());
     int32_t slot = std::min(static_cast<int32_t>(group->getCBSlotIndex()), slot_size - 1);

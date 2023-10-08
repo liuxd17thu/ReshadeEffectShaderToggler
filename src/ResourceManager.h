@@ -56,7 +56,8 @@ namespace Rendering
 
         void DisposePreview(reshade::api::effect_runtime* runtime);
         void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime);
-        void SetPreviewViewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
+        void SetPingPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
+        void SetPongPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);
 
         static EmbeddedResourceData GetResourceData(uint16_t id);
@@ -75,8 +76,8 @@ namespace Rendering
         std::shared_mutex resource_mutex;
         std::shared_mutex view_mutex;
 
-        reshade::api::resource preview_res;
-        reshade::api::resource_view preview_rtv;
-        reshade::api::resource_view preview_srv;
+        reshade::api::resource preview_res[2];
+        reshade::api::resource_view preview_rtv[2];
+        reshade::api::resource_view preview_srv[2];
     };
 }

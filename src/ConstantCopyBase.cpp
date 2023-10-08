@@ -55,10 +55,10 @@ void ConstantCopyBase::OnInitResource(device* device, const resource_desc& desc,
 {
     if (desc.heap == memory_heap::cpu_to_gpu && static_cast<uint32_t>(desc.usage & resource_usage::constant_buffer))
     {
-        CreateHostConstantBuffer(device, handle, desc.buffer.size);
+        CreateHostConstantBuffer(device, handle, static_cast<size_t>(desc.buffer.size));
         if (initData != nullptr && initData->data != nullptr)
         {
-            SetHostConstantBuffer(handle.handle, initData->data, desc.buffer.size, 0, desc.buffer.size);
+            SetHostConstantBuffer(handle.handle, initData->data, static_cast<size_t>(desc.buffer.size), 0, desc.buffer.size);
         }
     }
 }

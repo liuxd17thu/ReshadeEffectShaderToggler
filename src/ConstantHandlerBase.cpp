@@ -154,20 +154,12 @@ void ConstantHandlerBase::OnReshadeReloadedEffects(effect_runtime* runtime, int3
     previousEnableCount = enabledCount;
 }
 
-
-constexpr shader_stage indexToStage[] = { shader_stage::vertex, shader_stage::hull, shader_stage::domain, shader_stage::geometry, shader_stage::pixel, shader_stage::compute, shader_stage::all, shader_stage::all_compute, shader_stage::all_graphics };
-
 bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, ToggleGroup* group, uint32_t index)
 {
     state_tracking& state = cmd_list->get_private_data<state_tracking>();
-    shader_stage stage = indexToStage[index];
+    index = std::min(static_cast<uint32_t>(2), index);
 
-    if (!state.descriptors.contains(stage))
-    {
-        return false;
-    }
-
-    const auto& [_, current_descriptors] = state.descriptors[stage];
+    const auto& [_, current_descriptors] = state.descriptors[index];
 
     int32_t slot_size = static_cast<int32_t>(current_descriptors.size());
     int32_t slot = std::min(static_cast<int32_t>(group->getCBSlotIndex()), slot_size - 1);
@@ -230,9 +222,9 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
 bool ConstantHandlerBase::UpdateConstantEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, ToggleGroup* group, uint32_t index)
 {
     state_tracking& state = cmd_list->get_private_data<state_tracking>();
-    shader_stage stage = indexToStage[index];
+    index = std::min(static_cast<uint32_t>(2), index);
 
-    const auto& [_, current_constants] = state.push_constants[stage];
+    const auto& [_, current_constants] = state.push_constants[index];
 
     int32_t slot_size = static_cast<int32_t>(current_constants.size());
     int32_t slot = std::min(static_cast<int32_t>(group->getCBSlotIndex()), slot_size - 1);
@@ -405,7 +397,7 @@ void ConstantHandlerBase::SetBufferRange(const ToggleGroup* group, buffer_range 
     }
 
     resource_desc targetBufferDesc = dev->get_resource_desc(range.buffer);
-    uint64_t size = targetBufferDesc.buffer.size;
+    size_t size = static_cast<size_t>(targetBufferDesc.buffer.size);
 
     InitBuffers(group, size);
 

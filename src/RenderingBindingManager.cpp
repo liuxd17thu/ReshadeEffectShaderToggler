@@ -19,7 +19,7 @@ void RenderingBindingManager::InitTextureBingings(effect_runtime* runtime)
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
     // Init empty texture
-    CreateTextureBinding(runtime, &empty_res, &empty_srv, &empty_rtv, reshade::api::format::r8g8b8a8_unorm);
+    CreateTextureBinding(runtime, &empty_res, &empty_srv, reshade::api::format::r8g8b8a8_unorm);
 
     // Initialize texture bindings with default format
     for (auto& [_, group] : uiData.GetToggleGroups())
@@ -28,17 +28,16 @@ void RenderingBindingManager::InitTextureBingings(effect_runtime* runtime)
         {
             resource res = { 0 };
             resource_view srv = { 0 };
-            resource_view rtv = { 0 };
 
             unique_lock<shared_mutex> lock(data.binding_mutex);
-            if (group.getCopyTextureBinding() && CreateTextureBinding(runtime, &res, &srv, &rtv, reshade::api::format::r8g8b8a8_unorm))
+            if (group.getCopyTextureBinding() && CreateTextureBinding(runtime, &res, &srv, reshade::api::format::r8g8b8a8_unorm))
             {
-                data.bindingMap[group.getTextureBindingName()] = TextureBindingData{ res, reshade::api::format::r8g8b8a8_unorm, rtv, srv, 0, 0, group.getClearBindings(), group.getCopyTextureBinding(), false };
+                data.bindingMap[group.getTextureBindingName()] = TextureBindingData{ res, reshade::api::format::r8g8b8a8_unorm, srv, 0, 0, 1, group.getClearBindings(), group.getCopyTextureBinding(), false };
                 runtime->update_texture_bindings(group.getTextureBindingName().c_str(), srv);
             }
             else if (!group.getCopyTextureBinding())
             {
-                data.bindingMap[group.getTextureBindingName()] = TextureBindingData{ resource { 0 }, format::unknown, resource_view { 0 }, resource_view { 0 }, 0, 0, group.getClearBindings(), group.getCopyTextureBinding(), false };
+                data.bindingMap[group.getTextureBindingName()] = TextureBindingData{ resource { 0 }, format::unknown, resource_view { 0 }, 0, 0, 1, group.getClearBindings(), group.getCopyTextureBinding(), false };
                 runtime->update_texture_bindings(group.getTextureBindingName().c_str(), resource_view{ 0 }, resource_view{ 0 });
             }
         }
@@ -61,11 +60,6 @@ void RenderingBindingManager::DisposeTextureBindings(effect_runtime* runtime)
         runtime->get_device()->destroy_resource_view(empty_srv);
     }
 
-    if (empty_rtv != 0)
-    {
-        runtime->get_device()->destroy_resource_view(empty_rtv);
-    }
-
     for (auto& [bindingName, _] : data.bindingMap)
     {
         DestroyTextureBinding(runtime, bindingName);
@@ -77,15 +71,15 @@ void RenderingBindingManager::DisposeTextureBindings(effect_runtime* runtime)
 bool RenderingBindingManager::_CreateTextureBinding(reshade::api::effect_runtime* runtime,
     reshade::api::resource* res,
     reshade::api::resource_view* srv,
-    reshade::api::resource_view* rtv,
     reshade::api::format format,
     uint32_t width,
-    uint32_t height)
+    uint32_t height,
+    uint16_t levels)
 {
     runtime->get_command_queue()->wait_idle();
 
     if (!runtime->get_device()->create_resource(
-        resource_desc(width, height, 1, 1, format_to_typeless(format), 1, memory_heap::gpu_only, resource_usage::copy_dest | resource_usage::shader_resource | resource_usage::render_target),
+        resource_desc(width, height, 1, levels, format_to_typeless(format), 1, memory_heap::gpu_only, resource_usage::copy_dest | resource_usage::shader_resource),
         nullptr, resource_usage::shader_resource, res))
     {
         reshade::log_message(reshade::log_level::error, "Failed to create texture binding resource!");
@@ -98,32 +92,20 @@ bool RenderingBindingManager::_CreateTextureBinding(reshade::api::effect_runtime
         return false;
     }
 
-    if (!runtime->get_device()->create_resource_view(*res, resource_usage::render_target, resource_view_desc(format_to_default_typed(format, 0)), rtv))
-    {
-        reshade::log_message(reshade::log_level::error, "Failed to create texture binding resource view!");
-        return false;
-    }
-
     return true;
 }
 
-bool RenderingBindingManager::CreateTextureBinding(effect_runtime* runtime, resource* res, resource_view* srv, resource_view* rtv, const resource_desc& desc)
+bool RenderingBindingManager::CreateTextureBinding(effect_runtime* runtime, resource* res, resource_view* srv, const resource_desc& desc)
 {
-    reshade::api::format format = desc.texture.format;
-
-    uint32_t frame_width, frame_height;
-    frame_height = desc.texture.height;
-    frame_width = desc.texture.width;
-
-    return _CreateTextureBinding(runtime, res, srv, rtv, format, frame_width, frame_height);
+    return _CreateTextureBinding(runtime, res, srv, desc.texture.format, desc.texture.width, desc.texture.height, desc.texture.levels);
 }
 
-bool RenderingBindingManager::CreateTextureBinding(effect_runtime* runtime, resource* res, resource_view* srv, resource_view* rtv, reshade::api::format format)
+bool RenderingBindingManager::CreateTextureBinding(effect_runtime* runtime, resource* res, resource_view* srv, reshade::api::format format)
 {
     uint32_t frame_width, frame_height;
     runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
 
-    return _CreateTextureBinding(runtime, res, srv, rtv, format, frame_width, frame_height);
+    return _CreateTextureBinding(runtime, res, srv, format, frame_width, frame_height, 1);
 }
 
 void RenderingBindingManager::DestroyTextureBinding(effect_runtime* runtime, const string& binding)
@@ -155,22 +137,16 @@ void RenderingBindingManager::DestroyTextureBinding(effect_runtime* runtime, con
             {
                 runtime->get_device()->destroy_resource_view(srv);
             }
-
-            rtv = bindingData.rtv;
-            if (rtv != 0)
-            {
-                runtime->get_device()->destroy_resource_view(rtv);
-            }
         }
 
         runtime->update_texture_bindings(binding.c_str(), resource_view{ 0 }, resource_view{ 0 });
 
         bindingData.res = { 0 };
-        bindingData.rtv = { 0 };
         bindingData.srv = { 0 };
         bindingData.format = format::unknown;
         bindingData.width = 0;
         bindingData.height = 0;
+        bindingData.levels = 1;
     }
 }
 
@@ -190,23 +166,24 @@ uint32_t RenderingBindingManager::UpdateTextureBinding(effect_runtime* runtime, 
         uint32_t width = desc.texture.width;
         uint32_t oldHeight = bindingData.height;
         uint32_t height = desc.texture.height;
+        uint32_t oldLevels = bindingData.levels;
+        uint32_t levels = desc.texture.levels;
 
-        if (format != oldFormat || oldWidth != width || oldHeight != height)
+        if (format != oldFormat || oldWidth != width || oldHeight != height || oldLevels != levels)
         {
             DestroyTextureBinding(runtime, binding);
 
             resource res = {};
             resource_view srv = {};
-            resource_view rtv = {};
 
-            if (CreateTextureBinding(runtime, &res, &srv, &rtv, desc))
+            if (CreateTextureBinding(runtime, &res, &srv, desc))
             {
                 bindingData.res = res;
                 bindingData.srv = srv;
-                bindingData.rtv = rtv;
                 bindingData.width = desc.texture.width;
                 bindingData.height = desc.texture.height;
                 bindingData.format = desc.texture.format;
+                bindingData.levels = desc.texture.levels;
 
                 runtime->update_texture_bindings(binding.c_str(), srv);
             }
@@ -281,9 +258,9 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
                         bindingData.res = res;
                         bindingData.format = resDesc.texture.format;
                         bindingData.srv = view_non_srgb;
-                        bindingData.rtv = { 0 };
                         bindingData.width = resDesc.texture.width;
                         bindingData.height = resDesc.texture.height;
+                        bindingData.levels = resDesc.texture.levels;
                     }
 
                     bindingData.reset = false;
@@ -407,26 +384,13 @@ void RenderingBindingManager::ClearUnmatchedTextureBindings(reshade::api::comman
             continue;
         }
 
-        if (!bindingData.copy)
-        {
-            data.current_runtime->update_texture_bindings(bindingName.c_str(), empty_srv);
+        data.current_runtime->update_texture_bindings(bindingName.c_str(), empty_srv);
 
-            bindingData.res = { 0 };
-            bindingData.srv = { 0 };
-            bindingData.rtv = { 0 };
-            bindingData.width = 0;
-            bindingData.height = 0;
-        }
-        else
-        {
-            resource_view rtv = bindingData.rtv;
-
-            if (rtv != 0)
-            {
-                cmd_list->clear_render_target_view(rtv, clearColor);
-            }
-        }
-
+        bindingData.res = { 0 };
+        bindingData.srv = { 0 };
+        bindingData.width = 0;
+        bindingData.height = 0;
+        bindingData.levels = 1;
         bindingData.reset = true;
     }
 

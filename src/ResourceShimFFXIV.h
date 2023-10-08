@@ -11,7 +11,7 @@
 
 using namespace sigmatch_literals;
 
-static const sigmatch::signature ffxiv_texture_create = "40 55 53 57 41 54 41 57 48 8D AC 24 ?? ?? ?? ?? B8 E0 21 00 00"_sig;
+static const sigmatch::signature ffxiv_texture_create = "40 55 53 57 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? B8 ?? ?? ?? ??"_sig;
 static const sigmatch::signature ffxiv_textures_create = "40 55 53 56 57 41 55 48 8B EC 48 83 EC 60 48 8B 35 ?? ?? ?? ??"_sig;
 static const sigmatch::signature ffxiv_textures_recreate = "40 55 53 41 55 48 8B EC 48 83 EC 50"_sig;
 

@@ -162,7 +162,7 @@ namespace ShaderToggler
         std::unordered_set<uint32_t> _markedShaderHashes;		// the hashes for shaders which are currently marked.
 
         bool _isInHuntingMode = false;
-        int _activeHuntedShaderIndex = -1;
+        int32_t _activeHuntedShaderIndex = -1;
         uint32_t _activeHuntedShaderHash;
         std::shared_mutex _collectedActiveHandlesMutex;
         std::shared_mutex _hashHandlesMutex;

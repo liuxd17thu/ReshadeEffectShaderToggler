@@ -181,12 +181,12 @@ namespace ShaderToggler
         uint32_t _rtIndex = 0;
         uint32_t _cbSlotIndex = 2;
         uint32_t _cbDescIndex = 0;
-        uint32_t _cbShaderStage = 4;
+        uint32_t _cbShaderStage = 0;
         uint32_t _bindingInvocationLocation = 0;
         uint32_t _bindingRTIndex = 0;
         uint32_t _bindingSrvSlotIndex = 1;
         uint32_t _bindingSrvDescIndex = 0;
-        uint32_t _bindingSrvShaderStage = 4;
+        uint32_t _bindingSrvShaderStage = 0;
         bool _isActive;				// true means the group is actively toggled (so the hashes have to be hidden.
         bool _isEditing;			// true means the group is actively edited (name, key)
         bool _allowAllTechniques;	// true means all techniques are allowed, regardless of preferred techniques.

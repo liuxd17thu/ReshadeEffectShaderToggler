@@ -112,7 +112,7 @@ namespace ShaderToggler
 
     void ShaderManager::setActiveHuntedShaderHandle()
     {
-        if (_activeHuntedShaderIndex < 0 || _collectedActiveShaderHashes.size() <= 0 || _activeHuntedShaderIndex >= _collectedActiveShaderHashes.size())
+        if (_activeHuntedShaderIndex < 0 || _collectedActiveShaderHashes.size() == 0 || static_cast<size_t>(_activeHuntedShaderIndex) >= _collectedActiveShaderHashes.size())
         {
             _activeHuntedShaderHash = 0;
             return;
@@ -131,7 +131,7 @@ namespace ShaderToggler
         {
             return;
         }
-        if (_collectedActiveShaderHashes.size() <= 0)
+        if (_collectedActiveShaderHashes.size() == 0)
         {
             return;
         }
@@ -176,7 +176,7 @@ namespace ShaderToggler
             // always done
             return;
         }
-        if (_activeHuntedShaderIndex < _collectedActiveShaderHashes.size() - 1)
+        if (static_cast<size_t>(_activeHuntedShaderIndex) < _collectedActiveShaderHashes.size() - 1)
         {
             _activeHuntedShaderIndex++;
         }
@@ -194,7 +194,7 @@ namespace ShaderToggler
         {
             return;
         }
-        if (_collectedActiveShaderHashes.size() <= 0)
+        if (_collectedActiveShaderHashes.size() == 0)
         {
             return;
         }
@@ -209,7 +209,7 @@ namespace ShaderToggler
             }
             // we have marked shaders, find the next one in collected active shader hashes that's part of this set.
             auto it = _collectedActiveShaderHashes.begin();
-            int index = _activeHuntedShaderIndex - 1;
+            int32_t index = _activeHuntedShaderIndex - 1;
             std::advance(it, index);
             bool foundHash = false;
             uint32_t hash = 0;
@@ -219,7 +219,7 @@ namespace ShaderToggler
                 {
                     it = _collectedActiveShaderHashes.end();
                     --it;
-                    index = _collectedActiveShaderHashes.size() - 1;
+                    index = static_cast<int32_t>(_collectedActiveShaderHashes.size()) - 1;
                 }
                 hash = *it;
                 if (_markedShaderHashes.contains(hash))
@@ -242,7 +242,7 @@ namespace ShaderToggler
         }
         if (_activeHuntedShaderIndex <= 0)
         {
-            _activeHuntedShaderIndex = _collectedActiveShaderHashes.size() - 1;
+            _activeHuntedShaderIndex = static_cast<int32_t>(_collectedActiveShaderHashes.size()) - 1;
         }
         else
         {

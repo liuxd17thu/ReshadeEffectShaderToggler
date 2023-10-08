@@ -242,7 +242,7 @@ void ResourceManager::OnInitResourceView(device* device, resource resource, reso
 
     resource_desc rdesc = device->get_resource_desc(resource);
     
-    if (static_cast<uint32_t>(rdesc.usage & resource_usage::render_target) && rdesc.type == resource_type::texture_2d)
+    if ((static_cast<uint32_t>(rdesc.usage & resource_usage::render_target) | static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource)) && rdesc.type == resource_type::texture_2d)
     {
         unique_lock<shared_mutex> vlock(view_mutex);
 
@@ -281,17 +281,23 @@ void ResourceManager::OnInitResourceView(device* device, resource resource, reso
             reshade::api::format format_non_srgb = format_to_default_typed(rdesc.texture.format, 0);
             reshade::api::format format_srgb = format_to_default_typed(rdesc.texture.format, 1);
             
-            device->create_resource_view(resource, resource_usage::render_target,
-                resource_view_desc(format_non_srgb), &view_non_srgb);
-            
-            device->create_resource_view(resource, resource_usage::render_target,
-                resource_view_desc(format_srgb), &view_srgb);
+            if (static_cast<uint32_t>(rdesc.usage & resource_usage::render_target))
+            {
+                device->create_resource_view(resource, resource_usage::render_target,
+                    resource_view_desc(format_non_srgb), &view_non_srgb);
 
-            device->create_resource_view(resource, resource_usage::shader_resource,
-                resource_view_desc(format_non_srgb), &srv_non_srgb);
+                device->create_resource_view(resource, resource_usage::render_target,
+                    resource_view_desc(format_srgb), &view_srgb);
+            }
 
-            device->create_resource_view(resource, resource_usage::shader_resource,
-                resource_view_desc(format_srgb), &srv_srgb);
+            if (static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource))
+            {
+                device->create_resource_view(resource, resource_usage::shader_resource,
+                    resource_view_desc(format_non_srgb), &srv_non_srgb);
+
+                device->create_resource_view(resource, resource_usage::shader_resource,
+                    resource_view_desc(format_srgb), &srv_srgb);
+            }
             
             s_sRGBResourceViews.emplace(resource.handle, make_pair(view_non_srgb, view_srgb));
             s_SRVs.emplace(resource.handle, make_pair(srv_non_srgb, srv_srgb));

@@ -41,7 +41,7 @@ void ConstantCopyFFXIV::GetHostConstantBuffer(command_list* cmd_list, vector<uin
     }
 }
 
-inline void ConstantCopyFFXIV::set_host_resource_data_location(void* origin, size_t len, int64_t resource_handle, uint64_t index)
+inline void ConstantCopyFFXIV::set_host_resource_data_location(void* origin, size_t len, int64_t resource_handle, size_t index)
 {
     if (_hostResourceBuffer.size() < index + 1)
         _hostResourceBuffer.resize(index + 1);
@@ -69,7 +69,7 @@ int64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload(ResourceData* param_1,
     ID3D11Resource* puVar11;
     uint32_t uVar12;
     const size_t valueSize = 16;
-    const uint64_t copySize = static_cast<uint64_t>(param_4->size) * valueSize;
+    const size_t copySize = static_cast<size_t>(param_4->size) * valueSize;
     D3D11_MAPPED_SUBRESOURCE rBuffer;
 
     uVar12 = param_3.something1;
@@ -129,7 +129,7 @@ int64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload(ResourceData* param_1,
             }
             puVar11 = param_1->resources[lVar2].res[uVar10];
 
-            set_host_resource_data_location(plVar4, copySize, (int64_t)puVar11, lVar2 * 4 + uVar10);
+            set_host_resource_data_location(plVar4, copySize, (int64_t)puVar11, static_cast<size_t>(lVar2 * 4 + uVar10));
 
             plVar3->Map(puVar11, 0, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, 0, &rBuffer);
             memcpy(rBuffer.pData, plVar4, copySize);
@@ -141,7 +141,7 @@ int64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload(ResourceData* param_1,
             puVar11 = param_1->tail_resources[uVar10].res;
 
             if (param_1->tail_resources[uVar10].data != plVar4) {
-                set_host_resource_data_location(plVar4, copySize, (int64_t)puVar11, 24 * 4 + uVar10);
+                set_host_resource_data_location(plVar4, copySize, (int64_t)puVar11, static_cast<size_t>(24 * 4 + uVar10));
 
                 plVar3->Map(puVar11, 0, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, 0, &rBuffer);
                 memcpy(rBuffer.pData, plVar4, copySize);

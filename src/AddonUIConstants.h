@@ -109,7 +109,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
     const size_t offsetInputBufSize = 32;
     static char offsetInputBuf[offsetInputBufSize] = { "000" };
 
-    static const char* stageItems[] = { "VERTEX", "HULL", "DOMAIN", "GEOMETRY", "PIXEL", "COMPUTE", "ALL", "ALL_COMPUTE", "ALL_GRAPHICS"};
+    static const char* stageItems[] = { "PIXEL", "VERTEX", "COMPUTE" };
     uint32_t selectedStageIndex = group->getCBShaderStage();
     const char* selectedStage = stageItems[selectedStageIndex];
 

@@ -97,21 +97,20 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
     if(action & MATCH_BINDING && group->getExtractResourceViews())
     {
         uint32_t stageIndex = std::min(static_cast<uint32_t>(2), group->getSRVShaderStage());
-        const auto& [_, current_srv] = state.push_descriptors[stageIndex];
 
-        int32_t slot_size = static_cast<uint32_t>(current_srv.size());
+        int32_t slot_size = static_cast<int32_t>(state.get_root_table_size_at(stageIndex));
         int32_t slot = std::min(static_cast<int32_t>(group->getBindingSRVSlotIndex()), slot_size - 1);
 
         if (slot_size <= 0)
             return active_rtv;
 
-        int32_t desc_size = static_cast<uint32_t>(current_srv[slot].size());
+        int32_t desc_size = static_cast<uint32_t>(state.get_root_table_entry_size_at(stageIndex, slot));
         int32_t desc = std::min(static_cast<int32_t>(group->getBindingSRVDescriptorIndex()), desc_size - 1);
 
         if (desc_size <= 0)
             return active_rtv;
 
-        descriptor_tracking::descriptor_data buf = current_srv[slot][desc];
+        const descriptor_tracking::descriptor_data* buf = state.get_descriptor_at(stageIndex, slot, desc);
 
         DescriptorCycle cycle = group->consumeSRVCycle();
         if (cycle != CYCLE_NONE)
@@ -119,31 +118,32 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
             if (cycle == CYCLE_UP)
             {
                 desc = std::min(++desc, desc_size - 1);
-                buf = current_srv[slot][desc];
+                buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-                while (buf.view == 0 && desc < desc_size - 2)
+                while (buf != nullptr && buf->view == 0 && desc < desc_size - 2)
                 {
-                    buf = current_srv[slot][++desc];
+                    buf = state.get_descriptor_at(stageIndex, slot, ++desc);
                 }
             }
             else
             {
                 desc = desc > 0 ? --desc : 0;
-                buf = current_srv[slot][desc];
+                buf = state.get_descriptor_at(stageIndex, slot, ++desc);
 
-                while (buf.view == 0 && desc > 0)
+                while (buf != nullptr && buf->view == 0 && desc > 0)
                 {
-                    buf = current_srv[slot][--desc];
+                    buf = state.get_descriptor_at(stageIndex, slot, --desc);
                 }
             }
 
-            if (buf.view != 0)
+            if (buf != nullptr && buf->view != 0)
             {
                 group->setBindingSRVDescriptorIndex(desc);
             }
         }
 
-        active_rtv = buf.view;
+        if(buf != nullptr)
+            active_rtv = buf->view;
     }
     else if(action & MATCH_BINDING && !group->getExtractResourceViews() && rtvs.size() > 0 && rtvs[bindingRTindex] != 0)
     {

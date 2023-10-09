@@ -155,13 +155,15 @@ void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain
 
         if (vertexBuffer == 0 && device->get_api() == device_api::d3d9)
         {
-            if (!device->create_resource(resource_desc(4 * sizeof(vert_input), memory_heap::cpu_to_gpu, resource_usage::vertex_buffer), nullptr, resource_usage::cpu_access, &vertexBuffer))
+            const uint32_t num_vertices = 4;
+
+            if (!device->create_resource(resource_desc(num_vertices * sizeof(vert_input), memory_heap::cpu_to_gpu, resource_usage::vertex_buffer), nullptr, resource_usage::cpu_access, &vertexBuffer))
             {
                 reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline vertex buffer");
             }
             else
             {
-                vert_input vertices[4] = {
+                const vert_input vertices[num_vertices] = {
                     vert_input { vert_uv { 0.0f, 0.0f } },
                     vert_input { vert_uv { 0.0f, 1.0f } },
                     vert_input { vert_uv { 1.0f, 0.0f } },
@@ -172,7 +174,7 @@ void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain
 
                 if (device->map_buffer_region(vertexBuffer, 0, UINT64_MAX, map_access::write_only, &host_memory))
                 {
-                    memcpy(host_memory, vertices, 4 * sizeof(vert_input));
+                    memcpy(host_memory, vertices, num_vertices * sizeof(vert_input));
                     device->unmap_buffer_region(vertexBuffer);
                 }
             }
@@ -209,10 +211,9 @@ void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view
         return;
     }
 
-    cmd_list->get_private_data<state_tracking>().capture(cmd_list);
+    cmd_list->get_private_data<state_tracking>().capture(cmd_list, true);
 
-    render_pass_render_target_desc rt_desc = { rtv_dst, render_pass_load_op::clear };
-    cmd_list->begin_render_pass(1, &rt_desc, nullptr);
+    cmd_list->bind_render_targets_and_depth_stencil(1, &rtv_dst);
 
     cmd_list->bind_pipeline(pipeline_stage::all_graphics, copyPipeline);
     
@@ -236,9 +237,7 @@ void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view
         cmd_list->draw(3, 1, 0, 0);
     }
 
-    cmd_list->end_render_pass();
-
-    cmd_list->get_private_data<state_tracking>().apply(cmd_list);
+    cmd_list->get_private_data<state_tracking>().apply(cmd_list, true);
 }
 
 void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t callLocation, uint64_t invocation)

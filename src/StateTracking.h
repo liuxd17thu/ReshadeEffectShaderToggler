@@ -50,6 +50,26 @@ namespace StateTracking
         int32_t ref_count = 0;
     };
 
+    enum class root_entry_type : int32_t
+    {
+        undefined = -1,
+        push_constants = 1,
+        descriptor_table = 0,
+        push_descriptors = 2,
+        push_descriptors_with_ranges = 3
+    };
+
+    struct root_entry
+    {
+        constexpr root_entry() : type(root_entry_type::undefined), buffer_index(-1), descriptor_table({ 0 }) {}
+        constexpr root_entry(root_entry_type t, int32_t index, const reshade::api::descriptor_table& table) : type(t), buffer_index(index), descriptor_table(table) {}
+        constexpr root_entry(const reshade::api::descriptor_table& table) : type(root_entry_type::descriptor_table), buffer_index(-1), descriptor_table(table) {}
+
+        root_entry_type type = root_entry_type::undefined;
+        int32_t buffer_index;
+        reshade::api::descriptor_table descriptor_table;
+    };
+
     struct state_block
     {
         /// <summary>
@@ -57,17 +77,22 @@ namespace StateTracking
         /// </summary>
         /// <param name="cmd_list">Target command list to bind the state on.</param>
 
-        void capture(reshade::api::command_list* cmd_list);
+        void capture(reshade::api::command_list* cmd_list, bool force_restore = false);
 
-        void apply(reshade::api::command_list* cmd_list);
-        void apply_dx9(reshade::api::command_list* cmd_list);
-        void apply_dx12_vulkan(reshade::api::command_list* cmd_list) const;
-        void apply_default(reshade::api::command_list* cmd_list) const;
+        void apply(reshade::api::command_list* cmd_list, bool force_restore = false);
+        void apply_dx9(reshade::api::command_list* cmd_list, bool force_restore);
+        void apply_default(reshade::api::command_list* cmd_list, bool force_restore) const;
+
         void apply_descriptors_dx12_vulkan(reshade::api::command_list* cmd_list) const;
         void apply_descriptors(reshade::api::command_list* cmd_list) const;
 
         void start_resource_barrier_tracking(reshade::api::resource res, reshade::api::resource_usage current_usage);
         reshade::api::resource_usage stop_resource_barrier_tracking(reshade::api::resource res);
+
+        const descriptor_tracking::descriptor_data* get_descriptor_at(uint32_t stageIndex, uint32_t layout_param, uint32_t binding) const;
+        const size_t get_root_table_entry_size_at(uint32_t stageIndex, uint32_t layout_param) const;
+        const size_t get_root_table_size_at(uint32_t stageIndex) const;
+        const std::vector<uint32_t>* get_constants_at(uint32_t stageIndex, uint32_t layout_param) const;
 
         /// <summary>
         /// Removes all state in this state block.
@@ -86,10 +111,11 @@ namespace StateTracking
         uint32_t srgb_write_enable = 0;
         std::vector<reshade::api::viewport> viewports;
         std::vector<reshade::api::rect> scissor_rects;
-        std::array<std::pair<reshade::api::pipeline_layout, std::vector<reshade::api::descriptor_table>>, ALL_SHADER_STAGES_SIZE> descriptor_tables;
-        std::array<reshade::api::shader_stage, ALL_SHADER_STAGES_SIZE> descriptor_tables_stages;
-        std::array<std::pair<reshade::api::pipeline_layout, std::vector<std::vector<descriptor_tracking::descriptor_data>>>, ALL_SHADER_STAGES_SIZE> push_descriptors;
-        std::array<std::pair<reshade::api::pipeline_layout, std::vector<std::vector<uint32_t>>>, ALL_SHADER_STAGES_SIZE> push_constants;
+
+        std::array<std::pair<reshade::api::pipeline_layout, std::vector<root_entry>>, ALL_SHADER_STAGES_SIZE> root_tables;
+        std::array<reshade::api::shader_stage, ALL_SHADER_STAGES_SIZE> root_table_stages;
+        std::vector<std::vector<uint32_t>> constant_buffer;
+        std::vector<std::vector<descriptor_tracking::descriptor_data>> descriptor_buffer;
 
         std::unordered_map<uint64_t, barrier_track> resource_barrier_track;
 

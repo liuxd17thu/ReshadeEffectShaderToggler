@@ -66,8 +66,8 @@ namespace StateTracking
         constexpr root_entry(const reshade::api::descriptor_table& table) : type(root_entry_type::descriptor_table), buffer_index(-1), descriptor_table(table) {}
 
         root_entry_type type = root_entry_type::undefined;
-        int32_t buffer_index;
-        reshade::api::descriptor_table descriptor_table;
+        int32_t buffer_index = -1;;
+        reshade::api::descriptor_table descriptor_table = {};
     };
 
     struct state_block
@@ -108,7 +108,6 @@ namespace StateTracking
         uint32_t sample_mask = 0xFFFFFFFF;
         uint32_t front_stencil_reference_value = 0;
         uint32_t back_stencil_reference_value = 0;
-        uint32_t srgb_write_enable = 0;
         std::vector<reshade::api::viewport> viewports;
         std::vector<reshade::api::rect> scissor_rects;
 

@@ -30,38 +30,24 @@ void state_block::apply_descriptors_dx12_vulkan(command_list* cmd_list) const
         // Restore root signature
         if (root_table.size() == 0 && pipelinelayout != 0)
         {
-            cmd_list->bind_descriptor_tables(stages, pipelinelayout, 0, 0, nullptr);
+            // Check if root signature has any tables bound, restore if not
+            const auto& containsTables = std::find_if(root_table.begin(), root_table.end(), [](const root_entry& entry) { return entry.descriptor_table.handle != 0; });
+            if (containsTables != root_table.end())
+                cmd_list->bind_descriptor_tables(stages, pipelinelayout, 0, 0, nullptr);
         }
 
-        // Restore descriptors
+        // Restore tables in first pass to assure heaps are restored, do constants in a second pass,
+        // pushed descriptors should be restored along with the tables when the heap is restored to the game internal one
         for (uint32_t i = 0; i < root_table.size(); i++)
         {
             if (descriptor_data.get_pipeline_layout_param(pipelinelayout, i).type == pipeline_layout_param_type::descriptor_table && root_table[i].descriptor_table.handle != 0)
             {
                 cmd_list->bind_descriptor_tables(stages, pipelinelayout, i, 1, &root_table[i].descriptor_table);
             }
-            else if (descriptor_data.get_pipeline_layout_param(pipelinelayout, i).type == pipeline_layout_param_type::push_descriptors && root_table[i].buffer_index >= 0 && descriptor_buffer[root_table[i].buffer_index].size() > 0)
-            {
-                const auto& descriptor = descriptor_buffer[root_table[i].buffer_index][0];
-
-                switch (descriptor.type)
-                {
-                case descriptor_type::sampler:
-                    cmd_list->push_descriptors(stages, pipelinelayout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor.type, &descriptor.sampler });
-                    break;
-                case descriptor_type::sampler_with_resource_view:
-                    cmd_list->push_descriptors(stages, pipelinelayout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor.type, &descriptor.sampler_and_view });
-                    break;
-                case descriptor_type::shader_resource_view:
-                case descriptor_type::unordered_access_view:
-                    cmd_list->push_descriptors(stages, pipelinelayout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor.type, &descriptor.view });
-                    break;
-                case descriptor_type::constant_buffer:
-                case descriptor_type::shader_storage_buffer:
-                    cmd_list->push_descriptors(stages, pipelinelayout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor.type, &descriptor.constant });
-                }
-            }
-            else if (descriptor_data.get_pipeline_layout_param(pipelinelayout, i).type == pipeline_layout_param_type::push_constants && root_table[i].buffer_index >= 0 && constant_buffer[root_table[i].buffer_index].size() > 0)
+        }
+        for (uint32_t i = 0; i < root_table.size(); i++)
+        {
+            if (descriptor_data.get_pipeline_layout_param(pipelinelayout, i).type == pipeline_layout_param_type::push_constants && root_table[i].buffer_index >= 0 && constant_buffer[root_table[i].buffer_index].size() > 0)
             {
                 cmd_list->push_constants(stages, pipelinelayout, i, 0, static_cast<uint32_t>(constant_buffer[root_table[i].buffer_index].size()), constant_buffer[root_table[i].buffer_index].data());
             }
@@ -95,19 +81,19 @@ void state_block::apply_descriptors(command_list* cmd_list) const
         switch (copyDescriptors[i]->type)
         {
         case descriptor_type::sampler:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, &copyDescriptors[i]->sampler });
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, reinterpret_cast<const void*>(&copyDescriptors[i]->sampler) });
             break;
         case descriptor_type::constant_buffer:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::constant_buffer, &copyDescriptors[i]->constant });
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::constant_buffer, reinterpret_cast<const void*>(&copyDescriptors[i]->constant) });
             break;
         case descriptor_type::sampler_with_resource_view:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler_with_resource_view, &copyDescriptors[i]->sampler_and_view });
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler_with_resource_view, reinterpret_cast<const void*>(&copyDescriptors[i]->sampler_and_view) });
             break;
         case descriptor_type::shader_resource_view:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::shader_resource_view, &copyDescriptors[i]->view });
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::shader_resource_view, reinterpret_cast<const void*>(&copyDescriptors[i]->view) });
             break;
         case descriptor_type::unordered_access_view:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::unordered_access_view, &copyDescriptors[i]->view });
+            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::unordered_access_view, reinterpret_cast<const void*>(&copyDescriptors[i]->view) });
             break;
         }
     }
@@ -184,8 +170,6 @@ void state_block::apply_default(reshade::api::command_list* cmd_list, bool force
         cmd_list->bind_pipeline_state(dynamic_state::blend_constant, blend_constant);
     if (sample_mask != 0xFFFFFFFF)
         cmd_list->bind_pipeline_state(dynamic_state::sample_mask, sample_mask);
-    if (srgb_write_enable != 0)
-        cmd_list->bind_pipeline_state(dynamic_state::srgb_write_enable, srgb_write_enable);
     if (front_stencil_reference_value != 0)
         cmd_list->bind_pipeline_state(dynamic_state::front_stencil_reference_value, front_stencil_reference_value);
     if (back_stencil_reference_value != 0)
@@ -214,7 +198,6 @@ void state_block::clear()
     blend_constant = 0;
     front_stencil_reference_value = 0;
     back_stencil_reference_value = 0;
-    srgb_write_enable = 0;
     sample_mask = 0xFFFFFFFF;
     viewports.clear();
     scissor_rects.clear();
@@ -225,6 +208,9 @@ void state_block::clear()
     current_pipeline.fill(pipeline{ 0 });
     current_pipeline_stage.fill(static_cast<pipeline_stage>(0));
     resource_barrier_track.clear();
+
+    constant_buffer.reserve(1000);
+    descriptor_buffer.reserve(1000);
 }
 
 static inline int32_t get_shader_stage_index(shader_stage stages)
@@ -305,9 +291,6 @@ static void on_bind_pipeline_states(command_list* cmd_list, uint32_t count, cons
             break;
         case dynamic_state::sample_mask:
             state.sample_mask = values[i];
-            break;
-        case dynamic_state::srgb_write_enable:
-            state.srgb_write_enable = values[i];
             break;
         }
     }
@@ -418,8 +401,6 @@ static void on_bind_descriptor_tables_no_track(command_list* cmd_list, shader_st
     if (desc_layout != layout)
     {
         root_table.clear(); // Layout changed, which resets all descriptor set bindings
-        constant_buffer.clear();
-        descriptor_buffer.clear();
     }
 
     desc_layout = layout;
@@ -445,20 +426,20 @@ static inline void fill_descriptors(std::vector<descriptor_tracking::descriptor_
         switch (update.type)
         {
         case descriptor_type::sampler:
-            descriptor.sampler = static_cast<const sampler*>(update.descriptors)[i];
+            descriptor.sampler = reinterpret_cast<const sampler*>(update.descriptors)[i];
             break;
         case descriptor_type::sampler_with_resource_view:
-            descriptor.sampler_and_view = static_cast<const sampler_with_resource_view*>(update.descriptors)[i];
+            descriptor.sampler_and_view = reinterpret_cast<const sampler_with_resource_view*>(update.descriptors)[i];
             descriptor.view = descriptor.sampler_and_view.view;
             descriptor.sampler = descriptor.sampler_and_view.sampler;
             break;
         case descriptor_type::shader_resource_view:
         case descriptor_type::unordered_access_view:
-            descriptor.view = static_cast<const resource_view*>(update.descriptors)[i];
+            descriptor.view = reinterpret_cast<const resource_view*>(update.descriptors)[i];
             break;
         case descriptor_type::constant_buffer:
         case descriptor_type::shader_storage_buffer:
-            descriptor.constant = static_cast<const buffer_range*>(update.descriptors)[i];
+            descriptor.constant = reinterpret_cast<const buffer_range*>(update.descriptors)[i];
         }
     }
 }
@@ -475,14 +456,7 @@ static void on_push_descriptors(command_list* cmd_list, shader_stage stages, pip
     auto& state_stages = state_tracker.root_table_stages[idx];
     auto& constant_buffer = state_tracker.constant_buffer;
     auto& descriptor_buffer = state_tracker.descriptor_buffer;
-
-    if (desc_layout != layout)
-    {
-        root_table.clear(); // Layout changed, which resets all descriptor set bindings
-        constant_buffer.clear();
-        descriptor_buffer.clear();
-    }
-
+    
     desc_layout = layout;
     state_stages = stages;
 
@@ -528,14 +502,7 @@ static void on_push_constants(command_list* cmd_list, shader_stage stages, pipel
     auto& state_stages = state_tracker.root_table_stages[idx];
     auto& constant_buffer = state_tracker.constant_buffer;
     auto& descriptor_buffer = state_tracker.descriptor_buffer;
-
-    if (desc_layout != layout)
-    {
-        root_table.clear(); // Layout changed, which resets all descriptor set bindings
-        constant_buffer.clear();
-        descriptor_buffer.clear();
-    }
-
+    
     desc_layout = layout;
     state_stages = stages;
 

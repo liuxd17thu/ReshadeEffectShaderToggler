@@ -331,20 +331,20 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
 
             if (previewResPong != 0 && (!group.getClearPreviewAlpha() || !supportsAlphaClear))
             {
-                resource resources[2] = { rs, previewResPong };
-                resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
-                resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
-
+                //resource resources[2] = { rs, previewResPong };
+                //resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
+                //resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
+                //
                 //cmd_list->barrier(2, resources, from, to);
                 cmd_list->copy_resource(rs, previewResPong);
                 //cmd_list->barrier(2, resources, to, from);
             }
             else if (previewResPing != 0 && previewResPong != 0 && preview_ping_srv != 0 && preview_pong_rtv != 0 && supportsAlphaClear)
             {
-                resource resources[2] = { rs, previewResPing };
-                resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
-                resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
-
+                //resource resources[2] = { rs, previewResPing };
+                //resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
+                //resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
+                //
                 //cmd_list->barrier(2, resources, from, to);
                 cmd_list->copy_resource(rs, previewResPing);
                 //cmd_list->barrier(2, resources, to, from);

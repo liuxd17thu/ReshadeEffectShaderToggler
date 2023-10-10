@@ -28,11 +28,11 @@ void state_block::apply_descriptors_dx12_vulkan(command_list* cmd_list) const
         shader_stages_set |= static_cast<uint32_t>(stages);
 
         // Restore root signature
-        if (root_table.size() == 0 && pipelinelayout != 0)
+        if (pipelinelayout != 0)
         {
             // Check if root signature has any tables bound, restore if not
             const auto& containsTables = std::find_if(root_table.begin(), root_table.end(), [](const root_entry& entry) { return entry.descriptor_table.handle != 0; });
-            if (containsTables != root_table.end())
+            if (containsTables == root_table.end())
                 cmd_list->bind_descriptor_tables(stages, pipelinelayout, 0, 0, nullptr);
         }
 

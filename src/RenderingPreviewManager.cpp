@@ -1,3 +1,4 @@
+#include <d3d12.h>
 #include "RenderingPreviewManager.h"
 #include "StateTracking.h"
 #include "resource.h"
@@ -76,11 +77,8 @@ struct vert_input
     vert_uv uv;
 };
 
-void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
+void RenderingPreviewManager::InitShaders(reshade::api::device* device)
 {
-    // Create copy pipeline in order to omit alpha channel in preview. Only SM4.0 for now
-    reshade::api::device* device = swapchain->get_device();
-
     if (copyPipeline == 0 && (device->get_api() == device_api::d3d9 || device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
     {
         sampler_desc sampler_desc = {};
@@ -118,11 +116,11 @@ void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain
 
         if (device->get_api() == device_api::d3d9)
         {
-            const input_element input_layout[1] = {
+            static input_element input_layout[1] = {
                 { 0, "TEXCOORD", 0, format::r32g32_float, 0, offsetof(vert_input, uv), sizeof(vert_input), 0},
             };
 
-            subobjects.push_back({ pipeline_subobject_type::input_layout, 1, (void*)input_layout });
+            subobjects.push_back({ pipeline_subobject_type::input_layout, 1, reinterpret_cast<void*>(input_layout) });
         }
 
         blend_desc blend_state;
@@ -182,10 +180,8 @@ void RenderingPreviewManager::OnInitSwapchain(reshade::api::swapchain* swapchain
     }
 }
 
-void RenderingPreviewManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
+void RenderingPreviewManager::DestroyShaders(reshade::api::device* device)
 {
-    reshade::api::device* device = swapchain->get_device();
-
     if (copyPipeline != 0)
     {
         device->destroy_pipeline(copyPipeline);

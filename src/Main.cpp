@@ -123,6 +123,7 @@ static void onInitDevice(device* device)
 static void onDestroyDevice(device* device)
 {
     resourceManager.OnDestroyDevice(device);
+    renderingPreviewManager.DestroyShaders(device);
 
     device->destroy_private_data<DeviceDataContainer>();
 }
@@ -263,7 +264,7 @@ static void onInitEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
-    renderingPreviewManager.OnInitSwapchain(runtime);
+    renderingPreviewManager.InitShaders(runtime->get_device());
 
     // Dispose of texture bindings created from the runtime below
     if (data.current_runtime != nullptr)
@@ -287,9 +288,6 @@ static void onInitEffectRuntime(effect_runtime* runtime)
 static void onDestroyEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
-
-
-    renderingPreviewManager.OnDestroySwapchain(runtime);
 
     // Remove runtime from stack
     for (auto it = runtimes.begin(); it != runtimes.end();)

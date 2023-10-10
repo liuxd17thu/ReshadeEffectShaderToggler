@@ -202,27 +202,6 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
         group->setPreferredTechniques(newTechniques);
 }
 
-struct DrawCallData
-{
-    reshade::api::effect_runtime* runtime = nullptr;
-    bool isAfter = false;
-};
-
-static DrawCallData callbackdatabefore = DrawCallData{ nullptr, false };
-static DrawCallData callbackdataafter = DrawCallData{ nullptr, true };
-
-static void render_function(const ImDrawList* parent_list, const ImDrawCmd* cmd)
-{
-    DrawCallData* callData = reinterpret_cast<DrawCallData*>(cmd->UserCallbackData);
-    reshade::api::effect_runtime* runtime = callData->runtime;
-    reshade::api::command_list* cmd_list = runtime->get_command_queue()->get_immediate_command_list();
-
-    if(!callData->isAfter)
-        cmd_list->bind_pipeline_state(reshade::api::dynamic_state::blend_constant, 0x00FFFFFF);
-    else
-        cmd_list->bind_pipeline_state(reshade::api::dynamic_state::blend_constant, 0xffffffff);
-}
-
 static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_t srcHeight)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));

@@ -10,8 +10,8 @@ namespace Rendering
         RenderingPreviewManager(AddonImGui::AddonUIData& data, ResourceManager& rManager);
         ~RenderingPreviewManager();
 
-        void OnInitSwapchain(reshade::api::swapchain* swapchain);
-        void OnDestroySwapchain(reshade::api::swapchain* swapchain);
+        void InitShaders(reshade::api::device* device);
+        void DestroyShaders(reshade::api::device* device);
         void CopyResource(reshade::api::command_list* cmd_list, reshade::api::resource_view srv_src, reshade::api::resource_view rtv_dst, uint32_t width, uint32_t height);
         void UpdatePreview(reshade::api::command_list* cmd_list, uint64_t callLocation, uint64_t invocation);
         const reshade::api::resource_view GetCurrentPreviewResourceView(reshade::api::command_list* cmd_list, DeviceDataContainer& deviceData, const ShaderToggler::ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action);
@@ -24,5 +24,6 @@ namespace Rendering
         reshade::api::pipeline_layout copyPipelineLayout;
         reshade::api::sampler copyPipelineSampler;
         reshade::api::resource vertexBuffer = {};
+        bool pipelineDestroyed = false;
     };
 }

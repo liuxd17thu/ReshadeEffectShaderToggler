@@ -202,26 +202,33 @@ void RenderingPreviewManager::DestroyShaders(reshade::api::device* device)
 void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view srv_src, resource_view rtv_dst, uint32_t width, uint32_t height)
 {
     device* device = cmd_list->get_device();
+
+    //if (device->get_api() == device_api::d3d12)
+    //{
+    //    DestroyShaders(device);
+    //    InitShaders(device);
+    //}
+
     if (copyPipeline == 0 || !(device->get_api() == device_api::d3d9 || device->get_api() == device_api::d3d10 || device->get_api() == device_api::d3d11 || device->get_api() == device_api::d3d12))
     {
         return;
     }
 
     cmd_list->get_private_data<state_tracking>().capture(cmd_list, true);
-
-    cmd_list->bind_render_targets_and_depth_stencil(1, &rtv_dst);
-
-    cmd_list->bind_pipeline(pipeline_stage::all_graphics, copyPipeline);
     
+    cmd_list->bind_render_targets_and_depth_stencil(1, &rtv_dst);
+    
+    cmd_list->bind_pipeline(pipeline_stage::all_graphics, copyPipeline);
+
     cmd_list->push_descriptors(shader_stage::pixel, copyPipelineLayout, 0, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, &copyPipelineSampler });
     cmd_list->push_descriptors(shader_stage::pixel, copyPipelineLayout, 1, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::shader_resource_view, &srv_src });
     
     const viewport viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
     cmd_list->bind_viewports(0, 1, &viewport);
-
+    
     const rect scissor_rect = { 0, 0, static_cast<int32_t>(width), static_cast<int32_t>(height) };
     cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
-
+    
     if (cmd_list->get_device()->get_api() == device_api::d3d9)
     {
         cmd_list->bind_pipeline_state(dynamic_state::primitive_topology, static_cast<uint32_t>(primitive_topology::triangle_strip));
@@ -306,7 +313,11 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
             return;
         }
 
-        resource_usage rs_usage = {}; //cmd_list->get_private_data<state_tracking>().stop_resource_barrier_tracking(rs);
+        //resource_usage rs_usage = cmd_list->get_private_data<state_tracking>().stop_resource_barrier_tracking(rs);
+        //if (rs_usage == resource_usage::undefined)
+        //{
+        //    return;
+        //}
 
         if (!resourceManager.IsCompatibleWithPreviewFormat(deviceData.current_runtime, rs))
         {
@@ -330,7 +341,7 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
                 //resource resources[2] = { rs, previewResPong };
                 //resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
                 //resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
-                //
+                
                 //cmd_list->barrier(2, resources, from, to);
                 cmd_list->copy_resource(rs, previewResPong);
                 //cmd_list->barrier(2, resources, to, from);
@@ -340,7 +351,7 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
                 //resource resources[2] = { rs, previewResPing };
                 //resource_usage from[2] = { rs_usage, resource_usage::shader_resource };
                 //resource_usage to[2] = { resource_usage::copy_source, resource_usage::copy_dest };
-                //
+                
                 //cmd_list->barrier(2, resources, from, to);
                 cmd_list->copy_resource(rs, previewResPing);
                 //cmd_list->barrier(2, resources, to, from);

@@ -27,27 +27,26 @@ void state_block::apply_descriptors_dx12_vulkan(command_list* cmd_list) const
 
         shader_stages_set |= static_cast<uint32_t>(stages);
 
-        // Restore root signature
+        // Restore root signature and descriptor heaps
         if (pipelinelayout != 0)
         {
-            // Check if root signature has any tables bound, restore if not
-            const auto& containsTables = std::find_if(root_table.begin(), root_table.end(), [](const root_entry& entry) { return entry.descriptor_table.handle != 0; });
-            if (containsTables == root_table.end())
-                cmd_list->bind_descriptor_tables(stages, pipelinelayout, 0, 0, nullptr);
+            cmd_list->bind_descriptor_tables(stages, pipelinelayout, 0, 0, nullptr);
+        }
+        else
+        {
+            continue;
         }
 
         // Restore tables in first pass to assure heaps are restored, do constants in a second pass,
         // pushed descriptors should be restored along with the tables when the heap is restored to the game internal one
         for (uint32_t i = 0; i < root_table.size(); i++)
         {
-            if (descriptor_data.get_pipeline_layout_param(pipelinelayout, i).type == pipeline_layout_param_type::descriptor_table && root_table[i].descriptor_table.handle != 0)
+            if (root_table[i].type == root_entry_type::descriptor_table && root_table[i].descriptor_table.handle != 0)
             {
                 cmd_list->bind_descriptor_tables(stages, pipelinelayout, i, 1, &root_table[i].descriptor_table);
             }
-        }
-        for (uint32_t i = 0; i < root_table.size(); i++)
-        {
-            if (descriptor_data.get_pipeline_layout_param(pipelinelayout, i).type == pipeline_layout_param_type::push_constants && root_table[i].buffer_index >= 0 && constant_buffer[root_table[i].buffer_index].size() > 0)
+
+            if (root_table[i].type == root_entry_type::push_constants && root_table[i].buffer_index >= 0 && constant_buffer[root_table[i].buffer_index].size() > 0)
             {
                 cmd_list->push_constants(stages, pipelinelayout, i, 0, static_cast<uint32_t>(constant_buffer[root_table[i].buffer_index].size()), constant_buffer[root_table[i].buffer_index].data());
             }
@@ -320,69 +319,63 @@ static void on_bind_scissor_rects(command_list* cmd_list, uint32_t first, uint32
 
 static void on_bind_descriptor_tables(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table* tables)
 {
-    //int32_t idx = get_shader_stage_index(stages);
-    //
-    //if (idx < 0)
-    //    return;
-    //
-    //auto& state_tracker = cmd_list->get_private_data<state_tracking>();
-    //auto& state = state_tracker.descriptor_tables[idx];
-    //auto& state_stages = state_tracker.descriptor_tables_stages[idx];
-    //auto& [desc_layout, push_descriptors] = state_tracker.push_descriptors[idx];
-    //auto& [_, push_constants] = state_tracker.push_constants[idx];
-    //const auto& descriptor_state = cmd_list->get_device()->get_private_data<descriptor_tracking>();
-    //
-    //if (layout != state.first)
-    //{
-    //    state.second.clear(); // Layout changed, which resets all descriptor set bindings
-    //    push_constants.clear();
-    //    //clear_descriptors(descriptors);
-    //    push_descriptors.clear();
-    //}
-    //
-    //state.first = layout;
-    //desc_layout = layout;
-    //state_stages = stages;
-    //
-    //if (state.second.size() < (first + count))
-    //    state.second.resize(first + count);
-    //
-    //if (push_descriptors.size() < first + count)
-    //    push_descriptors.resize(first + count);
-    //
-    //for (uint32_t i = 0; i < count; ++i)
-    //{
-    //    state.second[i + first] = tables[i];
-    //
-    //    const pipeline_layout_param param = descriptor_state.get_pipeline_layout_param(layout, first + i);
-    //    if (param.type != pipeline_layout_param_type::descriptor_table)
-    //        continue;
-    //
-    //    uint32_t max_descriptor_size = 0;
-    //    for (uint32_t k = 0; k < param.descriptor_table.count; ++k)
-    //    {
-    //        const descriptor_range& range = param.descriptor_table.ranges[k];
-    //        if (range.count != UINT32_MAX && range.type != descriptor_type::sampler)
-    //            max_descriptor_size = std::max(max_descriptor_size, range.binding + range.count);
-    //    }
-    //
-    //    if (push_descriptors[first + i].size() < max_descriptor_size)
-    //        push_descriptors[first + i].resize(max_descriptor_size);
-    //
-    //    for (uint32_t k = 0; k < param.descriptor_table.count; ++k)
-    //    {
-    //        const descriptor_range& range = param.descriptor_table.ranges[k];
-    //
-    //        if (range.count == UINT32_MAX || range.type == descriptor_type::sampler)
-    //            continue; // Skip unbounded ranges
-    //
-    //        uint32_t base_offset = 0;
-    //        descriptor_heap heap = { 0 };
-    //        cmd_list->get_device()->get_descriptor_heap_offset(tables[i], range.binding, 0, &heap, &base_offset);
-    //
-    //        descriptor_state.set_all_descriptors(heap, base_offset, range.count, push_descriptors[first + i], range.binding);
-    //    }
-    //}
+    int32_t idx = get_shader_stage_index(stages);
+
+    if (idx < 0)
+        return;
+
+    auto& state_tracker = cmd_list->get_private_data<state_tracking>();
+    const auto& descriptor_state = cmd_list->get_device()->get_private_data<descriptor_tracking>();
+    auto& [desc_layout, root_table] = state_tracker.root_tables[idx];
+    auto& state_stages = state_tracker.root_table_stages[idx];
+    auto& constant_buffer = state_tracker.constant_buffer;
+    auto& descriptor_buffer = state_tracker.descriptor_buffer;
+
+    if (desc_layout != layout)
+    {
+        root_table.clear(); // Layout changed, which resets all descriptor set bindings
+    }
+
+    desc_layout = layout;
+    state_stages = stages;
+
+    if (root_table.size() < (first + count))
+        root_table.resize(first + count);
+
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        const pipeline_layout_param param = descriptor_state.get_pipeline_layout_param(layout, first + i);
+        if (param.type != pipeline_layout_param_type::descriptor_table)
+            continue;
+    
+        uint32_t max_descriptor_size = 0;
+        for (uint32_t k = 0; k < param.descriptor_table.count; ++k)
+        {
+            const descriptor_range& range = param.descriptor_table.ranges[k];
+            if (range.count != UINT32_MAX && range.type != descriptor_type::sampler)
+                max_descriptor_size = std::max(max_descriptor_size, range.binding + range.count);
+        }
+
+        std::vector<descriptor_tracking::descriptor_data> descriptors(max_descriptor_size);
+    
+        for (uint32_t k = 0; k < param.descriptor_table.count; ++k)
+        {
+            const descriptor_range& range = param.descriptor_table.ranges[k];
+    
+            if (range.count == UINT32_MAX || range.type == descriptor_type::sampler)
+                continue; // Skip unbounded ranges
+    
+            uint32_t base_offset = 0;
+            descriptor_heap heap = { 0 };
+            cmd_list->get_device()->get_descriptor_heap_offset(tables[i], range.binding, 0, &heap, &base_offset);
+    
+            descriptor_state.set_all_descriptors(heap, base_offset, range.count, descriptors, range.binding);
+        }
+
+        descriptor_buffer.push_back(std::move(descriptors));
+
+        root_table[i + first] = { root_entry_type::descriptor_table, static_cast<int32_t>(descriptor_buffer.size()) - 1, tables[i]};
+    }
 }
 
 static void on_bind_descriptor_tables_no_track(command_list* cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table* tables)

@@ -120,7 +120,7 @@ const resource RenderingManager::GetCurrentResourceView(command_list* cmd_list, 
                 desc = std::min(++desc, desc_size - 1);
                 buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-                while (buf != nullptr && buf->view == 0 && desc < desc_size - 2)
+                while ((buf == nullptr || buf->view == 0) && desc < desc_size - 2)
                 {
                     buf = state.get_descriptor_at(stageIndex, slot, ++desc);
                 }
@@ -128,9 +128,9 @@ const resource RenderingManager::GetCurrentResourceView(command_list* cmd_list, 
             else
             {
                 desc = desc > 0 ? --desc : 0;
-                buf = state.get_descriptor_at(stageIndex, slot, ++desc);
+                buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-                while (buf != nullptr && buf->view == 0 && desc > 0)
+                while ((buf == nullptr || buf->view == 0) && desc > 0)
                 {
                     buf = state.get_descriptor_at(stageIndex, slot, --desc);
                 }

@@ -181,7 +181,7 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
             desc = std::min(++desc, desc_size - 1);
             buf = state.get_descriptor_at(index, slot, desc);
 
-            while (buf != nullptr && buf->constant.buffer == 0 && desc < desc_size - 2)
+            while ((buf == nullptr || buf->constant.buffer == 0) && desc < desc_size - 2)
             {
                 buf = state.get_descriptor_at(index, slot, ++desc);
             }
@@ -191,7 +191,7 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
             desc = desc > 0 ? --desc : 0;
             buf = state.get_descriptor_at(index, slot, desc);
 
-            while (buf != nullptr && buf->constant.buffer == 0 && desc > 0)
+            while ((buf == nullptr || buf->constant.buffer == 0) && desc > 0)
             {
                 buf = state.get_descriptor_at(index, slot, --desc);
             }

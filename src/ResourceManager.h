@@ -25,6 +25,12 @@ namespace Rendering
         "ffxiv"
     };
 
+    struct EmbeddedResourceData
+    {
+        const void* data;
+        size_t size;
+    };
+
     class __declspec(novtable) ResourceManager final
     {
     public:
@@ -42,7 +48,6 @@ namespace Rendering
         void OnDestroySwapchain(reshade::api::swapchain* swapchain);
         void OnDestroyDevice(reshade::api::device*);
 
-        void DisposeView(reshade::api::device* device, uint64_t handle);
         void SetResourceViewHandles(uint64_t handle, reshade::api::resource_view* non_srgb_view, reshade::api::resource_view* srgb_view);
         void SetShaderResourceViewHandles(uint64_t handle, reshade::api::resource_view* non_srgb_view, reshade::api::resource_view* srgb_view);
         void SetResourceShim(const std::string& shim) { _shimType = ResolveResourceShimType(shim); }
@@ -50,9 +55,14 @@ namespace Rendering
 
         void DisposePreview(reshade::api::effect_runtime* runtime);
         void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime);
-        void SetPreviewViewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
+        void SetPingPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
+        void SetPongPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);
+
+        static EmbeddedResourceData GetResourceData(uint16_t id);
     private:
+        void DisposeView(reshade::api::device* device, uint64_t handle);
+        void CreateViews(reshade::api::device* device, reshade::api::resource res);
         static ResourceShimType ResolveResourceShimType(const std::string&);
 
         ResourceShimType _shimType = ResourceShimType::Resource_Shim_None;
@@ -62,13 +72,13 @@ namespace Rendering
         std::unordered_map<uint64_t, std::pair<reshade::api::resource_view, reshade::api::resource_view>> s_SRVs;
 
         std::unordered_map<uint64_t, uint32_t> _resourceViewRefCount;
-        std::unordered_map<uint64_t, uint64_t> _resourceViewRef;
+        std::unordered_map<uint64_t, uint64_t> _resourceViewToResource;
 
         std::shared_mutex resource_mutex;
         std::shared_mutex view_mutex;
 
-        reshade::api::resource preview_res;
-        reshade::api::resource_view preview_rtv;
-        reshade::api::resource_view preview_srv;
+        reshade::api::resource preview_res[2];
+        reshade::api::resource_view preview_rtv[2];
+        reshade::api::resource_view preview_srv[2];
     };
 }

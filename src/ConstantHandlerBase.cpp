@@ -159,21 +159,19 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
     state_tracking& state = cmd_list->get_private_data<state_tracking>();
     index = std::min(static_cast<uint32_t>(2), index);
 
-    const auto& [_, current_descriptors] = state.descriptors[index];
-
-    int32_t slot_size = static_cast<int32_t>(current_descriptors.size());
+    int32_t slot_size = static_cast<int32_t>(state.get_root_table_size_at(index));
     int32_t slot = std::min(static_cast<int32_t>(group->getCBSlotIndex()), slot_size - 1);
 
     if (slot_size <= 0)
         return false;
 
-    int32_t desc_size = static_cast<int32_t>(current_descriptors[slot].size());
+    int32_t desc_size = static_cast<int32_t>(state.get_root_table_entry_size_at(index, slot));
     int32_t desc = std::min(static_cast<int32_t>(group->getCBDescriptorIndex()), desc_size - 1);
 
     if (desc_size <= 0)
         return false;
 
-    descriptor_tracking::descriptor_data buf = current_descriptors[slot][desc];
+    const descriptor_tracking::descriptor_data* buf = state.get_descriptor_at(index, slot, desc);
 
     DescriptorCycle cycle = group->consumeCBCycle();
     if (cycle != CYCLE_NONE)
@@ -181,35 +179,35 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
         if (cycle == CYCLE_UP)
         {
             desc = std::min(++desc, desc_size - 1);
-            buf = current_descriptors[slot][desc];
+            buf = state.get_descriptor_at(index, slot, desc);
 
-            while (buf.constant.buffer == 0 && desc < desc_size - 2)
+            while ((buf == nullptr || buf->constant.buffer == 0) && desc < desc_size - 2)
             {
-                buf = current_descriptors[slot][++desc];
+                buf = state.get_descriptor_at(index, slot, ++desc);
             }
         }
         else
         {
             desc = desc > 0 ? --desc : 0;
-            buf = current_descriptors[slot][desc];
+            buf = state.get_descriptor_at(index, slot, desc);
 
-            while (buf.constant.buffer == 0 && desc > 0)
+            while ((buf == nullptr || buf->constant.buffer == 0) && desc > 0)
             {
-                buf = current_descriptors[slot][--desc];
+                buf = state.get_descriptor_at(index, slot, --desc);
             }
         }
 
-        if (buf.constant.buffer != 0)
+        if (buf != nullptr && buf->constant.buffer != 0)
         {
             group->setCBDescriptorIndex(desc);
         }
     }
 
-    if (buf.constant.buffer != 0)
+    if (buf != nullptr && buf->constant.buffer != 0)
     {
         unique_lock<shared_mutex>(groupBufferMutex);
 
-        SetBufferRange(group, buf.constant, cmd_list->get_device(), cmd_list);
+        SetBufferRange(group, buf->constant, cmd_list->get_device(), cmd_list);
         ApplyConstantValues(devData.current_runtime, group, restVariables);
         devData.constantsUpdated.insert(group);
 
@@ -224,26 +222,29 @@ bool ConstantHandlerBase::UpdateConstantEntries(command_list* cmd_list, CommandL
     state_tracking& state = cmd_list->get_private_data<state_tracking>();
     index = std::min(static_cast<uint32_t>(2), index);
 
-    const auto& [_, current_constants] = state.push_constants[index];
+    //const auto& [_, current_constants] = state.push_constants[index];
 
-    int32_t slot_size = static_cast<int32_t>(current_constants.size());
+    int32_t slot_size = static_cast<int32_t>(state.get_root_table_size_at(index));
     int32_t slot = std::min(static_cast<int32_t>(group->getCBSlotIndex()), slot_size - 1);
     
-    if (slot_size <= 0)
+    if (slot <= 0)
         return false;
     
-    int32_t const_buffer_size = static_cast<int32_t>(current_constants.at(slot).size());
+    int32_t const_buffer_size = static_cast<int32_t>(state.get_root_table_entry_size_at(index, slot));
     
     if (const_buffer_size == 0)
         return false;
     
-    const vector<uint32_t>& buf = current_constants.at(slot);
+    const vector<uint32_t>* buf = state.get_constants_at(index, slot);//current_constants.at(slot);
 
-    unique_lock<shared_mutex>(groupBufferMutex);
+    if (buf != nullptr)
+    {
+        unique_lock<shared_mutex>(groupBufferMutex);
 
-    SetConstants(group, buf, cmd_list->get_device(), cmd_list);
-    ApplyConstantValues(devData.current_runtime, group, restVariables);
-    devData.constantsUpdated.insert(group);
+        SetConstants(group, *buf, cmd_list->get_device(), cmd_list);
+        ApplyConstantValues(devData.current_runtime, group, restVariables);
+        devData.constantsUpdated.insert(group);
+    }
 
     return true;
 }

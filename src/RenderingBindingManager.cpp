@@ -206,7 +206,7 @@ uint32_t RenderingBindingManager::UpdateTextureBinding(effect_runtime* runtime, 
 
 void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
     DeviceDataContainer& deviceData,
-    const unordered_map<string, tuple<ToggleGroup*, uint64_t, resource_view>>& bindingsToUpdate,
+    const unordered_map<string, tuple<ToggleGroup*, uint64_t, resource>>& bindingsToUpdate,
     vector<string>& removalList,
     const unordered_set<string>& toUpdateBindings)
 {
@@ -216,9 +216,9 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
         {
             effect_runtime* runtime = deviceData.current_runtime;
 
-            resource_view active_rtv = std::get<2>(bindingData);
+            resource active_resource = std::get<2>(bindingData);
 
-            if (active_rtv == 0)
+            if (active_resource == 0)
             {
                 continue;
             }
@@ -228,34 +228,28 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
             if (it != deviceData.bindingMap.end())
             {
                 auto& [bindingName, bindingData] = *it;
-                resource res = runtime->get_device()->get_resource_from_view(active_rtv);
-
-                if (res == 0)
-                {
-                    continue;
-                }
 
                 if (!bindingData.copy)
                 {
                     resource_view view_non_srgb = { 0 };
                     resource_view view_srgb = { 0 };
 
-                    resourceManager.SetShaderResourceViewHandles(res.handle, &view_non_srgb, &view_srgb);
+                    resourceManager.SetShaderResourceViewHandles(active_resource.handle, &view_non_srgb, &view_srgb);
 
                     if (view_non_srgb == 0)
                     {
                         return;
                     }
 
-                    resource_desc resDesc = runtime->get_device()->get_resource_desc(res);
+                    resource_desc resDesc = runtime->get_device()->get_resource_desc(active_resource);
 
                     resource target_res = bindingData.res;
 
-                    if (target_res != res)
+                    if (target_res != active_resource)
                     {
                         runtime->update_texture_bindings(bindingName.c_str(), view_non_srgb, view_srgb);
 
-                        bindingData.res = res;
+                        bindingData.res = active_resource;
                         bindingData.format = resDesc.texture.format;
                         bindingData.srv = view_non_srgb;
                         bindingData.width = resDesc.texture.width;
@@ -267,7 +261,7 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
                 }
                 else
                 {
-                    resource_desc resDesc = runtime->get_device()->get_resource_desc(res);
+                    resource_desc resDesc = runtime->get_device()->get_resource_desc(active_resource);
 
                     uint32_t retUpdate = UpdateTextureBinding(runtime, bindingName, resDesc);
 
@@ -275,7 +269,7 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
 
                     if (retUpdate && target_res != 0)
                     {
-                        cmd_list->copy_resource(res, target_res);
+                        cmd_list->copy_resource(active_resource, target_res);
                         bindingData.reset = false;
                     }
                 }
@@ -396,11 +390,19 @@ void RenderingBindingManager::ClearUnmatchedTextureBindings(reshade::api::comman
 
     if (!data.huntPreview.matched && uiData.GetToggleGroupIdShaderEditing() >= 0)
     {
-        resource_view rtv = resource_view{ 0 };
-        resourceManager.SetPreviewViewHandles(nullptr, &rtv, nullptr);
-        if (rtv != 0)
+        resource_view rtv_ping = resource_view{ 0 };
+        resource_view rtv_pong = resource_view{ 0 };
+
+        resourceManager.SetPingPreviewHandles(nullptr, &rtv_ping, nullptr);
+        resourceManager.SetPongPreviewHandles(nullptr, &rtv_pong, nullptr);
+
+        if (rtv_ping != 0)
         {
-            cmd_list->clear_render_target_view(rtv, clearColor);
+            cmd_list->clear_render_target_view(rtv_ping, clearColor);
+        }
+        if (rtv_pong != 0)
+        {
+            cmd_list->clear_render_target_view(rtv_pong, clearColor);
         }
     }
 }

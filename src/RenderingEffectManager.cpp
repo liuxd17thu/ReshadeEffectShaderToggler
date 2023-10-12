@@ -54,7 +54,7 @@ bool RenderingEffectManager::RenderRemainingEffects(effect_runtime* runtime)
 bool RenderingEffectManager::_RenderEffects(
     command_list* cmd_list,
     DeviceDataContainer& deviceData,
-    const unordered_map<string, tuple<ToggleGroup*, uint64_t, resource_view>>& techniquesToRender,
+    const unordered_map<string, tuple<ToggleGroup*, uint64_t, resource>>& techniquesToRender,
     vector<string>& removalList,
     const unordered_set<string>& toRenderNames)
 {
@@ -70,19 +70,17 @@ bool RenderingEffectManager::_RenderEffects(
             if (tech != techniquesToRender.end() && !deviceData.allEnabledTechniques.at(name))
             {
                 auto& [techName, techData] = *tech;
-                const auto& [group, _, active_rtv] = techData;
+                const auto& [group, _, active_resource] = techData;
 
-                if (active_rtv == 0)
+                if (active_resource == 0)
                 {
                     return;
                 }
 
-                resource res = runtime->get_device()->get_resource_from_view(active_rtv);
+                resource_view view_non_srgb = {};
+                resource_view view_srgb = {};
 
-                resource_view view_non_srgb = active_rtv;
-                resource_view view_srgb = active_rtv;
-
-                resourceManager.SetResourceViewHandles(res.handle, &view_non_srgb, &view_srgb);
+                resourceManager.SetResourceViewHandles(active_resource.handle, &view_non_srgb, &view_srgb);
 
                 if (view_non_srgb == 0)
                 {
@@ -93,7 +91,7 @@ bool RenderingEffectManager::_RenderEffects(
 
                 runtime->render_technique(technique, cmd_list, view_non_srgb, view_srgb);
 
-                resource_desc resDesc = runtime->get_device()->get_resource_desc(res);
+                resource_desc resDesc = runtime->get_device()->get_resource_desc(active_resource);
                 removalList.push_back(name);
 
                 deviceData.allEnabledTechniques[name] = true;

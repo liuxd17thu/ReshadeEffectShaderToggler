@@ -52,6 +52,7 @@ namespace ShaderToggler
         _extractResourceViews = false;
         _matchSwapchainResolution = true;
         _copyTextureBinding = false;
+        _previewClearAlpha = true;
     }
 
 
@@ -229,6 +230,7 @@ namespace ShaderToggler
         iniFile.SetUInt("BindingRenderTargetIndex", _bindingRTIndex, "", sectionRoot);
         iniFile.SetUInt("BindingInvocationLocation", _bindingInvocationLocation, "", sectionRoot);
         iniFile.SetUInt("BindingMatchSwapchainResolutionOnly", _bindingMatchSwapchainResolution, "", sectionRoot);
+        iniFile.SetBool("ClearPreviewAlpha", _previewClearAlpha, "", sectionRoot);
     }
 
 
@@ -472,5 +474,7 @@ namespace ShaderToggler
         {
             _bindingMatchSwapchainResolution = _matchSwapchainResolution; //fallback to effect invocation location when loading old configs
         }
+
+        bool _previewClearAlpha = iniFile.GetBoolOrDefault("ClearPreviewAlpha", sectionRoot, true);
     }
 }

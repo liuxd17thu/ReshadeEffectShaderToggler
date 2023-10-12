@@ -27,7 +27,7 @@ namespace Rendering
 
         void _UpdateTextureBindings(reshade::api::command_list* cmd_list,
             DeviceDataContainer& deviceData,
-            const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& bindingsToUpdate,
+            const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>& bindingsToUpdate,
             std::vector<std::string>& removalList,
             const std::unordered_set<std::string>& toUpdateBindings);
         bool _CreateTextureBinding(reshade::api::effect_runtime* runtime,

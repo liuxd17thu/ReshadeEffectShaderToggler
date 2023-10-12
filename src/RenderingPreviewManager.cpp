@@ -17,13 +17,13 @@ RenderingPreviewManager::~RenderingPreviewManager()
 
 }
 
-const resource_view RenderingPreviewManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
+const resource RenderingPreviewManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
 {
-    resource_view active_view = { 0 };
+    resource active_target = { 0 };
 
     if (deviceData.current_runtime == nullptr)
     {
-        return active_view;
+        return active_target;
     }
 
     device* device = deviceData.current_runtime->get_device();
@@ -41,7 +41,7 @@ const resource_view RenderingPreviewManager::GetCurrentPreviewResourceView(comma
         if (rs == 0)
         {
             // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return active_view;
+            return active_target;
         }
 
         // Don't apply effects to non-RGB buffers
@@ -57,25 +57,15 @@ const resource_view RenderingPreviewManager::GetCurrentPreviewResourceView(comma
                 !RenderingManager::check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, group->getMatchSwapchainResolution())) ||
                 (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION && (width != desc.texture.width || height != desc.texture.height)))
             {
-                return active_view;
+                return active_target;
             }
         }
 
-        active_view = rtvs[index];
+        active_target = rs;
     }
 
-    return active_view;
+    return active_target;
 }
-
-struct vert_uv
-{
-    float x, y;
-};
-
-struct vert_input
-{
-    vert_uv uv;
-};
 
 void RenderingPreviewManager::InitShaders(reshade::api::device* device)
 {
@@ -151,11 +141,11 @@ void RenderingPreviewManager::InitShaders(reshade::api::device* device)
             reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline");
         }
 
-        if (vertexBuffer == 0 && device->get_api() == device_api::d3d9)
+        if (fullscreenQuadVertexBuffer == 0 && device->get_api() == device_api::d3d9)
         {
             const uint32_t num_vertices = 4;
 
-            if (!device->create_resource(resource_desc(num_vertices * sizeof(vert_input), memory_heap::cpu_to_gpu, resource_usage::vertex_buffer), nullptr, resource_usage::cpu_access, &vertexBuffer))
+            if (!device->create_resource(resource_desc(num_vertices * sizeof(vert_input), memory_heap::cpu_to_gpu, resource_usage::vertex_buffer), nullptr, resource_usage::cpu_access, &fullscreenQuadVertexBuffer))
             {
                 reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline vertex buffer");
             }
@@ -170,10 +160,10 @@ void RenderingPreviewManager::InitShaders(reshade::api::device* device)
 
                 void* host_memory;
 
-                if (device->map_buffer_region(vertexBuffer, 0, UINT64_MAX, map_access::write_only, &host_memory))
+                if (device->map_buffer_region(fullscreenQuadVertexBuffer, 0, UINT64_MAX, map_access::write_only, &host_memory))
                 {
                     memcpy(host_memory, vertices, num_vertices * sizeof(vert_input));
-                    device->unmap_buffer_region(vertexBuffer);
+                    device->unmap_buffer_region(fullscreenQuadVertexBuffer);
                 }
             }
         }
@@ -193,9 +183,9 @@ void RenderingPreviewManager::DestroyShaders(reshade::api::device* device)
         copyPipelineSampler = {};
     }
 
-    if (vertexBuffer != 0)
+    if (fullscreenQuadVertexBuffer != 0)
     {
-        device->destroy_resource(vertexBuffer);
+        device->destroy_resource(fullscreenQuadVertexBuffer);
     }
 }
 
@@ -232,7 +222,7 @@ void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view
     if (cmd_list->get_device()->get_api() == device_api::d3d9)
     {
         cmd_list->bind_pipeline_state(dynamic_state::primitive_topology, static_cast<uint32_t>(primitive_topology::triangle_strip));
-        cmd_list->bind_vertex_buffer(0, vertexBuffer, 0, sizeof(vert_input));
+        cmd_list->bind_vertex_buffer(0, fullscreenQuadVertexBuffer, 0, sizeof(vert_input));
         cmd_list->draw(4, 1, 0, 0);
     }
     else
@@ -264,31 +254,29 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
     const ToggleGroup& group = uiData.GetToggleGroups().at(uiData.GetToggleGroupIdShaderEditing());
 
     // Set views during draw call since we can be sure the correct ones are bound at that point
-    if (!callLocation && deviceData.huntPreview.target_view == 0)
+    if (!callLocation && deviceData.huntPreview.target == 0)
     {
-        resource_view active_view = resource_view{ 0 };
+        resource active_target = resource{ 0 };
 
         if (invocation & MATCH_PREVIEW_PS)
         {
-            active_view = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
+            active_target = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
         }
         else if (invocation & MATCH_PREVIEW_VS)
         {
-            active_view = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
+            active_target = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
         }
         else if (invocation & MATCH_PREVIEW_CS)
         {
-            active_view = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
+            active_target = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
         }
 
-        if (active_view != 0)
+        if (active_target != 0)
         {
-            resource res = device->get_resource_from_view(active_view);
-            resource_desc desc = device->get_resource_desc(res);
+            resource_desc desc = device->get_resource_desc(active_target);
             //cmd_list->get_private_data<state_tracking>().start_resource_barrier_tracking(res, resource_usage::render_target);
 
-            deviceData.huntPreview.target_view = active_view;
-            deviceData.huntPreview.is_srv = false;
+            deviceData.huntPreview.target = active_target;
             deviceData.huntPreview.format = desc.texture.format;
             deviceData.huntPreview.width = desc.texture.width;
             deviceData.huntPreview.height = desc.texture.height;
@@ -299,20 +287,14 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
         }
     }
 
-    if (deviceData.huntPreview.target_view == 0 || !(!callLocation && !deviceData.huntPreview.target_invocation_location || callLocation & deviceData.huntPreview.target_invocation_location))
+    if (deviceData.huntPreview.target == 0 || !(!callLocation && !deviceData.huntPreview.target_invocation_location || callLocation & deviceData.huntPreview.target_invocation_location))
     {
         return;
     }
 
     if (group.getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched)
     {
-        resource rs = device->get_resource_from_view(deviceData.huntPreview.target_view);
-
-        if (rs == 0)
-        {
-            return;
-        }
-
+        resource rs = deviceData.huntPreview.target;
         //resource_usage rs_usage = cmd_list->get_private_data<state_tracking>().stop_resource_barrier_tracking(rs);
         //if (rs_usage == resource_usage::undefined)
         //{

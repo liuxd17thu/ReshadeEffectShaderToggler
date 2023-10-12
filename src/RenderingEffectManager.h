@@ -19,7 +19,7 @@ namespace Rendering
         bool _RenderEffects(
             reshade::api::command_list* cmd_list,
             DeviceDataContainer& deviceData,
-            const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& techniquesToRender,
+            const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>& techniquesToRender,
             std::vector<std::string>& removalList,
             const std::unordered_set<std::string>& toRenderNames);
     };

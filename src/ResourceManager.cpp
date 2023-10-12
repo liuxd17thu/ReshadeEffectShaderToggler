@@ -112,40 +112,53 @@ void ResourceManager::ClearBackbuffer(reshade::api::swapchain* runtime)
     }
 }
 
-bool ResourceManager::OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd)
+void ResourceManager::CreateViews(reshade::api::device* device, reshade::api::resource resource)
 {
-    return false;
-}
+    resource_desc rdesc = device->get_resource_desc(resource);
 
-void ResourceManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
-{
-    //InitBackbuffer(swapchain);
-}
-
-void ResourceManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
-{
-    //ClearBackbuffer(swapchain);
-}
-
-bool ResourceManager::OnCreateResource(device* device, resource_desc& desc, subresource_data* initial_data, resource_usage initial_state)
-{
-    bool ret = false;
-
-    if (rShim != nullptr)
+    if ((static_cast<uint32_t>(rdesc.usage & resource_usage::render_target) | static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource)) &&
+        rdesc.type == resource_type::texture_2d)
     {
-        ret |= rShim->OnCreateResource(device, desc, initial_data, initial_state);
-    }
-    
-    return ret;
-}
+        unique_lock<shared_mutex> vlock(view_mutex);
 
-void ResourceManager::OnInitResource(device* device, const resource_desc& desc, const subresource_data* initData, resource_usage usage, reshade::api::resource handle)
-{
-    auto& data = device->get_private_data<DeviceDataContainer>();
+        const auto& cRef = _resourceViewRefCount.find(resource.handle);
+        if (cRef == _resourceViewRefCount.end())
+        {
+            unique_lock<shared_mutex> lock(resource_mutex);
 
-    if (rShim != nullptr)
-    {
-        rShim->OnInitResource(device, desc, initData, usage, handle);
+            resource_view view_non_srgb = { 0 };
+            resource_view view_srgb = { 0 };
+
+            resource_view srv_non_srgb = { 0 };
+            resource_view srv_srgb = { 0 };
+
+            reshade::api::format format_non_srgb = format_to_default_typed(rdesc.texture.format, 0);
+            reshade::api::format format_srgb = format_to_default_typed(rdesc.texture.format, 1);
+
+            if (static_cast<uint32_t>(rdesc.usage & resource_usage::render_target))
+            {
+                if (device->create_resource_view(resource, resource_usage::render_target,
+                    resource_view_desc(format_non_srgb), &view_non_srgb) ||
+                    device->create_resource_view(resource, resource_usage::render_target,
+                        resource_view_desc(format_srgb), &view_srgb))
+                {
+                    s_sRGBResourceViews.emplace(resource.handle, make_pair(view_non_srgb, view_srgb));
+                }
+            }
+
+            if (static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource))
+            {
+                if (device->create_resource_view(resource, resource_usage::shader_resource,
+                    resource_view_desc(format_non_srgb), &srv_non_srgb) ||
+                    device->create_resource_view(resource, resource_usage::shader_resource,
+                        resource_view_desc(format_srgb), &srv_srgb))
+                {
+                    s_SRVs.emplace(resource.handle, make_pair(srv_non_srgb, srv_srgb));
+                }
+            }
+        }
+
+        _resourceViewRefCount[resource.handle]++;
     }
 }
 
@@ -155,7 +168,7 @@ void ResourceManager::DisposeView(device* device, uint64_t handle)
 
     if (it != s_sRGBResourceViews.end())
     {
-        auto& [view,srgbView] = it->second;
+        auto& [view, srgbView] = it->second;
 
         if (view != 0)
             device->destroy_resource_view(view);
@@ -183,6 +196,56 @@ void ResourceManager::DisposeView(device* device, uint64_t handle)
     if (rIt != _resourceViewRefCount.end())
     {
         _resourceViewRefCount.erase(rIt);
+    }
+}
+
+bool ResourceManager::OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd)
+{
+    return false;
+}
+
+void ResourceManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
+{
+    //InitBackbuffer(swapchain);
+}
+
+void ResourceManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
+{
+    //ClearBackbuffer(swapchain);
+}
+
+bool ResourceManager::OnCreateResource(device* device, resource_desc& desc, subresource_data* initial_data, resource_usage initial_state)
+{
+    bool ret = false;
+
+    if (static_cast<uint32_t>(desc.usage & resource_usage::render_target) &&
+        !static_cast<uint32_t>(desc.usage & resource_usage::shader_resource) &&
+        desc.type == resource_type::texture_2d)
+    {
+        desc.usage |= resource_usage::shader_resource;
+        ret = true;
+    }
+
+    if (rShim != nullptr)
+    {
+        ret |= rShim->OnCreateResource(device, desc, initial_data, initial_state);
+    }
+    
+    return ret;
+}
+
+void ResourceManager::OnInitResource(device* device, const resource_desc& desc, const subresource_data* initData, resource_usage usage, reshade::api::resource handle)
+{
+    auto& data = device->get_private_data<DeviceDataContainer>();
+
+    if (rShim != nullptr)
+    {
+        rShim->OnInitResource(device, desc, initData, usage, handle);
+    }
+
+    if (device->get_api() > device_api::d3d11)
+    {
+        CreateViews(device, handle);
     }
 }
 
@@ -239,107 +302,38 @@ bool ResourceManager::OnCreateResourceView(device* device, resource resource, re
 
 void ResourceManager::OnInitResourceView(device* device, resource resource, resource_usage usage_type, const resource_view_desc& desc, resource_view view)
 {
-    if (resource == 0)
+    if (resource == 0 || device->get_api() > device_api::d3d11)
         return;
 
-    resource_desc rdesc = device->get_resource_desc(resource);
-    
-    if ((static_cast<uint32_t>(rdesc.usage & resource_usage::render_target) | static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource)) && rdesc.type == resource_type::texture_2d)
-    {
-        unique_lock<shared_mutex> vlock(view_mutex);
+    CreateViews(device, resource);
 
-        const auto vRef = _resourceViewRef.find(view.handle);
-        if (vRef != _resourceViewRef.end())
-        {
-            if (vRef->second != resource.handle)
-            {
-                auto curCount = _resourceViewRefCount.find(vRef->second);
-
-                if (curCount != _resourceViewRefCount.end())
-                {
-                    if (curCount->second > 1)
-                    {
-                        curCount->second--;
-                    }
-                    else
-                    {
-                        DisposeView(device, vRef->second);
-                    }
-                }
-            }
-        }
-
-        const auto& cRef = _resourceViewRefCount.find(resource.handle);
-        if (cRef == _resourceViewRefCount.end())
-        {
-            unique_lock<shared_mutex> lock(resource_mutex);
-        
-            resource_view view_non_srgb = { 0 };
-            resource_view view_srgb = { 0 };
-
-            resource_view srv_non_srgb = { 0 };
-            resource_view srv_srgb = { 0 };
-            
-            reshade::api::format format_non_srgb = format_to_default_typed(rdesc.texture.format, 0);
-            reshade::api::format format_srgb = format_to_default_typed(rdesc.texture.format, 1);
-            
-            bool refAdded = false;
-            if (static_cast<uint32_t>(rdesc.usage & resource_usage::render_target))
-            {
-                if (device->create_resource_view(resource, resource_usage::render_target,
-                    resource_view_desc(format_non_srgb), &view_non_srgb) ||
-                    device->create_resource_view(resource, resource_usage::render_target,
-                        resource_view_desc(format_srgb), &view_srgb))
-                {
-                    s_sRGBResourceViews.emplace(resource.handle, make_pair(view_non_srgb, view_srgb));
-                    refAdded = true;
-                }
-            }
-
-            if (static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource))
-            {
-                if (device->create_resource_view(resource, resource_usage::shader_resource,
-                    resource_view_desc(format_non_srgb), &srv_non_srgb) ||
-                    device->create_resource_view(resource, resource_usage::shader_resource,
-                        resource_view_desc(format_srgb), &srv_srgb))
-                {
-                    s_SRVs.emplace(resource.handle, make_pair(srv_non_srgb, srv_srgb));
-                    refAdded = true;
-                }
-            }
-
-            if (refAdded)
-            {
-                _resourceViewRefCount[resource.handle]++;
-                _resourceViewRef[view.handle] = resource.handle;
-            }
-        }
-    }
+    unique_lock<shared_mutex> vlock(view_mutex);
+    _resourceViewToResource.emplace(view.handle, resource.handle);
 }
 
 void ResourceManager::OnDestroyResourceView(device* device, resource_view view)
 {
+    if (device->get_api() > device_api::d3d11)
+        return;
+
     unique_lock<shared_mutex> lock(view_mutex);
 
-    const auto& vRef = _resourceViewRef.find(view.handle);
-    if (vRef != _resourceViewRef.end())
-    {
-        auto curCount = _resourceViewRefCount.find(vRef->second);
+    const auto& res = _resourceViewToResource.find(view.handle);
+    auto curCount = _resourceViewRefCount.find(res->second);
 
-        if (curCount != _resourceViewRefCount.end())
+    if (curCount != _resourceViewRefCount.end())
+    {
+        if (curCount->second > 1)
         {
-            if (curCount->second > 1)
-            {
-                curCount->second--;
-            }
-            else
-            {
-                DisposeView(device, vRef->second);
-            }
+            curCount->second--;
         }
-    
-        _resourceViewRef.erase(vRef);
+        else
+        {
+            DisposeView(device, res->second);
+        }
     }
+
+    _resourceViewToResource.erase(res);
 }
 
 void ResourceManager::SetResourceViewHandles(uint64_t handle, reshade::api::resource_view* non_srgb_view, reshade::api::resource_view* srgb_view)
@@ -356,15 +350,7 @@ void ResourceManager::SetShaderResourceViewHandles(uint64_t handle, reshade::api
     const auto& it = s_SRVs.find(handle);
     if (it != s_SRVs.end())
     {
-        if (non_srgb_view != nullptr)
-        {
-            *non_srgb_view = it->second.first;
-        }
-
-        if (srgb_view != nullptr)
-        {
-            *srgb_view = it->second.second;
-        }
+        std::tie(*non_srgb_view, *srgb_view) = it->second;
     }
 }
 

@@ -48,7 +48,6 @@ namespace Rendering
         void OnDestroySwapchain(reshade::api::swapchain* swapchain);
         void OnDestroyDevice(reshade::api::device*);
 
-        void DisposeView(reshade::api::device* device, uint64_t handle);
         void SetResourceViewHandles(uint64_t handle, reshade::api::resource_view* non_srgb_view, reshade::api::resource_view* srgb_view);
         void SetShaderResourceViewHandles(uint64_t handle, reshade::api::resource_view* non_srgb_view, reshade::api::resource_view* srgb_view);
         void SetResourceShim(const std::string& shim) { _shimType = ResolveResourceShimType(shim); }
@@ -62,6 +61,8 @@ namespace Rendering
 
         static EmbeddedResourceData GetResourceData(uint16_t id);
     private:
+        void DisposeView(reshade::api::device* device, uint64_t handle);
+        void CreateViews(reshade::api::device* device, reshade::api::resource res);
         static ResourceShimType ResolveResourceShimType(const std::string&);
 
         ResourceShimType _shimType = ResourceShimType::Resource_Shim_None;
@@ -71,7 +72,7 @@ namespace Rendering
         std::unordered_map<uint64_t, std::pair<reshade::api::resource_view, reshade::api::resource_view>> s_SRVs;
 
         std::unordered_map<uint64_t, uint32_t> _resourceViewRefCount;
-        std::unordered_map<uint64_t, uint64_t> _resourceViewRef;
+        std::unordered_map<uint64_t, uint64_t> _resourceViewToResource;
 
         std::shared_mutex resource_mutex;
         std::shared_mutex view_mutex;

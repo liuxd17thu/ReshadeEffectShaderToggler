@@ -8,7 +8,7 @@
 #include "CDataFile.h"
 #include "ToggleGroup.h"
 
-using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>;
+using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>;
 
 struct __declspec(novtable) ShaderData final {
     uint32_t activeShaderHash = -1;
@@ -63,8 +63,7 @@ struct __declspec(novtable) TextureBindingData final
 
 struct __declspec(novtable) HuntPreview final
 {
-    reshade::api::resource_view target_view = reshade::api::resource_view{ 0 };
-    bool is_srv = false;
+    reshade::api::resource target = reshade::api::resource{ 0 };
     bool matched = false;
     uint64_t target_invocation_location = 0;
     uint32_t width = 0;
@@ -76,8 +75,7 @@ struct __declspec(novtable) HuntPreview final
     void Reset()
     {
         matched = false;
-        is_srv = false;
-        target_view = reshade::api::resource_view{ 0 };
+        target = reshade::api::resource{ 0 };
         target_invocation_location = 0;
         width = 0;
         height = 0;

@@ -137,24 +137,22 @@ void ResourceManager::CreateViews(reshade::api::device* device, reshade::api::re
 
             if (static_cast<uint32_t>(rdesc.usage & resource_usage::render_target))
             {
-                if (device->create_resource_view(resource, resource_usage::render_target,
-                    resource_view_desc(format_non_srgb), &view_non_srgb) ||
-                    device->create_resource_view(resource, resource_usage::render_target,
-                        resource_view_desc(format_srgb), &view_srgb))
-                {
-                    s_sRGBResourceViews.emplace(resource.handle, make_pair(view_non_srgb, view_srgb));
-                }
+                device->create_resource_view(resource, resource_usage::render_target,
+                    resource_view_desc(format_non_srgb), &view_non_srgb);
+                device->create_resource_view(resource, resource_usage::render_target,
+                    resource_view_desc(format_srgb), &view_srgb);
+
+                s_sRGBResourceViews.emplace(resource.handle, make_pair(view_non_srgb, view_srgb));
             }
 
             if (static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource))
             {
-                if (device->create_resource_view(resource, resource_usage::shader_resource,
-                    resource_view_desc(format_non_srgb), &srv_non_srgb) ||
-                    device->create_resource_view(resource, resource_usage::shader_resource,
-                        resource_view_desc(format_srgb), &srv_srgb))
-                {
-                    s_SRVs.emplace(resource.handle, make_pair(srv_non_srgb, srv_srgb));
-                }
+                device->create_resource_view(resource, resource_usage::shader_resource,
+                    resource_view_desc(format_non_srgb), &srv_non_srgb);
+                device->create_resource_view(resource, resource_usage::shader_resource,
+                    resource_view_desc(format_srgb), &srv_srgb);
+
+                s_SRVs.emplace(resource.handle, make_pair(srv_non_srgb, srv_srgb));
             }
         }
 

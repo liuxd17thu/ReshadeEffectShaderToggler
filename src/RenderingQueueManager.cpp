@@ -69,14 +69,14 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
 
                 if (group->getAllowAllTechniques())
                 {
-                    for (const auto& [techName, techEnabled] : deviceData.allEnabledTechniques)
+                    for (const auto& [techName, techData] : deviceData.allEnabledTechniques)
                     {
                         if (group->getHasTechniqueExceptions() && group->preferredTechniques().contains(techName))
                         {
                             continue;
                         }
 
-                        if (!techEnabled)
+                        if (!techData.rendered)
                         {
                             if (!sData.techniquesToRender.contains(techName))
                             {
@@ -89,7 +89,8 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                 else if (group->preferredTechniques().size() > 0) {
                     for (auto& techName : group->preferredTechniques())
                     {
-                        if (deviceData.allEnabledTechniques.contains(techName) && !deviceData.allEnabledTechniques.at(techName))
+                        const auto& techData = deviceData.allEnabledTechniques.find(techName);
+                        if (techData != deviceData.allEnabledTechniques.end() && !techData->second.rendered)
                         {
                             if (!sData.techniquesToRender.contains(techName))
                             {

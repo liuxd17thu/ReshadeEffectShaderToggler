@@ -39,11 +39,11 @@ bool RenderingEffectManager::RenderRemainingEffects(effect_runtime* runtime)
     }
 
     RenderingManager::EnumerateTechniques(deviceData.current_runtime, [&deviceData, &commandListData, &cmd_list, &device, &active_rtv, &active_rtv_srgb, &rendered, &res](effect_runtime* runtime, effect_technique technique, string& name) {
-        if (deviceData.allEnabledTechniques.contains(name) && !deviceData.allEnabledTechniques[name])
+        if (deviceData.allEnabledTechniques.contains(name) && !deviceData.allEnabledTechniques[name].rendered)
         {
             runtime->render_technique(technique, cmd_list, active_rtv, active_rtv_srgb);
 
-            deviceData.allEnabledTechniques[name] = true;
+            deviceData.allEnabledTechniques[name].rendered = true;
             rendered = true;
         }
         });
@@ -65,11 +65,12 @@ bool RenderingEffectManager::_RenderEffects(
 
         if (toRenderNames.find(name) != toRenderNames.end())
         {
-            auto tech = techniquesToRender.find(name);
+            const auto& tech = techniquesToRender.find(name);
+            const auto& techState = deviceData.allEnabledTechniques.find(name);
 
-            if (tech != techniquesToRender.end() && !deviceData.allEnabledTechniques.at(name))
+            if (tech != techniquesToRender.end() && !techState->second.rendered)
             {
-                auto& [techName, techData] = *tech;
+                const auto& [techName, techData] = *tech;
                 const auto& [group, _, active_resource] = techData;
 
                 if (active_resource == 0)
@@ -94,7 +95,7 @@ bool RenderingEffectManager::_RenderEffects(
                 resource_desc resDesc = runtime->get_device()->get_resource_desc(active_resource);
                 removalList.push_back(name);
 
-                deviceData.allEnabledTechniques[name] = true;
+                deviceData.allEnabledTechniques[name].rendered = true;
                 rendered = true;
             }
         }

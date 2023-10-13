@@ -55,6 +55,7 @@
 #include "RenderingBindingManager.h"
 #include "RenderingPreviewManager.h"
 #include "StateTracking.h"
+#include "KeyMonitor.h"
 
 using namespace reshade::api;
 using namespace ShaderToggler;
@@ -84,6 +85,7 @@ static atomic_uint32_t g_activeCollectorFrameCounter = 0;
 static vector<string> allTechniques;
 static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, &g_computeShaderManager, constantHandler, &g_activeCollectorFrameCounter, &allTechniques);
 
+static KeyMonitor keyMonitor;
 static Rendering::ResourceManager resourceManager;
 static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, resourceManager);
 static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager);
@@ -217,7 +219,7 @@ static void onReshadeReloadedEffects(effect_runtime* runtime)
     
         if (enabled)
         {
-            data.allEnabledTechniques.emplace(name, false);
+            data.allEnabledTechniques.emplace(name, EffectData{ technique, runtime });
         }
         });
 
@@ -246,7 +248,7 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
     {
         if (data.allEnabledTechniques.find(techName) == data.allEnabledTechniques.end())
         {
-            data.allEnabledTechniques.emplace(techName, false);
+            data.allEnabledTechniques.emplace(techName, EffectData{ technique, runtime });
         }
     }
 
@@ -263,6 +265,7 @@ static void onInitEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
+    keyMonitor.Init(runtime);
     resourceManager.OnInitSwapchain(runtime);
     renderingPreviewManager.InitShaders(runtime->get_device());
 
@@ -565,9 +568,17 @@ static void onReshadePresent(effect_runtime* runtime)
     command_queue* queue = runtime->get_command_queue();
     
     deviceData.rendered_effects = false;
-    
+
+    keyMonitor.PollKeyStates(runtime);
     std::for_each(deviceData.allEnabledTechniques.begin(), deviceData.allEnabledTechniques.end(), [](auto& el) {
-        el.second = false;
+        if (!el.second.enabled_in_screenshot && keyMonitor.GetKeyState(KeyMonitor::KEY_SCREEN_SHOT) == KeyState::KET_STATE_PRESSED)
+        {
+            el.second.rendered = true;
+        }
+        else
+        {
+            el.second.rendered = false;
+        }
         });
     deviceData.bindingsUpdated.clear();
     deviceData.constantsUpdated.clear();

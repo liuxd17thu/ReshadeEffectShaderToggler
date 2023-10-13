@@ -201,6 +201,7 @@
     <ClInclude Include="crc32_hash.hpp" />
     <ClInclude Include="DescriptorTracking.h" />
     <ClInclude Include="GameHookT.h" />
+    <ClInclude Include="KeyMonitor.h" />
     <ClInclude Include="RenderingBindingManager.h" />
     <ClInclude Include="RenderingEffectManager.h" />
     <ClInclude Include="RenderingPreviewManager.h" />

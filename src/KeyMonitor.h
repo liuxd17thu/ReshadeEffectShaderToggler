@@ -81,7 +81,7 @@ namespace ShaderToggler
                         size_t substringLength = strlen(token);
                         uint32_t key = 0;
                         const auto& [ptr, etc] = std::from_chars(token, token + substringLength, key);
-                        key = (key << index);
+                        key = (key << (index * 8));
                         keyCombo |= key;
 
                         index++;

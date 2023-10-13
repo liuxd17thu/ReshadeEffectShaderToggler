@@ -68,6 +68,9 @@ void ResourceManager::InitBackbuffer(swapchain* runtime)
         resource_view backBufferView = { 0 };
         resource_view backBufferViewSRGB = { 0 };
 
+        resource_view srv_non_srgb = { 0 };
+        resource_view srv_srgb = { 0 };
+
         reshade::api::format viewFormat = format_to_default_typed(desc.texture.format, 0);
         reshade::api::format viewFormatSRGB = format_to_default_typed(desc.texture.format, 1);
 
@@ -76,6 +79,13 @@ void ResourceManager::InitBackbuffer(swapchain* runtime)
         dev->create_resource_view(backBuffer, resource_usage::render_target,
             resource_view_desc(viewFormatSRGB), &backBufferViewSRGB);
 
+        dev->create_resource_view(backBuffer, resource_usage::shader_resource,
+            resource_view_desc(viewFormat), &srv_non_srgb);
+        dev->create_resource_view(backBuffer, resource_usage::shader_resource,
+            resource_view_desc(viewFormatSRGB), &srv_srgb);
+
+        _resourceViewRefCount.emplace(backBuffer.handle, 1);
+        s_SRVs.emplace(backBuffer.handle, make_pair(srv_non_srgb, srv_srgb));
         s_sRGBResourceViews.emplace(backBuffer.handle, make_pair(backBufferView, backBufferViewSRGB));
     }
 }
@@ -108,6 +118,25 @@ void ResourceManager::ClearBackbuffer(reshade::api::swapchain* runtime)
             }
         }
 
+        const auto& entry_views = s_SRVs.find(backBuffer.handle);
+
+        if (entry_views != s_SRVs.end())
+        {
+            const auto& [oldbackBufferView, oldbackBufferViewSRGB] = entry_views->second;
+
+            if (oldbackBufferView != 0)
+            {
+                runtime->get_device()->destroy_resource_view(oldbackBufferView);
+            }
+
+            if (oldbackBufferViewSRGB != 0)
+            {
+                runtime->get_device()->destroy_resource_view(oldbackBufferViewSRGB);
+            }
+        }
+
+        _resourceViewRefCount.erase(backBuffer.handle);
+        s_SRVs.erase(backBuffer.handle);
         s_sRGBResourceViews.erase(backBuffer.handle);
     }
 }
@@ -204,12 +233,12 @@ bool ResourceManager::OnCreateSwapchain(reshade::api::swapchain_desc& desc, void
 
 void ResourceManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
 {
-    //InitBackbuffer(swapchain);
+    InitBackbuffer(swapchain);
 }
 
 void ResourceManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
 {
-    //ClearBackbuffer(swapchain);
+    ClearBackbuffer(swapchain);
 }
 
 bool ResourceManager::OnCreateResource(device* device, resource_desc& desc, subresource_data* initial_data, resource_usage initial_state)

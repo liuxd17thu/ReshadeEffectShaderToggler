@@ -172,21 +172,9 @@ void RenderingPreviewManager::InitShaders(reshade::api::device* device)
 
 void RenderingPreviewManager::DestroyShaders(reshade::api::device* device)
 {
-    if (copyPipeline != 0)
-    {
-        device->destroy_pipeline(copyPipeline);
-        device->destroy_pipeline_layout(copyPipelineLayout);
-        device->destroy_sampler(copyPipelineSampler);
-
         copyPipeline = {};
         copyPipelineLayout = {};
         copyPipelineSampler = {};
-    }
-
-    if (fullscreenQuadVertexBuffer != 0)
-    {
-        device->destroy_resource(fullscreenQuadVertexBuffer);
-    }
 }
 
 void RenderingPreviewManager::CopyResource(command_list* cmd_list, resource_view srv_src, resource_view rtv_dst, uint32_t width, uint32_t height)

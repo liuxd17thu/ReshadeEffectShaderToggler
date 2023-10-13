@@ -153,7 +153,7 @@ static bool onCreateSwapchain(swapchain_desc& desc, void* hwnd)
 
 static void onInitSwapchain(reshade::api::swapchain* swapchain)
 {
-    resourceManager.OnInitSwapchain(swapchain);
+    //resourceManager.OnInitSwapchain(swapchain);
 }
 
 
@@ -166,7 +166,6 @@ static void onDestroySwapchain(reshade::api::swapchain* swapchain)
 static bool onCreateResource(device* device, resource_desc& desc, subresource_data* initial_data, resource_usage initial_state)
 {
     return resourceManager.OnCreateResource(device, desc, initial_data, initial_state);
-    return false;
 }
 
 
@@ -264,6 +263,7 @@ static void onInitEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
+    resourceManager.OnInitSwapchain(runtime);
     renderingPreviewManager.InitShaders(runtime->get_device());
 
     // Dispose of texture bindings created from the runtime below

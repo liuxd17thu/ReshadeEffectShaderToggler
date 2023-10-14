@@ -570,7 +570,15 @@ static void onReshadePresent(effect_runtime* runtime)
     deviceData.rendered_effects = false;
 
     keyMonitor.PollKeyStates(runtime);
-    std::for_each(deviceData.allEnabledTechniques.begin(), deviceData.allEnabledTechniques.end(), [](auto& el) {
+
+    std::for_each(deviceData.allEnabledTechniques.begin(), deviceData.allEnabledTechniques.end(), [&runtime](auto& el) {
+        // Get rid of techniques with a timeout. We don't actually have a timer, so just get rid of them after they were rendered at least once
+        if (el.second.timeout >= 0 && el.second.rendered && el.second.technique != 0)
+        {
+            runtime->set_technique_state(el.second.technique, false);
+        }
+
+        // Prevent effects that are not supposed to be in screenshots from being rendered when ReShade is taking a screenshot
         if (!el.second.enabled_in_screenshot && keyMonitor.GetKeyState(KeyMonitor::KEY_SCREEN_SHOT) == KeyState::KET_STATE_PRESSED)
         {
             el.second.rendered = true;
@@ -580,6 +588,7 @@ static void onReshadePresent(effect_runtime* runtime)
             el.second.rendered = false;
         }
         });
+
     deviceData.bindingsUpdated.clear();
     deviceData.constantsUpdated.clear();
     deviceData.huntPreview.Reset();

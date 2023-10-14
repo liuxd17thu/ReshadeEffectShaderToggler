@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <tuple>
 #include <shared_mutex>
+#include <chrono>
 #include "reshade.hpp"
 #include "CDataFile.h"
 #include "ToggleGroup.h"
@@ -23,6 +24,10 @@ struct __declspec(novtable) EffectData final {
         {
             timeout = -1;
         }
+        else
+        {
+            timeout_start = std::chrono::steady_clock::now();
+        }
 
         rendered = false;
         technique = tech;
@@ -32,6 +37,7 @@ struct __declspec(novtable) EffectData final {
     bool enabled_in_screenshot = true;
     reshade::api::effect_technique technique = {};
     int32_t timeout = -1;
+    std::chrono::steady_clock::time_point timeout_start;
 };
 
 struct __declspec(novtable) ShaderData final {

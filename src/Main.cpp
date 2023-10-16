@@ -55,6 +55,7 @@
 #include "RenderingBindingManager.h"
 #include "RenderingPreviewManager.h"
 #include "StateTracking.h"
+#include "KeyMonitor.h"
 
 using namespace reshade::api;
 using namespace ShaderToggler;
@@ -84,6 +85,7 @@ static atomic_uint32_t g_activeCollectorFrameCounter = 0;
 static vector<string> allTechniques;
 static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, &g_computeShaderManager, constantHandler, &g_activeCollectorFrameCounter, &allTechniques);
 
+static KeyMonitor keyMonitor;
 static Rendering::ResourceManager resourceManager;
 static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, resourceManager);
 static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager);
@@ -123,6 +125,7 @@ static void onInitDevice(device* device)
 static void onDestroyDevice(device* device)
 {
     resourceManager.OnDestroyDevice(device);
+    renderingPreviewManager.DestroyShaders(device);
 
     device->destroy_private_data<DeviceDataContainer>();
 }
@@ -145,10 +148,14 @@ static void onResetCommandList(command_list* commandList)
     commandListData.Reset();
 }
 
+static bool onCreateSwapchain(swapchain_desc& desc, void* hwnd)
+{
+    return resourceManager.OnCreateSwapchain(desc, hwnd);
+}
 
 static void onInitSwapchain(reshade::api::swapchain* swapchain)
 {
-    resourceManager.OnInitSwapchain(swapchain);
+    //resourceManager.OnInitSwapchain(swapchain);
 }
 
 
@@ -212,7 +219,7 @@ static void onReshadeReloadedEffects(effect_runtime* runtime)
     
         if (enabled)
         {
-            data.allEnabledTechniques.emplace(name, false);
+            data.allEnabledTechniques.emplace(name, EffectData{ technique, runtime });
         }
         });
 
@@ -241,7 +248,7 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
     {
         if (data.allEnabledTechniques.find(techName) == data.allEnabledTechniques.end())
         {
-            data.allEnabledTechniques.emplace(techName, false);
+            data.allEnabledTechniques.emplace(techName, EffectData{ technique, runtime });
         }
     }
 
@@ -257,6 +264,10 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
 static void onInitEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+
+    keyMonitor.Init(runtime);
+    resourceManager.OnInitSwapchain(runtime);
+    renderingPreviewManager.InitShaders(runtime->get_device());
 
     // Dispose of texture bindings created from the runtime below
     if (data.current_runtime != nullptr)
@@ -557,10 +568,34 @@ static void onReshadePresent(effect_runtime* runtime)
     command_queue* queue = runtime->get_command_queue();
     
     deviceData.rendered_effects = false;
-    
-    std::for_each(deviceData.allEnabledTechniques.begin(), deviceData.allEnabledTechniques.end(), [](auto& el) {
-        el.second = false;
-        });
+
+    keyMonitor.PollKeyStates(runtime);
+
+    for (auto el = deviceData.allEnabledTechniques.begin(); el != deviceData.allEnabledTechniques.end();)
+    {
+        // Get rid of techniques with a timeout. We don't actually have a timer, so just get rid of them after they were rendered at least once
+        if (el->second.timeout >= 0 &&
+            el->second.technique != 0 &&
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - el->second.timeout_start).count() >= el->second.timeout)
+        {
+            runtime->set_technique_state(el->second.technique, false);
+            el = deviceData.allEnabledTechniques.erase(el);
+            continue;
+        }
+
+        // Prevent effects that are not supposed to be in screenshots from being rendered when ReShade is taking a screenshot
+        if (!el->second.enabled_in_screenshot && keyMonitor.GetKeyState(KeyMonitor::KEY_SCREEN_SHOT) == KeyState::KET_STATE_PRESSED)
+        {
+            el->second.rendered = true;
+        }
+        else
+        {
+            el->second.rendered = false;
+        }
+
+        el++;
+    }
+
     deviceData.bindingsUpdated.clear();
     deviceData.constantsUpdated.clear();
     deviceData.huntPreview.Reset();
@@ -705,6 +740,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         state_tracking::register_events(g_addonUIData.GetTrackDescriptors());
         Init();
 
+        reshade::register_event<reshade::addon_event::create_swapchain>(onCreateSwapchain);
         reshade::register_event<reshade::addon_event::init_swapchain>(onInitSwapchain);
         reshade::register_event<reshade::addon_event::destroy_swapchain>(onDestroySwapchain);
         reshade::register_event<reshade::addon_event::init_resource>(onInitResource);
@@ -743,6 +779,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         break;
     case DLL_PROCESS_DETACH:
         UnInit();
+        reshade::unregister_event<reshade::addon_event::create_swapchain>(onCreateSwapchain);
         reshade::unregister_event<reshade::addon_event::init_swapchain>(onInitSwapchain);
         reshade::unregister_event<reshade::addon_event::destroy_swapchain>(onDestroySwapchain);
         reshade::unregister_event<reshade::addon_event::reshade_present>(onReshadePresent);

@@ -85,7 +85,11 @@ int64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload(ResourceData* param_1,
         param_2->something_else[param_3.something2] = 4;
     }
     else {
-        iVar7 = 31 - _lzcnt_u32(uVar6);
+        if (!_BitScanReverse((DWORD*)&iVar7, uVar6))
+        {
+            iVar7 = -1;
+        }
+
         plVar4 = param_4->data;
         if (iVar7 + 1U < 6) {
             lVar2 = uVar10 + (uint64_t)(iVar7 + 1U) * 4;
@@ -117,7 +121,10 @@ int64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload(ResourceData* param_1,
             uVar12 = param_1->resources[lVar2].count1 + 1 & 3;
             uVar6 = ~((uVar6 << 4 | uVar6) >> (int8_t)uVar12);
 
-            iVar7 = _tzcnt_u32(uVar6);
+            if (!_BitScanForward((DWORD*)&iVar7, uVar6))
+            {
+                iVar7 = 0;
+            }
 
             uVar9 = iVar7 + uVar12 & 3;
             uVar10 = (uint64_t)uVar9;

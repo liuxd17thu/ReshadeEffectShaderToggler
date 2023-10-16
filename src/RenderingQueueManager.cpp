@@ -56,12 +56,12 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                     {
                         if (!group->getCopyTextureBinding() || group->getExtractResourceViews())
                         {
-                            sData.bindingsToUpdate.emplace(group->getTextureBindingName(), std::make_tuple(group, CALL_DRAW, resource_view{ 0 }));
+                            sData.bindingsToUpdate.emplace(group->getTextureBindingName(), std::make_tuple(group, CALL_DRAW, resource{ 0 }));
                             queue_mask |= (match_binding << CALL_DRAW * MATCH_DELIMITER);
                         }
                         else
                         {
-                            sData.bindingsToUpdate.emplace(group->getTextureBindingName(), std::make_tuple(group, group->getBindingInvocationLocation(), resource_view{ 0 }));
+                            sData.bindingsToUpdate.emplace(group->getTextureBindingName(), std::make_tuple(group, group->getBindingInvocationLocation(), resource{ 0 }));
                             queue_mask |= (match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
                         }
                     }
@@ -69,18 +69,18 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
 
                 if (group->getAllowAllTechniques())
                 {
-                    for (const auto& [techName, techEnabled] : deviceData.allEnabledTechniques)
+                    for (const auto& [techName, techData] : deviceData.allEnabledTechniques)
                     {
                         if (group->getHasTechniqueExceptions() && group->preferredTechniques().contains(techName))
                         {
                             continue;
                         }
 
-                        if (!techEnabled)
+                        if (!techData.rendered)
                         {
                             if (!sData.techniquesToRender.contains(techName))
                             {
-                                sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
+                                sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource{ 0 }));
                                 queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
                             }
                         }
@@ -89,11 +89,12 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                 else if (group->preferredTechniques().size() > 0) {
                     for (auto& techName : group->preferredTechniques())
                     {
-                        if (deviceData.allEnabledTechniques.contains(techName) && !deviceData.allEnabledTechniques.at(techName))
+                        const auto& techData = deviceData.allEnabledTechniques.find(techName);
+                        if (techData != deviceData.allEnabledTechniques.end() && !techData->second.rendered)
                         {
                             if (!sData.techniquesToRender.contains(techName))
                             {
-                                sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource_view{ 0 }));
+                                sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource{ 0 }));
                                 queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
                             }
                         }
@@ -139,13 +140,13 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
     for (const auto& tech : sData.techniquesToRender)
     {
         const ToggleGroup* group = std::get<0>(tech.second);
-        const resource_view view = std::get<2>(tech.second);
+        const resource res = std::get<2>(tech.second);
 
-        if (view == 0 && group->getRequeueAfterRTMatchingFailure())
+        if (res == 0 && group->getRequeueAfterRTMatchingFailure())
         {
             queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
 
-            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_rtv == 0)
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target == 0)
             {
                 if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
                 {
@@ -160,13 +161,13 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
     for (const auto& tech : sData.bindingsToUpdate)
     {
         const ToggleGroup* group = std::get<0>(tech.second);
-        const resource_view view = std::get<2>(tech.second);
+        const resource res = std::get<2>(tech.second);
 
-        if (view == 0 && group->getRequeueAfterRTMatchingFailure())
+        if (res == 0 && group->getRequeueAfterRTMatchingFailure())
         {
             queue_mask |= (match_binding << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
 
-            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target_rtv == 0)
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target == 0)
             {
                 if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
                 {

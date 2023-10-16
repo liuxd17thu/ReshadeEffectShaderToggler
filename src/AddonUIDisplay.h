@@ -202,27 +202,6 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
         group->setPreferredTechniques(newTechniques);
 }
 
-struct DrawCallData
-{
-    reshade::api::effect_runtime* runtime = nullptr;
-    bool isAfter = false;
-};
-
-static DrawCallData callbackdatabefore = DrawCallData{ nullptr, false };
-static DrawCallData callbackdataafter = DrawCallData{ nullptr, true };
-
-static void render_function(const ImDrawList* parent_list, const ImDrawCmd* cmd)
-{
-    DrawCallData* callData = reinterpret_cast<DrawCallData*>(cmd->UserCallbackData);
-    reshade::api::effect_runtime* runtime = callData->runtime;
-    reshade::api::command_list* cmd_list = runtime->get_command_queue()->get_immediate_command_list();
-
-    if(!callData->isAfter)
-        cmd_list->bind_pipeline_state(reshade::api::dynamic_state::blend_constant, 0x00FFFFFF);
-    else
-        cmd_list->bind_pipeline_state(reshade::api::dynamic_state::blend_constant, 0xffffffff);
-}
-
 static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_t srcHeight)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
@@ -245,7 +224,7 @@ static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_
     ImGui::PopStyleVar();
 }
 
-static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, float width = 0)
+static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, ShaderToggler::ToggleGroup* group, float width = 0)
 {
     if (ImGui::BeginChild("RTPreview##child", { width, 0 }, true, ImGuiWindowFlags_None))
     {
@@ -253,11 +232,17 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
 
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
-        resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
+        resManager.SetPongPreviewHandles(nullptr, nullptr, &srv);
+        bool clearAlpha = group->getClearPreviewAlpha();
+
+        ImGui::Text("Clear alpha channel");
+        ImGui::SameLine();
+        ImGui::Checkbox("##Clearalpha", &clearAlpha);
 
         if (srv != 0)
         {
-            ImGui::Text(std::format("格式: {} ", static_cast<uint32_t>(deviceData.huntPreview.format)).c_str());
+            ImGui::SameLine();
+            ImGui::Text(std::format(" 格式: {} ", static_cast<uint32_t>(deviceData.huntPreview.format)).c_str());
             ImGui::SameLine();
             ImGui::Text(std::format("宽度: {} ", deviceData.huntPreview.width).c_str());
             ImGui::SameLine();
@@ -270,6 +255,8 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
             }
             ImGui::EndChild();
         }
+
+        group->setClearPreviewAlpha(clearAlpha);
 
         ImGui::PopStyleVar();
     }
@@ -284,7 +271,7 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
 
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
-        resManager.SetPreviewViewHandles(nullptr, nullptr, &srv);
+        resManager.SetPongPreviewHandles(nullptr, nullptr, &srv);
         const auto& it = deviceData.bindingMap.find(binding);
 
         if (it != deviceData.bindingMap.end())
@@ -422,7 +409,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     if (ImGui::IsItemActive())
         height += ImGui::GetIO().MouseDelta.y;
 
-    DisplayPreview(instance, resManager, runtime);
+    DisplayPreview(instance, resManager, runtime, group);
 
     ImGui::PopStyleVar();
 }

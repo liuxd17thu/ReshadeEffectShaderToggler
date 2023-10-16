@@ -61,8 +61,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,3,2,592
- PRODUCTVERSION 1,3,2,592
+ FILEVERSION 1,3,3,592
+ PRODUCTVERSION 1,3,3,592
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -79,12 +79,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "alex"
             VALUE "FileDescription", "ReshadeEffectShaderToggler Addon for ReShade 5.9+"
-            VALUE "FileVersion", "1.3.2.592"
+            VALUE "FileVersion", "1.3.3.592"
             VALUE "InternalName", "ShaderTo.dll"
             VALUE "LegalCopyright", "Copyright (C) 2022 Frans Bouma, Copyright (C) 2023 alex"
             VALUE "OriginalFilename", "ShaderTo.dll"
             VALUE "ProductName", "Reshade Effect Shader Toggler addon for ReShade 5.9+"
-            VALUE "ProductVersion", "1.3.2.592"
+            VALUE "ProductVersion", "1.3.3.592"
         END
     END
     BLOCK "VarFileInfo"
@@ -110,6 +110,14 @@ LICENSE_SIGMATCH        RCDATA                  "..\\deps\\sigmatch\\LICENSE"
 LICENSE_REST            RCDATA                  "..\\LICENSE"
 
 LICENSE_IMGUI           RCDATA                  "..\\deps\\reshade\\deps\\imgui\\LICENSE.txt"
+
+SHADER_FULLSCREEN_VS_4_0 RCDATA                  "shader\\fullscreen_vs_4_0.cso"
+
+SHADER_PREVIEW_COPY_PS_4_0 RCDATA                  "shader\\preview_copy_ps_4_0.cso"
+
+SHADER_FULLSCREEN_VS_3_0 RCDATA                  "shader\\fullscreen_vs_3_0.cso"
+
+SHADER_PREVIEW_COPY_PS_3_0 RCDATA                  "shader\\preview_copy_ps_3_0.cso"
 
 #endif    // English (United Kingdom) resources
 /////////////////////////////////////////////////////////////////////////////

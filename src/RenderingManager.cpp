@@ -58,7 +58,7 @@ static inline bool IsColorBuffer(reshade::api::format value)
 }
 
 // Checks whether the aspect ratio of the two sets of dimensions is similar or not, stolen from ReShade's generic_depth addon
-static bool check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height, uint32_t matchingMode)
+bool RenderingManager::check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height, uint32_t matchingMode)
 {
     if (width_to_check == 0.0f || height_to_check == 0.0f)
         return true;
@@ -73,13 +73,13 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, uint
     return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (matchingMode == ShaderToggler::SWAPCHAIN_MATCH_MODE_EXTENDED_ASPECT_RATIO && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
-const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
+const resource RenderingManager::GetCurrentResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
 {
-    resource_view active_rtv = { 0 };
+    resource active_target = { 0 };
 
     if (deviceData.current_runtime == nullptr)
     {
-        return active_rtv;
+        return active_target;
     }
 
     device* device = deviceData.current_runtime->get_device();
@@ -97,21 +97,20 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
     if(action & MATCH_BINDING && group->getExtractResourceViews())
     {
         uint32_t stageIndex = std::min(static_cast<uint32_t>(2), group->getSRVShaderStage());
-        const auto& [_, current_srv] = state.descriptors[stageIndex];
 
-        int32_t slot_size = static_cast<uint32_t>(current_srv.size());
+        int32_t slot_size = static_cast<int32_t>(state.get_root_table_size_at(stageIndex));
         int32_t slot = std::min(static_cast<int32_t>(group->getBindingSRVSlotIndex()), slot_size - 1);
 
         if (slot_size <= 0)
-            return active_rtv;
+            return active_target;
 
-        int32_t desc_size = static_cast<uint32_t>(current_srv[slot].size());
+        int32_t desc_size = static_cast<uint32_t>(state.get_root_table_entry_size_at(stageIndex, slot));
         int32_t desc = std::min(static_cast<int32_t>(group->getBindingSRVDescriptorIndex()), desc_size - 1);
 
         if (desc_size <= 0)
-            return active_rtv;
+            return active_target;
 
-        descriptor_tracking::descriptor_data buf = current_srv[slot][desc];
+        const descriptor_tracking::descriptor_data* buf = state.get_descriptor_at(stageIndex, slot, desc);
 
         DescriptorCycle cycle = group->consumeSRVCycle();
         if (cycle != CYCLE_NONE)
@@ -119,31 +118,32 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
             if (cycle == CYCLE_UP)
             {
                 desc = std::min(++desc, desc_size - 1);
-                buf = current_srv[slot][desc];
+                buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-                while (buf.view == 0 && desc < desc_size - 2)
+                while ((buf == nullptr || buf->view == 0) && desc < desc_size - 2)
                 {
-                    buf = current_srv[slot][++desc];
+                    buf = state.get_descriptor_at(stageIndex, slot, ++desc);
                 }
             }
             else
             {
                 desc = desc > 0 ? --desc : 0;
-                buf = current_srv[slot][desc];
+                buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-                while (buf.view == 0 && desc > 0)
+                while ((buf == nullptr || buf->view == 0) && desc > 0)
                 {
-                    buf = current_srv[slot][--desc];
+                    buf = state.get_descriptor_at(stageIndex, slot, --desc);
                 }
             }
 
-            if (buf.view != 0)
+            if (buf != nullptr && buf->view != 0)
             {
                 group->setBindingSRVDescriptorIndex(desc);
             }
         }
 
-        active_rtv = buf.view;
+        if(buf != nullptr)
+            active_target = buf->view != 0 ? device->get_resource_from_view(buf->view) : active_target;
     }
     else if(action & MATCH_BINDING && !group->getExtractResourceViews() && rtvs.size() > 0 && rtvs[bindingRTindex] != 0)
     {
@@ -152,7 +152,7 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
         if (rs == 0)
         {
             // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return active_rtv;
+            return active_target;
         }
 
         resource_desc desc = device->get_resource_desc(rs);
@@ -167,11 +167,11 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
                 (group->getBindingMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION &&
                     (width != desc.texture.width || height != desc.texture.height)))
             {
-                return active_rtv;
+                return active_target;
             }
         }
 
-        active_rtv = rtvs[bindingRTindex];
+        active_target = rs;
     }
     else if (action & MATCH_EFFECT && rtvs.size() > 0 && rtvs[index] != 0)
     {
@@ -180,14 +180,14 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
         if (rs == 0)
         {
             // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return active_rtv;
+            return active_target;
         }
 
         // Don't apply effects to non-RGB buffers
         resource_desc desc = device->get_resource_desc(rs);
         if (!IsColorBuffer(desc.texture.format))
         {
-            return active_rtv;
+            return active_target;
         }
 
         // Make sure our target matches swap buffer dimensions when applying effects or it's explicitly requested
@@ -201,71 +201,21 @@ const resource_view RenderingManager::GetCurrentResourceView(command_list* cmd_l
                 (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION &&
                     (width != desc.texture.width || height != desc.texture.height)))
             {
-                return active_rtv;
+                return active_target;
             }
         }
 
-        active_rtv = rtvs[index];
+        active_target = rs;
     }
 
-    return active_rtv;
-}
-
-const resource_view RenderingManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
-{
-    resource_view active_rtv = { 0 };
-
-    if (deviceData.current_runtime == nullptr)
-    {
-        return active_rtv;
-    }
-
-    device* device = deviceData.current_runtime->get_device();
-
-    state_tracking& state = cmd_list->get_private_data<state_tracking>();
-    const vector<resource_view>& rtvs = state.render_targets;
-
-    size_t index = group->getRenderTargetIndex();
-    index = std::min(index, rtvs.size() - 1);
-
-    if (rtvs.size() > 0 && rtvs[index] != 0)
-    {
-        resource rs = device->get_resource_from_view(rtvs[index]);
-
-        if (rs == 0)
-        {
-            // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return active_rtv;
-        }
-
-        // Don't apply effects to non-RGB buffers
-        resource_desc desc = device->get_resource_desc(rs);
-
-        // Make sure our target matches swap buffer dimensions when applying effects or it's explicitly requested
-        if (group->getMatchSwapchainResolution() < ShaderToggler::SWAPCHAIN_MATCH_MODE_NONE)
-        {
-            uint32_t width, height;
-            deviceData.current_runtime->get_screenshot_width_and_height(&width, &height);
-
-            if ((group->getMatchSwapchainResolution() >= ShaderToggler::SWAPCHAIN_MATCH_MODE_ASPECT_RATIO &&
-                !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, group->getMatchSwapchainResolution())) ||
-                (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION && (width != desc.texture.width || height != desc.texture.height)))
-            {
-                return active_rtv;
-            }
-        }
-
-        active_rtv = rtvs[index];
-    }
-
-    return active_rtv;
+    return active_target;
 }
 
 void RenderingManager::QueueOrDequeue(
     command_list* cmd_list,
     DeviceDataContainer& deviceData,
     CommandListDataContainer& commandListData,
-    unordered_map<string, tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>& queue,
+    unordered_map<string, tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>& queue,
     unordered_set<string>& immediateQueue,
     uint64_t callLocation,
     uint32_t layoutIndex,
@@ -278,11 +228,11 @@ void RenderingManager::QueueOrDequeue(
         // Set views during draw call since we can be sure the correct ones are bound at that point
         if (!callLocation && view == 0)
         {
-            resource_view active_rtv = GetCurrentResourceView(cmd_list, deviceData, group, commandListData, layoutIndex, action);
+            resource active_target = GetCurrentResourceView(cmd_list, deviceData, group, commandListData, layoutIndex, action);
 
-            if (active_rtv != 0)
+            if (active_target != 0)
             {
-                view = active_rtv;
+                view = active_target;
             }
             else if(group->getRequeueAfterRTMatchingFailure())
             {

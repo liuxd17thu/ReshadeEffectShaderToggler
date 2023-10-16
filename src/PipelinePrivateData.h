@@ -4,11 +4,41 @@
 #include <unordered_map>
 #include <tuple>
 #include <shared_mutex>
+#include <chrono>
 #include "reshade.hpp"
 #include "CDataFile.h"
 #include "ToggleGroup.h"
 
-using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource_view>>;
+using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>;
+
+struct __declspec(novtable) EffectData final {
+    constexpr EffectData() : rendered(false), enabled_in_screenshot(true), technique({}), timeout(-1) {}
+    constexpr EffectData(reshade::api::effect_technique tech, reshade::api::effect_runtime* runtime)
+    {
+        if (!runtime->get_annotation_bool_from_technique(tech, "enabled_in_screenshot", &enabled_in_screenshot, 1))
+        {
+            enabled_in_screenshot = true;
+        }
+
+        if (!runtime->get_annotation_int_from_technique(tech, "timeout", &timeout, 1))
+        {
+            timeout = -1;
+        }
+        else
+        {
+            timeout_start = std::chrono::steady_clock::now();
+        }
+
+        rendered = false;
+        technique = tech;
+    }
+
+    bool rendered = false;
+    bool enabled_in_screenshot = true;
+    reshade::api::effect_technique technique = {};
+    int32_t timeout = -1;
+    std::chrono::steady_clock::time_point timeout_start;
+};
 
 struct __declspec(novtable) ShaderData final {
     uint32_t activeShaderHash = -1;
@@ -63,7 +93,7 @@ struct __declspec(novtable) TextureBindingData final
 
 struct __declspec(novtable) HuntPreview final
 {
-    reshade::api::resource_view target_rtv = reshade::api::resource_view{ 0 };
+    reshade::api::resource target = reshade::api::resource{ 0 };
     bool matched = false;
     uint64_t target_invocation_location = 0;
     uint32_t width = 0;
@@ -75,7 +105,7 @@ struct __declspec(novtable) HuntPreview final
     void Reset()
     {
         matched = false;
-        target_rtv = reshade::api::resource_view{ 0 };
+        target = reshade::api::resource{ 0 };
         target_invocation_location = 0;
         width = 0;
         height = 0;
@@ -88,7 +118,7 @@ struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContai
     reshade::api::effect_runtime* current_runtime = nullptr;
     std::atomic_bool rendered_effects = false;
     std::shared_mutex render_mutex;
-    std::unordered_map<std::string, bool> allEnabledTechniques;
+    std::unordered_map<std::string, EffectData> allEnabledTechniques;
     std::shared_mutex binding_mutex;
     std::unordered_map<std::string, TextureBindingData> bindingMap;
     std::unordered_set<std::string> bindingsUpdated;

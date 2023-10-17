@@ -235,7 +235,7 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
         resManager.SetPongPreviewHandles(nullptr, nullptr, &srv);
         bool clearAlpha = group->getClearPreviewAlpha();
 
-        ImGui::Text("Clear alpha channel");
+        ImGui::Text("清除Alpha通道");
         ImGui::SameLine();
         ImGui::Checkbox("##Clearalpha", &clearAlpha);
 
@@ -476,11 +476,11 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
     const char* typeSelectedItem = typeItems[selectedIndex];
     DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
-    static const char* swapchainMatchOptions[] = { "RESOLUTION", "ASPECT RATIO", "EXTENDED ASPECT RATIO", "NONE" };
+    static const char* swapchainMatchOptions[] = { "分辨率", "宽高比", "扩展的宽高比", "无" };
     uint32_t selectedSwapchainMatchMode = group->getBindingMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
 
-    static const char* stageItems[] = { "PIXEL", "VERTEX", "COMPUTE" };
+    static const char* stageItems[] = { "顶点", "像素", "计算" };
     uint32_t selectedStageIndex = group->getSRVShaderStage();
     const char* selectedStage = stageItems[selectedStageIndex];
 

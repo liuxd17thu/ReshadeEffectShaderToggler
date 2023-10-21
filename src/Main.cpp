@@ -655,59 +655,71 @@ static bool UnInit()
     return constantManager.UnInit();
 }
 
-static void CheckDrawCall(command_list* cmd_list)
+static void CheckDrawCall(command_list* cmd_list, const uint64_t match_modifier = Rendering::MATCH_ALL)
 {
     CommandListDataContainer& commandListData = cmd_list->get_private_data<CommandListDataContainer>();
 
-    if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW)
+    if (commandListData.commandQueue & Rendering::MATCH_ALL & match_modifier)
     {
-        if (constantHandler != nullptr && (commandListData.commandQueue & Rendering::MATCH_CONST))
+        if (constantHandler != nullptr && (commandListData.commandQueue & Rendering::MATCH_CONST & match_modifier))
         {
             constantHandler->UpdateConstants(cmd_list);
-            commandListData.commandQueue &= ~Rendering::MATCH_CONST;
+            commandListData.commandQueue &= ~(Rendering::MATCH_CONST & match_modifier);
         }
 
-        if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_PREVIEW)
+        if (commandListData.commandQueue & Rendering::MATCH_PREVIEW & match_modifier)
         {
-            renderingPreviewManager.UpdatePreview(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_PREVIEW);
+            renderingPreviewManager.UpdatePreview(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_PREVIEW & match_modifier);
         }
 
-        if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_BINDING)
+        if (commandListData.commandQueue & Rendering::MATCH_BINDING & match_modifier)
         {
-            renderingBindingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_BINDING);
+            renderingBindingManager.UpdateTextureBindings(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_BINDING & match_modifier);
         }
 
-        if (commandListData.commandQueue & Rendering::CHECK_MATCH_DRAW_EFFECT)
+        if (commandListData.commandQueue & Rendering::MATCH_EFFECT & match_modifier)
         {
-            renderingEffectManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT);
+            renderingEffectManager.RenderEffects(cmd_list, Rendering::CALL_DRAW, Rendering::MATCH_EFFECT & match_modifier);
         }
     }
 }
 
 static bool onDraw(command_list* cmd_list, uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
-    CheckDrawCall(cmd_list);
+    CheckDrawCall(cmd_list, Rendering::MATCH_PS | Rendering::MATCH_VS);
 
     return false;
 }
 
 static bool onDispatch(command_list* cmd_list, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
-    CheckDrawCall(cmd_list);
+    CheckDrawCall(cmd_list, Rendering::MATCH_CS);
 
     return false;
 }
 
 static bool onDrawIndexed(command_list* cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
-    CheckDrawCall(cmd_list);
+    CheckDrawCall(cmd_list, Rendering::MATCH_PS | Rendering::MATCH_VS);
 
     return false;
 }
 
 static bool onDrawOrDispatchIndirect(command_list* cmd_list, indirect_command type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
-    CheckDrawCall(cmd_list);
+    switch (type)
+    {
+    case indirect_command::unknown:
+        CheckDrawCall(cmd_list);
+        break;
+    case indirect_command::draw:
+    case indirect_command::draw_indexed:
+        CheckDrawCall(cmd_list, Rendering::MATCH_PS | Rendering::MATCH_VS);
+        break;
+    case indirect_command::dispatch:
+        CheckDrawCall(cmd_list, Rendering::MATCH_CS);
+        break;
+    }
 
     return false;
 }

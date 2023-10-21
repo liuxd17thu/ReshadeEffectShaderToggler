@@ -46,7 +46,7 @@ using namespace reshade::api;
 using namespace ShaderToggler;
 
 extern "C" __declspec(dllexport) const char *NAME = "Shader Toggler";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Add-on which allows you to define groups of game shaders to toggle on/off with one key press.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "一个ReShade插件，允许你对游戏着色器进行分组并通过快捷键切换开关状态。";
 
 struct __declspec(uuid("038B03AA-4C75-443B-A695-752D80797037")) CommandListDataContainer {
     uint64_t activePixelShaderPipeline;
@@ -282,8 +282,8 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 {
 	if(toDisplay.isInHuntingMode())
 	{
-		ImGui::Text("# of %s shaders active: %d. # of %s shaders in group: %d", shaderType, toDisplay.getAmountShaderHashesCollected(), shaderType, toDisplay.getMarkedShaderCount());
-		ImGui::Text("Current selected %s shader: %d / %d.", shaderType, toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected());
+		ImGui::Text("当前%s着色器：%d。分组中已有%s着色器数量：%d。", shaderType, toDisplay.getAmountShaderHashesCollected(), shaderType, toDisplay.getMarkedShaderCount());
+		ImGui::Text("当前已选择的%s着色器：%d / %d。", shaderType, toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected());
 		if(toDisplay.isHuntedShaderMarked())
 		{
 			displayIsPartOfToggleGroup();
@@ -293,7 +293,7 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 
 static void displayShaderManagerStats(ShaderManager& toDisplay, const char* shaderType)
 {
-	ImGui::Text("# of pipelines with %s shaders: %d. # of different %s shaders gathered: %d.", shaderType, toDisplay.getPipelineCount(), shaderType, toDisplay.getShaderCount());
+	ImGui::Text("含有%s着色器的管线数量：%d. 收集的不同%s着色器数量：%d。", shaderType, toDisplay.getPipelineCount(), shaderType, toDisplay.getShaderCount());
 }
 
 
@@ -319,24 +319,24 @@ static void onReshadeOverlay(reshade::api::effect_runtime *runtime)
 			}
 		}
 		
-		displayShaderManagerStats(g_vertexShaderManager, "vertex");
-		displayShaderManagerStats(g_pixelShaderManager, "pixel");
-		displayShaderManagerStats(g_computeShaderManager, "compute");
+		displayShaderManagerStats(g_vertexShaderManager, "顶点");
+		displayShaderManagerStats(g_pixelShaderManager, "像素");
+		displayShaderManagerStats(g_computeShaderManager, "计算");
 
 		if(g_activeCollectorFrameCounter > 0)
 		{
 			const uint32_t counterValue = g_activeCollectorFrameCounter;
-			ImGui::Text("Collecting active shaders... frames to go: %d", counterValue);
+			ImGui::Text("收集活跃的着色器……还需 %d 帧。", counterValue);
 		}
 		else
 		{
 			if(g_vertexShaderManager.isInHuntingMode() || g_pixelShaderManager.isInHuntingMode() || g_computeShaderManager.isInHuntingMode())
 			{
-				ImGui::Text("Editing the shaders for group: %s", editingGroupName.c_str());
+				ImGui::Text("编辑分组 %s 的着色器：", editingGroupName.c_str());
 			}
-			displayShaderManagerInfo(g_vertexShaderManager, "vertex");
-			displayShaderManagerInfo(g_pixelShaderManager, "pixel");
-			displayShaderManagerInfo(g_computeShaderManager, "compute");
+			displayShaderManagerInfo(g_vertexShaderManager, "顶点");
+			displayShaderManagerInfo(g_pixelShaderManager, "像素");
+			displayShaderManagerInfo(g_computeShaderManager, "计算");
 		}
 		ImGui::End();
 	}
@@ -681,40 +681,40 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 		g_keyCollector.collectKeysPressed(runtime);
 	}
 
-	if(ImGui::CollapsingHeader("General info and help"))
-	{
-		ImGui::PushTextWrapPos();
-		ImGui::TextUnformatted("The Shader Toggler allows you to create one or more groups with shaders to toggle on/off. You can assign a keyboard shortcut (including using keys like Shift, Alt and Control) to each group, including a handy name. Each group can have one or more vertex or pixel shaders assigned to it. When you press the assigned keyboard shortcut, any draw calls using these shaders will be disabled, effectively hiding the elements in the 3D scene.");
-		ImGui::TextUnformatted("\nThe following (hardcoded) keyboard shortcuts are used when you click a group's 'Change Shaders' button:");
-		ImGui::TextUnformatted("* Numpad 1 and Numpad 2: previous/next pixel shader");
-		ImGui::TextUnformatted("* Ctrl + Numpad 1 and Ctrl + Numpad 2: previous/next marked pixel shader in the group");
-		ImGui::TextUnformatted("* Numpad 3: mark/unmark the current pixel shader as being part of the group");
-		ImGui::TextUnformatted("* Numpad 4 and Numpad 5: previous/next vertex shader");
-		ImGui::TextUnformatted("* Ctrl + Numpad 4 and Ctrl + Numpad 5: previous/next marked vertex shader in the group");
-		ImGui::TextUnformatted("* Numpad 6: mark/unmark the current vertex shader as being part of the group");
-		ImGui::TextUnformatted("* Numpad 7 and Numpad 8: previous/next compute shader");
-		ImGui::TextUnformatted("* Ctrl + Numpad 7 and Ctrl + Numpad 8: previous/next marked compute shader in the group");
-		ImGui::TextUnformatted("* Numpad 9: mark/unmark the current compute shader as being part of the group");
-		ImGui::TextUnformatted("\nWhen you step through the shaders, the current shader is disabled in the 3D scene so you can see if that's the shader you were looking for.");
-		ImGui::TextUnformatted("When you're done, make sure you click 'Save all toggle groups' to preserve the groups you defined so next time you start your game they're loaded in and you can use them right away.");
-		ImGui::PopTextWrapPos();
-	}
+	if(ImGui::CollapsingHeader("一般信息与帮助"))
+    {
+        ImGui::PushTextWrapPos();
+        ImGui::TextUnformatted("着色器切换器允许你创建若干分组，每个分组包含需要切换开启/关闭的着色器。你可以为每个分组绑定键盘快捷键（包括Shift、Alt、Ctrl），并为分组命名。每个分组可以拥有若干与之绑定的顶点着色器。当你按下相应键盘快捷键时，任何使用这些着色器的绘制调用将被禁用，从而有效隐藏3D场景中的元素。");
+        ImGui::TextUnformatted("\n以下（硬编码的）键盘快捷键在单击分组的“更改着色器”按钮时可用：");
+        ImGui::TextUnformatted("* [小键盘1] 和 [小键盘2]：前一个/后一个像素着色器");
+        ImGui::TextUnformatted("* [Ctrl+小键盘1] 和 [Ctrl+小键盘2]：前一个/后一个分组内已标记的像素着色器");
+        ImGui::TextUnformatted("* [小键盘3]：标记/取消标记当前像素着色器，即是否置入分组");
+        ImGui::TextUnformatted("* [小键盘4] 和 [小键盘5]：前一个/后一个顶点着色器");
+        ImGui::TextUnformatted("* [Ctrl+小键盘4] 和 [Ctrl+小键盘5]：前一个/后一个分组内已标记的顶点着色器");
+        ImGui::TextUnformatted("* [小键盘6]：标记/取消标记当前顶点着色器，即是否置入分组");
+        ImGui::TextUnformatted("* [小键盘7] 和 [小键盘8]：前一个/后一个顶点着色器");
+		ImGui::TextUnformatted("* [Ctrl+小键盘7] 和 [Ctrl+小键盘8]：前一个/后一个分组内已标记的计算着色器");
+        ImGui::TextUnformatted("* [小键盘9]：标记/取消标记当前顶点着色器，即是否置入分组");
+        ImGui::TextUnformatted("\n当遍历着色器时，当前所在着色器在3D场景中被禁用，因此你可以观察它是不是你寻找的那个。");
+        ImGui::TextUnformatted("完成标记后，请确认你点击了“保存所有切换分组”以保存你定义的分组，由此下次启动游戏时它们将被自动加载，从而可以立刻使用。");
+        ImGui::PopTextWrapPos();
+    }
 
 	ImGui::AlignTextToFramePadding();
-	if(ImGui::CollapsingHeader("Shader selection parameters", ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		ImGui::AlignTextToFramePadding();
-		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
-		ImGui::SliderFloat("Overlay opacity", &g_overlayOpacity, 0.2f, 1.0f);
-		ImGui::AlignTextToFramePadding();
-		ImGui::SliderInt("# of frames to collect", &g_startValueFramecountCollectionPhase, 10, 1000);
-		ImGui::SameLine();
-		showHelpMarker("This is the number of frames the addon will collect active shaders. Set this to a high number if the shader you want to mark is only used occasionally. Only shaders that are used in the frames collected can be marked.");
-		ImGui::PopItemWidth();
-	}
+    if (ImGui::CollapsingHeader("着色器选择参数", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
+        ImGui::SliderFloat("覆盖面板不透明度", &g_overlayOpacity, 0.0f, 1.0f);
+        ImGui::AlignTextToFramePadding();
+        ImGui::SliderInt("所需收集的帧数量", &g_startValueFramecountCollectionPhase, 10, 1000);
+        ImGui::SameLine();
+        showHelpMarker("这是插件用以收集激活的着色器所用的帧数量。如果你想标记的着色器只是偶尔被使用，调高该值。只有在这些帧当中用到的着色器会被收集。");
+        ImGui::PopItemWidth();
+    }
 	ImGui::Separator();
 
-	if(ImGui::CollapsingHeader("Keybindings", ImGuiTreeNodeFlags_None))
+	if(ImGui::CollapsingHeader("键盘快捷键", ImGuiTreeNodeFlags_None))
 	{
 		for(uint32_t i = 0; i < IM_ARRAYSIZE(AddonKeybindNames); i++)
 		{
@@ -725,7 +725,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 				buf[keys.getKeyAsString().copy(buf, sizeof(buf) - 1)] = '\0';
 
 			ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.35f);
-			ImGui::InputTextWithHint(AddonKeybindNames[i], "Click to set keyboard shortcuts", buf, sizeof(buf), ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_ReadOnly);
+			ImGui::InputTextWithHint(AddonKeybindNames[i], "点击设定键盘快捷键", buf, sizeof(buf), ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_ReadOnly);
 			if(ImGui::IsItemActive())
 			{
 				g_keyCollector.collectKeysPressed(runtime);
@@ -744,9 +744,9 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 		}
 	}
 
-	if(ImGui::CollapsingHeader("List of Toggle Groups", ImGuiTreeNodeFlags_DefaultOpen))
+	if(ImGui::CollapsingHeader("切换分组列表", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		if(ImGui::Button(" New "))
+		if(ImGui::Button(" 新 "))
 		{
 			addDefaultGroup();
 		}
@@ -764,7 +764,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 			ImGui::SameLine();
 			ImGui::Text(" %d ", group.getId());
 			ImGui::SameLine();
-			if(ImGui::Button("Edit"))
+			if(ImGui::Button("编辑"))
 			{
 				group.setEditing(true);
 			}
@@ -774,7 +774,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 			{
 				if(g_toggleGroupIdShaderEditing == group.getId())
 				{
-					if(ImGui::Button(" Done "))
+					if(ImGui::Button(" 完成 "))
 					{
 						endShaderEditing(true, group);
 					}
@@ -788,23 +788,23 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 			}
 			else
 			{
-				if(ImGui::Button("Change shaders"))
+				if(ImGui::Button("更改着色器"))
 				{
 					ImGui::SameLine();
 					startShaderEditing(group);
 				}
 			}
 			ImGui::SameLine();
-			ImGui::Text(" %s (%s%s)", group.getName().c_str(), group.getToggleKeyAsString().c_str(), group.isActive() ? ", is active" : "");
+			ImGui::Text(" %s (%s%s)", group.getName().c_str(), group.getToggleKeyAsString().c_str(), group.isActive() ? "，已激活" : "");
 			if(group.isActiveAtStartup())
 			{
 				ImGui::SameLine();
-				ImGui::Text(" (Active at startup)");
+				ImGui::Text(" (启动时激活)");
 			}
 			if(group.isEditing())
 			{
 				ImGui::Separator();
-				ImGui::Text("Edit group %d", group.getId());
+				ImGui::Text("编辑分组 %d", group.getId());
 
 				// Name of group
 				char tmpBuffer[150];
@@ -812,7 +812,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 				strncpy_s(tmpBuffer, 150, name.c_str(), name.size());
 				ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.7f);
 				ImGui::AlignTextToFramePadding();
-				ImGui::Text("Name");
+				ImGui::Text("名字");
 				ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
 				ImGui::InputText("##Name", tmpBuffer, 149);
 				group.setName(tmpBuffer);
@@ -822,7 +822,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 				bool isKeyEditing = false;
 				ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 				ImGui::AlignTextToFramePadding();
-				ImGui::Text("Key shortcut");
+				ImGui::Text("快捷键");
 				ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
 				string textBoxContents = (g_toggleGroupIdKeyBindingEditing == group.getId()) ? g_keyCollector.getKeyAsString() : group.getToggleKeyAsString();	// The 'press a key' is inside keycollector
 				string toggleKeyName = group.getToggleKeyAsString();
@@ -840,7 +840,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 						endKeyBindingEditing(true, group);
 					}
 					ImGui::SameLine();
-					if(ImGui::Button("Cancel"))
+					if(ImGui::Button("取消"))
 					{
 						endKeyBindingEditing(false, group);
 					}
@@ -851,7 +851,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 				ImGui::Text(" ");
 				ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
 				bool isDefaultActive = group.isActiveAtStartup();
-				ImGui::Checkbox("Is active at startup", &isDefaultActive);
+				ImGui::Checkbox("启动时激活", &isDefaultActive);
 				group.setIsActiveAtStartup(isDefaultActive);
 				ImGui::PopItemWidth();
 
@@ -886,7 +886,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 		ImGui::Separator();
 		if(g_toggleGroups.size() > 0)
 		{
-			if(ImGui::Button("Save all Toggle Groups"))
+			if(ImGui::Button("保存所有切换分组"))
 			{
 				saveShaderTogglerIniFile();
 			}

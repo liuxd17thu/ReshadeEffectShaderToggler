@@ -1024,7 +1024,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
 
         ImGui::AlignTextToFramePadding();
         bool trackDescriptors = instance.GetTrackDescriptors();
-        ImGui::Checkbox("Track descriptors", &trackDescriptors);
+        ImGui::Checkbox("跟踪描述符", &trackDescriptors);
         instance.SetTrackDescriptors(trackDescriptors);
     }
 

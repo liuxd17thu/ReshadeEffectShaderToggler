@@ -141,11 +141,16 @@ void ResourceManager::ClearBackbuffer(reshade::api::swapchain* runtime)
     }
 }
 
+static inline bool isValidShaderResource(reshade::api::format format)
+{
+    return format != reshade::api::format::intz;
+}
+
 void ResourceManager::CreateViews(reshade::api::device* device, reshade::api::resource resource)
 {
     resource_desc rdesc = device->get_resource_desc(resource);
 
-    if ((static_cast<uint32_t>(rdesc.usage & resource_usage::render_target) | static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource)) &&
+    if ((static_cast<uint32_t>(rdesc.usage & resource_usage::render_target) || static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource)) &&
         rdesc.type == resource_type::texture_2d)
     {
         unique_lock<shared_mutex> vlock(view_mutex);
@@ -174,8 +179,10 @@ void ResourceManager::CreateViews(reshade::api::device* device, reshade::api::re
                 s_sRGBResourceViews.emplace(resource.handle, make_pair(view_non_srgb, view_srgb));
             }
 
-            if (static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource))
+            if (static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource) && isValidShaderResource(rdesc.texture.format))
             {
+                reshade::log_message(reshade::log_level::info, std::format("view format {}", static_cast<uint32_t>(rdesc.texture.format)).c_str());
+
                 device->create_resource_view(resource, resource_usage::shader_resource,
                     resource_view_desc(format_non_srgb), &srv_non_srgb);
                 device->create_resource_view(resource, resource_usage::shader_resource,

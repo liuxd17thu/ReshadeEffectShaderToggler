@@ -181,8 +181,6 @@ void ResourceManager::CreateViews(reshade::api::device* device, reshade::api::re
 
             if (static_cast<uint32_t>(rdesc.usage & resource_usage::shader_resource) && isValidShaderResource(rdesc.texture.format))
             {
-                reshade::log_message(reshade::log_level::info, std::format("view format {}", static_cast<uint32_t>(rdesc.texture.format)).c_str());
-
                 device->create_resource_view(resource, resource_usage::shader_resource,
                     resource_view_desc(format_non_srgb), &srv_non_srgb);
                 device->create_resource_view(resource, resource_usage::shader_resource,

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#include <limits>
 #include "reshade.hpp"
 #include "StateTracking.h"
 
@@ -57,43 +58,32 @@ void state_block::apply_descriptors_dx12_vulkan(command_list* cmd_list) const
 void state_block::apply_descriptors(command_list* cmd_list) const
 {
     auto& [desc_layout, descriptors] = cmd_list->get_private_data<state_tracking>().root_tables[0];
+    const size_t it = std::min(static_cast<size_t>(2), descriptors.size());
 
-    std::array<const descriptor_tracking::descriptor_data*, 2> copyDescriptors;
-
-    // first sampler
-    if (descriptors.size() > 0 && descriptor_buffer[descriptors[0].buffer_index].size() > 0)
-        copyDescriptors[0] = &descriptor_buffer[descriptors[0].buffer_index][0];
-    else
-        copyDescriptors[0] = nullptr;
-
-    // first shader resource view
-    if (descriptors.size() > 1 && descriptor_buffer[descriptors[1].buffer_index].size() > 0)
-        copyDescriptors[1] = &descriptor_buffer[descriptors[1].buffer_index][0];
-    else
-        copyDescriptors[1] = nullptr;
-
-    for (uint32_t i = 0; i < copyDescriptors.size(); ++i)
+    for (uint32_t i = 0; i < it; i++)
     {
-        if (copyDescriptors[i] == nullptr)
-            continue;
-
-        switch (copyDescriptors[i]->type)
+        if (descriptors[i].type == root_entry_type::push_descriptors && descriptors[i].buffer_index >= 0 && descriptor_buffer[descriptors[i].buffer_index].size() > 0)
         {
-        case descriptor_type::sampler:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, reinterpret_cast<const void*>(&copyDescriptors[i]->sampler) });
-            break;
-        case descriptor_type::constant_buffer:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::constant_buffer, reinterpret_cast<const void*>(&copyDescriptors[i]->constant) });
-            break;
-        case descriptor_type::sampler_with_resource_view:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler_with_resource_view, reinterpret_cast<const void*>(&copyDescriptors[i]->sampler_and_view) });
-            break;
-        case descriptor_type::shader_resource_view:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::shader_resource_view, reinterpret_cast<const void*>(&copyDescriptors[i]->view) });
-            break;
-        case descriptor_type::unordered_access_view:
-            cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::unordered_access_view, reinterpret_cast<const void*>(&copyDescriptors[i]->view) });
-            break;
+            const descriptor_tracking::descriptor_data* desc = &descriptor_buffer[descriptors[i].buffer_index][0];
+
+            switch (desc->type)
+            {
+            case descriptor_type::sampler:
+                cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler, reinterpret_cast<const void*>(&desc->sampler) });
+                break;
+            case descriptor_type::constant_buffer:
+                cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::constant_buffer, reinterpret_cast<const void*>(&desc->constant) });
+                break;
+            case descriptor_type::sampler_with_resource_view:
+                cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::sampler_with_resource_view, reinterpret_cast<const void*>(&desc->sampler_and_view) });
+                break;
+            case descriptor_type::shader_resource_view:
+                cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::shader_resource_view, reinterpret_cast<const void*>(&desc->view) });
+                break;
+            case descriptor_type::unordered_access_view:
+                cmd_list->push_descriptors(shader_stage::pixel, desc_layout, i, descriptor_table_update{ {}, 0, 0, 1, descriptor_type::unordered_access_view, reinterpret_cast<const void*>(&desc->view) });
+                break;
+            }
         }
     }
 }

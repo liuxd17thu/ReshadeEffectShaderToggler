@@ -90,7 +90,13 @@ bool RenderingEffectManager::_RenderEffects(
 
                 deviceData.rendered_effects = true;
 
+                if(group->getToneMap() && deviceData.specialEffects.tonemap_to_sdr.technique != 0)
+                    runtime->render_technique(deviceData.specialEffects.tonemap_to_sdr.technique, cmd_list, view_non_srgb, view_srgb);
+
                 runtime->render_technique(technique, cmd_list, view_non_srgb, view_srgb);
+
+                if (group->getToneMap() && deviceData.specialEffects.tonemap_to_hdr.technique != 0)
+                    runtime->render_technique(deviceData.specialEffects.tonemap_to_hdr.technique, cmd_list, view_non_srgb, view_srgb);
 
                 resource_desc resDesc = runtime->get_device()->get_resource_desc(active_resource);
                 removalList.push_back(name);

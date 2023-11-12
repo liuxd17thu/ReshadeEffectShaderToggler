@@ -114,6 +114,18 @@ struct __declspec(novtable) HuntPreview final
     }
 };
 
+struct __declspec(novtable) SpecialEffect final
+{
+    std::string name;
+    reshade::api::effect_technique technique;
+};
+
+struct __declspec(novtable) SpecialEffects final
+{
+    SpecialEffect tonemap_to_sdr = SpecialEffect{ "REST_TONEMAP_TO_SDR", reshade::api::effect_technique {0} };
+    SpecialEffect tonemap_to_hdr = SpecialEffect{ "REST_TONEMAP_TO_HDR", reshade::api::effect_technique {0} };
+};
+
 struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContainer {
     reshade::api::effect_runtime* current_runtime = nullptr;
     std::atomic_bool rendered_effects = false;
@@ -126,4 +138,5 @@ struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContai
     std::unordered_set<const ShaderToggler::ToggleGroup*> srvUpdated;
     bool reload_bindings = false;
     HuntPreview huntPreview;
+    SpecialEffects specialEffects;
 };

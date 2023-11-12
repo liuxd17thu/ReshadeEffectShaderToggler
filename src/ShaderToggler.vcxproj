@@ -206,6 +206,7 @@
     <ClInclude Include="RenderingEffectManager.h" />
     <ClInclude Include="RenderingPreviewManager.h" />
     <ClInclude Include="RenderingQueueManager.h" />
+    <ClInclude Include="RenderingShaderManager.h" />
     <ClInclude Include="ResourceShim.h" />
     <ClInclude Include="ResourceShimFFXIV.h" />
     <ClInclude Include="ResourceShimSRGB.h" />
@@ -217,6 +218,7 @@
     <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="StateTracking.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="TechniqueManager.h" />
     <ClInclude Include="ToggleGroup.h" />
   </ItemGroup>
   <ItemGroup>
@@ -237,6 +239,7 @@
     <ClCompile Include="RenderingEffectManager.cpp" />
     <ClCompile Include="RenderingPreviewManager.cpp" />
     <ClCompile Include="RenderingQueueManager.cpp" />
+    <ClCompile Include="RenderingShaderManager.cpp" />
     <ClCompile Include="ResourceShimFFXIV.cpp" />
     <ClCompile Include="ResourceShimSRGB.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -244,6 +247,7 @@
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="ShaderManager.cpp" />
     <ClCompile Include="StateTracking.cpp" />
+    <ClCompile Include="TechniqueManager.cpp" />
     <ClCompile Include="ToggleGroup.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -234,6 +234,12 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
 }
 
 
+static bool onReshadeReorderTechniques(effect_runtime* runtime, size_t count, effect_technique* techniques)
+{
+    return techniqueManager.OnReshadeReorderTechniques(runtime, count, techniques);
+}
+
+
 static void onInitEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
@@ -723,6 +729,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::register_event<reshade::addon_event::reshade_present>(onReshadePresent);
         reshade::register_event<reshade::addon_event::reshade_reloaded_effects>(onReshadeReloadedEffects);
         reshade::register_event<reshade::addon_event::reshade_set_technique_state>(onReshadeSetTechniqueState);
+        reshade::register_event<reshade::addon_event::reshade_reorder_techniques>(onReshadeReorderTechniques);
         reshade::register_event<reshade::addon_event::bind_pipeline>(onBindPipeline);
         reshade::register_event<reshade::addon_event::init_device>(onInitDevice);
         reshade::register_event<reshade::addon_event::destroy_device>(onDestroyDevice);
@@ -753,6 +760,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
         reshade::unregister_event<reshade::addon_event::reshade_overlay>(onReshadeOverlay);
         reshade::unregister_event<reshade::addon_event::reshade_reloaded_effects>(onReshadeReloadedEffects);
         reshade::unregister_event<reshade::addon_event::reshade_set_technique_state>(onReshadeSetTechniqueState);
+        reshade::unregister_event<reshade::addon_event::reshade_reorder_techniques>(onReshadeReorderTechniques);
         reshade::unregister_event<reshade::addon_event::bind_pipeline>(onBindPipeline);
         reshade::unregister_event<reshade::addon_event::init_command_list>(onInitCommandList);
         reshade::unregister_event<reshade::addon_event::destroy_command_list>(onDestroyCommandList);

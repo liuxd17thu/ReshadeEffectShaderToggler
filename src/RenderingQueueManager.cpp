@@ -76,7 +76,7 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                             continue;
                         }
 
-                        if (!techData.rendered)
+                        if (!techData->rendered)
                         {
                             if (!sData.techniquesToRender.contains(techName))
                             {
@@ -90,7 +90,7 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                     for (auto& techName : group->preferredTechniques())
                     {
                         const auto& techData = deviceData.allEnabledTechniques.find(techName);
-                        if (techData != deviceData.allEnabledTechniques.end() && !techData->second.rendered)
+                        if (techData != deviceData.allEnabledTechniques.end() && !techData->second->rendered)
                         {
                             if (!sData.techniquesToRender.contains(techName))
                             {

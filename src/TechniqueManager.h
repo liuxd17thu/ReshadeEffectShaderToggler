@@ -17,6 +17,7 @@ namespace ShaderToggler
         void OnReshadeReloadedEffects(reshade::api::effect_runtime* runtime);
         bool OnReshadeSetTechniqueState(reshade::api::effect_runtime* runtime, reshade::api::effect_technique technique, bool enabled);
         void OnReshadePresent(reshade::api::effect_runtime* runtime);
+        bool OnReshadeReorderTechniques(reshade::api::effect_runtime* runtime, size_t count, reshade::api::effect_technique* techniques);
 
     private:
         KeyMonitor& keyMonitor;

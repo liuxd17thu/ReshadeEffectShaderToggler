@@ -13,7 +13,8 @@ using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::T
 
 struct __declspec(novtable) EffectData final {
     constexpr EffectData() : rendered(false), enabled_in_screenshot(true), technique({}), timeout(-1) {}
-    constexpr EffectData(reshade::api::effect_technique tech, reshade::api::effect_runtime* runtime)
+    constexpr EffectData(reshade::api::effect_technique tech, reshade::api::effect_runtime* runtime) : EffectData(tech, runtime, false) {}
+    constexpr EffectData(reshade::api::effect_technique tech, reshade::api::effect_runtime* runtime, bool active)
     {
         if (!runtime->get_annotation_bool_from_technique(tech, "enabled_in_screenshot", &enabled_in_screenshot, 1))
         {
@@ -31,10 +32,12 @@ struct __declspec(novtable) EffectData final {
 
         rendered = false;
         technique = tech;
+        enabled = active;
     }
 
     bool rendered = false;
     bool enabled_in_screenshot = true;
+    bool enabled = false;
     reshade::api::effect_technique technique = {};
     int32_t timeout = -1;
     std::chrono::steady_clock::time_point timeout_start;
@@ -130,7 +133,9 @@ struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContai
     reshade::api::effect_runtime* current_runtime = nullptr;
     std::atomic_bool rendered_effects = false;
     std::shared_mutex render_mutex;
-    std::unordered_map<std::string, EffectData> allEnabledTechniques;
+    std::unordered_map<std::string, EffectData> allTechniques;
+    std::vector<std::pair<std::string, EffectData*>> allSortedTechniques;
+    std::unordered_map<std::string, EffectData*> allEnabledTechniques;
     std::shared_mutex binding_mutex;
     std::unordered_map<std::string, TextureBindingData> bindingMap;
     std::unordered_set<std::string> bindingsUpdated;

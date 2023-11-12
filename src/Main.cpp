@@ -223,14 +223,14 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
     
-    techniqueManager.OnReshadeSetTechniqueState(runtime, technique, enabled);
+    bool ret = techniqueManager.OnReshadeSetTechniqueState(runtime, technique, enabled);
 
     if (constantHandler != nullptr)
     {
         constantHandler->OnReshadeSetTechniqueState(runtime, static_cast<int32_t>(data.allEnabledTechniques.size()));
     }
     
-    return false;
+    return ret;
 }
 
 

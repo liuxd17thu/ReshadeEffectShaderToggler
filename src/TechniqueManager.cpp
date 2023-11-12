@@ -26,10 +26,12 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
         if (name == data.specialEffects.tonemap_to_hdr.name)
         {
             data.specialEffects.tonemap_to_hdr.technique = technique;
+            return;
         }
         if (name == data.specialEffects.tonemap_to_sdr.name)
         {
             data.specialEffects.tonemap_to_sdr.technique = technique;
+            return;
         }
     
         if (enabled)
@@ -45,6 +47,12 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
     charBufferSize = CHAR_BUFFER_SIZE;
     runtime->get_technique_name(technique, charBuffer, &charBufferSize);
     string techName(charBuffer);
+
+    // Prevent REST techniques from being manually enabled
+    if (techName == data.specialEffects.tonemap_to_hdr.name || techName == data.specialEffects.tonemap_to_sdr.name)
+    {
+        return true;
+    }
 
     if (!enabled)
     {

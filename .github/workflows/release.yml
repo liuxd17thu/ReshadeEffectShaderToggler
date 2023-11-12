@@ -45,7 +45,7 @@ jobs:
       uses: vimtor/action-zip@v1.1
       with:
         files: src/x64/Release/ReshadeEffectShaderToggler.addon64 src/Win32/Release/ReshadeEffectShaderToggler.addon32 LICENSE README.md Shaders/
-        recursive: false
+        recursive: true
         dest: release.zip
         
     - name: Release

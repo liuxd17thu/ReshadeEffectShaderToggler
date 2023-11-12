@@ -371,7 +371,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
-            ImGui::Text("Apply effects in SDR space");
+            ImGui::Text("Apply tone map clamping");
             ImGui::TableNextColumn();
             ImGui::Checkbox("##tonemap", &tonemap);
 

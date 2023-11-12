@@ -50,10 +50,12 @@
 #include "PipelinePrivateData.h"
 #include "ResourceManager.h"
 #include "RenderingManager.h"
+#include "RenderingShaderManager.h"
 #include "RenderingQueueManager.h"
 #include "RenderingEffectManager.h"
 #include "RenderingBindingManager.h"
 #include "RenderingPreviewManager.h"
+#include "TechniqueManager.h"
 #include "StateTracking.h"
 #include "KeyMonitor.h"
 
@@ -87,15 +89,12 @@ static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, 
 
 static KeyMonitor keyMonitor;
 static Rendering::ResourceManager resourceManager;
+static Rendering::RenderingShaderManager renderingShaderManager(g_addonUIData, resourceManager);
 static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, resourceManager);
 static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager);
-static Rendering::RenderingPreviewManager renderingPreviewManager(g_addonUIData, resourceManager);
+static Rendering::RenderingPreviewManager renderingPreviewManager(g_addonUIData, resourceManager, renderingShaderManager);
 static Rendering::RenderingQueueManager renderingQueueManager(g_addonUIData, resourceManager);
-
-// TODO: was this needed? might need to re-check
-//static shared_mutex render_mutex;
-static char g_charBuffer[CHAR_BUFFER_SIZE];
-static size_t g_charBufferSize = CHAR_BUFFER_SIZE;
+static ShaderToggler::TechniqueManager techniqueManager(keyMonitor, allTechniques);
 
 // TODO: actually implement ability to turn off srgb-view generation
 static vector<effect_runtime*> runtimes;
@@ -125,7 +124,7 @@ static void onInitDevice(device* device)
 static void onDestroyDevice(device* device)
 {
     resourceManager.OnDestroyDevice(device);
-    renderingPreviewManager.DestroyShaders(device);
+    renderingShaderManager.DestroyShaders(device);
 
     device->destroy_private_data<DeviceDataContainer>();
 }
@@ -210,18 +209,8 @@ static void onDestroyResourceView(device* device, resource_view view)
 static void onReshadeReloadedEffects(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
-    data.allEnabledTechniques.clear();
-    allTechniques.clear();
-
-    Rendering::RenderingManager::EnumerateTechniques(runtime, [&data](effect_runtime* runtime, effect_technique technique, string& name) {
-        allTechniques.push_back(name);
-        bool enabled = runtime->get_technique_state(technique);
     
-        if (enabled)
-        {
-            data.allEnabledTechniques.emplace(name, EffectData{ technique, runtime });
-        }
-        });
+    techniqueManager.OnReshadeReloadedEffects(runtime);
 
     if (constantHandler != nullptr)
     {
@@ -233,24 +222,8 @@ static void onReshadeReloadedEffects(effect_runtime* runtime)
 static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique technique, bool enabled)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
-    g_charBufferSize = CHAR_BUFFER_SIZE;
-    runtime->get_technique_name(technique, g_charBuffer, &g_charBufferSize);
-    string techName(g_charBuffer);
     
-    if (!enabled)
-    {
-        if (data.allEnabledTechniques.contains(techName))
-        {
-            data.allEnabledTechniques.erase(techName);
-        }
-    }
-    else
-    {
-        if (data.allEnabledTechniques.find(techName) == data.allEnabledTechniques.end())
-        {
-            data.allEnabledTechniques.emplace(techName, EffectData{ technique, runtime });
-        }
-    }
+    techniqueManager.OnReshadeSetTechniqueState(runtime, technique, enabled);
 
     if (constantHandler != nullptr)
     {
@@ -267,7 +240,7 @@ static void onInitEffectRuntime(effect_runtime* runtime)
 
     keyMonitor.Init(runtime);
     resourceManager.OnInitSwapchain(runtime);
-    renderingPreviewManager.InitShaders(runtime->get_device());
+    renderingShaderManager.InitShaders(runtime->get_device());
 
     // Dispose of texture bindings created from the runtime below
     if (data.current_runtime != nullptr)
@@ -571,30 +544,7 @@ static void onReshadePresent(effect_runtime* runtime)
 
     keyMonitor.PollKeyStates(runtime);
 
-    for (auto el = deviceData.allEnabledTechniques.begin(); el != deviceData.allEnabledTechniques.end();)
-    {
-        // Get rid of techniques with a timeout. We don't actually have a timer, so just get rid of them after they were rendered at least once
-        if (el->second.timeout >= 0 &&
-            el->second.technique != 0 &&
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - el->second.timeout_start).count() >= el->second.timeout)
-        {
-            runtime->set_technique_state(el->second.technique, false);
-            el = deviceData.allEnabledTechniques.erase(el);
-            continue;
-        }
-
-        // Prevent effects that are not supposed to be in screenshots from being rendered when ReShade is taking a screenshot
-        if (!el->second.enabled_in_screenshot && keyMonitor.GetKeyState(KeyMonitor::KEY_SCREEN_SHOT) == KeyState::KET_STATE_PRESSED)
-        {
-            el->second.rendered = true;
-        }
-        else
-        {
-            el->second.rendered = false;
-        }
-
-        el++;
-    }
+    techniqueManager.OnReshadePresent(runtime);
 
     deviceData.bindingsUpdated.clear();
     deviceData.constantsUpdated.clear();

@@ -145,6 +145,8 @@ namespace ShaderToggler
         bool RemoveVarMapping(std::string&);
         bool getClearPreviewAlpha() const { return _previewClearAlpha; }
         void setClearPreviewAlpha(bool previewClearAlpha) { _previewClearAlpha = previewClearAlpha; }
+        bool getToneMap() const { return _tonemapHDRtoSDRtoHDR; }
+        void setToneMap(bool tonemap) { _tonemapHDRtoSDRtoHDR = tonemap; }
         void dispatchCBCycle(DescriptorCycle cycle) { _cbCycle = cycle; }
         DescriptorCycle consumeCBCycle() 
         { 
@@ -199,6 +201,7 @@ namespace ShaderToggler
         bool _clearBindings;
         bool _previewClearAlpha = true;
         bool _hasTechniqueExceptions; // _preferredTechniques are handled as exception to _allowAllTechniques
+        bool _tonemapHDRtoSDRtoHDR = false;
         uint32_t _matchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;
         uint32_t _bindingMatchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;
         bool _requeueAfterRTMatchingFailure;

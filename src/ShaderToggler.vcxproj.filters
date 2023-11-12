@@ -123,6 +123,12 @@
     <ClInclude Include="KeyMonitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RenderingShaderManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TechniqueManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -198,6 +204,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RenderingPreviewManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderingShaderManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TechniqueManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

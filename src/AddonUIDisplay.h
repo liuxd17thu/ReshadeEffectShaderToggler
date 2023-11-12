@@ -305,6 +305,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     uint32_t selectedIndex = group->getInvocationLocation();
 
     bool retry = group->getRequeueAfterRTMatchingFailure();
+    bool tonemap = group->getToneMap();
     static const char* swapchainMatchOptions[] = { "RESOLUTION", "ASPECT RATIO", "EXTENDED ASPECT RATIO", "NONE"};
     uint32_t selectedSwapchainMatchMode = group->getMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
@@ -370,6 +371,13 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
+            ImGui::Text("Apply effects in SDR space");
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##tonemap", &tonemap);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+
             ImGui::Text("Match swapchain");
             ImGui::TableNextColumn();
             if (ImGui::BeginCombo("##effSwapChainMatchMode", typesSelectedSwapchainMatchMode, ImGuiComboFlags_None))
@@ -394,6 +402,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
         group->setRequeueAfterRTMatchingFailure(retry);
         group->setMatchSwapchainResolution(selectedSwapchainMatchMode);
         group->setInvocationLocation(selectedIndex);
+        group->setToneMap(tonemap);
 
         ImGui::Separator();
 

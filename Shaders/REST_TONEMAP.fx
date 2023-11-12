@@ -16,19 +16,18 @@ void TonemapSDRtoHDR(in float4 pos : SV_Position, in float2 texcoord : Texcoord,
 
 technique REST_TONEMAP_TO_SDR
 {
-    pass //update curr data RGB + depth
-	{
-		VertexShader = PostProcessVS;
-		PixelShader  = TonemapHDRtoSDR; 
-	}
+    pass
+    {
+        VertexShader = PostProcessVS;
+        PixelShader = TonemapHDRtoSDR;
+    }
 }
 
 technique REST_TONEMAP_TO_HDR
 {
-    pass //update curr data RGB + depth
-	{
-		VertexShader = PostProcessVS;
-		PixelShader  = TonemapSDRtoHDR; 
-	}
+    pass
+    {
+        VertexShader = PostProcessVS;
+        PixelShader = TonemapSDRtoHDR;
+    }
 }
-

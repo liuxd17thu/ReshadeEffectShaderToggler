@@ -14,7 +14,7 @@ void TonemapSDRtoHDR(in float4 pos : SV_Position, in float2 texcoord : Texcoord,
     float4 color = tex2D(ReShade::BackBuffer, texcoord);
 
     color.rgb = clamp(color.rgb, 0.0, 0.9999999); //avoid division by zero
-    o.rgb = (-1.0 * color.rgb) * rcp(color.rgb - 1.0);
+    o.rgb = (-1.0 * color.rgb) / (color.rgb - 1.0);
     o.a = color.a;
 }
 

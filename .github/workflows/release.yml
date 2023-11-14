@@ -44,7 +44,8 @@ jobs:
     - name: Archive Release
       uses: vimtor/action-zip@v1.1
       with:
-        files: src/x64/Release/ReshadeEffectShaderToggler.addon64 src/Win32/Release/ReshadeEffectShaderToggler.addon32 LICENSE README.md
+        files: src/x64/Release/ReshadeEffectShaderToggler.addon64 src/Win32/Release/ReshadeEffectShaderToggler.addon32 LICENSE README.md Shaders/
+        recursive: false
         dest: release.zip
         
     - name: Release

@@ -305,6 +305,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     uint32_t selectedIndex = group->getInvocationLocation();
 
     bool retry = group->getRequeueAfterRTMatchingFailure();
+    bool tonemap = group->getToneMap();
     static const char* swapchainMatchOptions[] = { "分辨率", "宽高比", "扩展的宽高比", "无"};
     uint32_t selectedSwapchainMatchMode = group->getMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
@@ -370,6 +371,13 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
+            ImGui::Text("Apply tone map clamping");
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##tonemap", &tonemap);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+
             ImGui::Text("匹配交换链");
             ImGui::TableNextColumn();
             if (ImGui::BeginCombo("##effSwapChainMatchMode", typesSelectedSwapchainMatchMode, ImGuiComboFlags_None))
@@ -394,6 +402,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
         group->setRequeueAfterRTMatchingFailure(retry);
         group->setMatchSwapchainResolution(selectedSwapchainMatchMode);
         group->setInvocationLocation(selectedIndex);
+        group->setToneMap(tonemap);
 
         ImGui::Separator();
 

@@ -39,11 +39,11 @@ bool RenderingEffectManager::RenderRemainingEffects(effect_runtime* runtime)
     }
 
     RenderingManager::EnumerateTechniques(deviceData.current_runtime, [&deviceData, &commandListData, &cmd_list, &device, &active_rtv, &active_rtv_srgb, &rendered, &res](effect_runtime* runtime, effect_technique technique, string& name) {
-        if (deviceData.allEnabledTechniques.contains(name) && !deviceData.allEnabledTechniques[name].rendered)
+        if (deviceData.allEnabledTechniques.contains(name) && !deviceData.allEnabledTechniques[name]->rendered)
         {
             runtime->render_technique(technique, cmd_list, active_rtv, active_rtv_srgb);
 
-            deviceData.allEnabledTechniques[name].rendered = true;
+            deviceData.allEnabledTechniques[name]->rendered = true;
             rendered = true;
         }
         });
@@ -60,46 +60,80 @@ bool RenderingEffectManager::_RenderEffects(
 {
     bool rendered = false;
     CommandListDataContainer& cmdData = cmd_list->get_private_data<CommandListDataContainer>();
+    effect_runtime* runtime = deviceData.current_runtime;
 
-    RenderingManager::EnumerateTechniques(deviceData.current_runtime, [&cmdData, &deviceData, &techniquesToRender, &cmd_list, &rendered, &removalList, &toRenderNames, this](effect_runtime* runtime, effect_technique technique, string& name) {
+    unordered_map<const ToggleGroup*, pair<vector<pair<string, EffectData*>>, resource>> groupTechMap;
 
-        if (toRenderNames.find(name) != toRenderNames.end())
+    for (const auto& sTech : deviceData.allSortedTechniques)
+    {
+        if (sTech.second->enabled && !sTech.second->rendered && toRenderNames.contains(sTech.first))
         {
-            const auto& tech = techniquesToRender.find(name);
-            const auto& techState = deviceData.allEnabledTechniques.find(name);
+            const auto& tech = techniquesToRender.find(sTech.first);
 
-            if (tech != techniquesToRender.end() && !techState->second.rendered)
+            if (tech != techniquesToRender.end())
             {
                 const auto& [techName, techData] = *tech;
                 const auto& [group, _, active_resource] = techData;
 
-                if (active_resource == 0)
+                const auto& curTechEntry = groupTechMap.find(group);
+
+                if (curTechEntry == groupTechMap.end())
                 {
-                    return;
+                    const auto& nEntry = groupTechMap.emplace(group, make_pair(vector<pair<string, EffectData*>>(), active_resource));
+                    nEntry.first->second.first.push_back(make_pair(techName, sTech.second));
                 }
-
-                resource_view view_non_srgb = {};
-                resource_view view_srgb = {};
-
-                resourceManager.SetResourceViewHandles(active_resource.handle, &view_non_srgb, &view_srgb);
-
-                if (view_non_srgb == 0)
+                else
                 {
-                    return;
+                    curTechEntry->second.first.push_back(make_pair(techName, sTech.second));
                 }
-
-                deviceData.rendered_effects = true;
-
-                runtime->render_technique(technique, cmd_list, view_non_srgb, view_srgb);
-
-                resource_desc resDesc = runtime->get_device()->get_resource_desc(active_resource);
-                removalList.push_back(name);
-
-                deviceData.allEnabledTechniques[name].rendered = true;
-                rendered = true;
             }
         }
-        });
+    }
+
+    for (const auto& tech : groupTechMap)
+    {
+        const auto& group = tech.first;
+        const auto& [effectList, active_resource] = tech.second;
+
+        if (active_resource == 0)
+        {
+            continue;
+        }
+
+        resource_view view_non_srgb = {};
+        resource_view view_srgb = {};
+
+        resourceManager.SetResourceViewHandles(active_resource.handle, &view_non_srgb, &view_srgb);
+
+        if (view_non_srgb == 0)
+        {
+            continue;
+        }
+
+        if (group->getToneMap() && deviceData.specialEffects.tonemap_to_sdr.technique != 0)
+        {
+            runtime->render_technique(deviceData.specialEffects.tonemap_to_sdr.technique, cmd_list, view_non_srgb, view_srgb);
+        }
+
+        for (const auto& effectTech : effectList)
+        {
+            const auto& [name, effectData] = effectTech;
+
+            deviceData.rendered_effects = true;
+
+            runtime->render_technique(effectData->technique, cmd_list, view_non_srgb, view_srgb);
+            effectData->rendered = true;
+
+            removalList.push_back(name);
+
+            rendered = true;
+        }
+
+        if (group->getToneMap() && deviceData.specialEffects.tonemap_to_hdr.technique != 0)
+        {
+            runtime->render_technique(deviceData.specialEffects.tonemap_to_hdr.technique, cmd_list, view_non_srgb, view_srgb);
+        }
+    }
 
     return rendered;
 }

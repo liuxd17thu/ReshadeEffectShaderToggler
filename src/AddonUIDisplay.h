@@ -371,7 +371,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
-            ImGui::Text("Apply tone map clamping");
+            ImGui::Text("应用色调映射钳位");
             ImGui::TableNextColumn();
             ImGui::Checkbox("##tonemap", &tonemap);
 

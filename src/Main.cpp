@@ -89,8 +89,9 @@ static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, 
 
 static KeyMonitor keyMonitor;
 static Rendering::ResourceManager resourceManager;
+static Rendering::ToggleGroupResourceManager groupResourceManager;
 static Rendering::RenderingShaderManager renderingShaderManager(g_addonUIData, resourceManager);
-static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, resourceManager);
+static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, resourceManager, renderingShaderManager, groupResourceManager);
 static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager);
 static Rendering::RenderingPreviewManager renderingPreviewManager(g_addonUIData, resourceManager, renderingShaderManager);
 static Rendering::RenderingQueueManager renderingQueueManager(g_addonUIData, resourceManager);
@@ -533,6 +534,7 @@ static void onPresent(command_queue* queue, swapchain* swapchain, const rect* so
             renderingEffectManager.RenderRemainingEffects(runtime);
             resourceManager.CheckPreview(queue->get_immediate_command_list(), dev, runtime);
             renderingBindingManager.ClearUnmatchedTextureBindings(runtime->get_command_queue()->get_immediate_command_list());
+            groupResourceManager.CheckGroupBuffers(queue->get_immediate_command_list(), dev, runtime);
         }
     }
 
@@ -601,6 +603,8 @@ static bool Init()
 {
     resourceManager.SetResourceShim(g_addonUIData.GetResourceShim());
     resourceManager.Init();
+
+    g_addonUIData.AddToggleGroupRemovalCallback(std::bind(&Rendering::ToggleGroupResourceManager::ToggleGroupRemoved, &groupResourceManager, std::placeholders::_1, std::placeholders::_2));
 
     return constantManager.Init(g_addonUIData, &constantCopy, &constantHandler);
 }

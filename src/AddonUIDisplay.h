@@ -306,6 +306,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
 
     bool retry = group->getRequeueAfterRTMatchingFailure();
     bool tonemap = group->getToneMap();
+    bool preserveAlpha = group->getPreserveAlpha();
     static const char* swapchainMatchOptions[] = { "RESOLUTION", "ASPECT RATIO", "EXTENDED ASPECT RATIO", "NONE"};
     uint32_t selectedSwapchainMatchMode = group->getMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
@@ -378,6 +379,13 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
+            ImGui::Text("Preserve target alpha channel");
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##preserveAlpha", &preserveAlpha);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+
             ImGui::Text("Match swapchain");
             ImGui::TableNextColumn();
             if (ImGui::BeginCombo("##effSwapChainMatchMode", typesSelectedSwapchainMatchMode, ImGuiComboFlags_None))
@@ -403,6 +411,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
         group->setMatchSwapchainResolution(selectedSwapchainMatchMode);
         group->setInvocationLocation(selectedIndex);
         group->setToneMap(tonemap);
+        group->setPreserveAlpha(preserveAlpha);
 
         ImGui::Separator();
 
@@ -1059,7 +1068,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         }
         ImGui::Separator();
 
-        std::vector<ShaderToggler::ToggleGroup> toRemove;
+        std::vector<ShaderToggler::ToggleGroup*> toRemove;
         for (auto& [_,group] : instance.GetToggleGroups())
         {
 
@@ -1067,7 +1076,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
             ImGui::AlignTextToFramePadding();
             if (ImGui::Button("X"))
             {
-                toRemove.push_back(group);
+                toRemove.push_back(&group);
             }
             ImGui::SameLine();
             ImGui::Text(" %d ", group.getId());
@@ -1176,8 +1185,10 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         }
         for (const auto& group : toRemove)
         {
+            instance.SignalToggleGroupRemoved(runtime, group);
+
             std::erase_if(instance.GetToggleGroups(), [&group](const auto& item) {
-                return item.first == group.getId();
+                return item.first == group->getId();
                 });
         }
 

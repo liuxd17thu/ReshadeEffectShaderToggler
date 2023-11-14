@@ -386,7 +386,6 @@ void ResourceManager::SetShaderResourceViewHandles(uint64_t handle, reshade::api
     }
 }
 
-
 void ResourceManager::DisposePreview(reshade::api::effect_runtime* runtime)
 {
     if (preview_res[0] == 0 && preview_res[1] == 0)
@@ -401,7 +400,7 @@ void ResourceManager::DisposePreview(reshade::api::effect_runtime* runtime)
             runtime->get_device()->destroy_resource_view(preview_srv[i]);
         }
 
-        if (preview_rtv != 0)
+        if (preview_rtv[i] != 0)
         {
             runtime->get_device()->destroy_resource_view(preview_rtv[i]);
         }

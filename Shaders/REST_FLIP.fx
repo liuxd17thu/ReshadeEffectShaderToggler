@@ -3,9 +3,7 @@
 void Flip(in float4 pos : SV_Position, in float2 texcoord : Texcoord, out float4 o : SV_Target0)
 {
     texcoord.y = 1.0 - texcoord.y;
-    float4 color = tex2D(ReShade::BackBuffer, texcoord);
-    
-    o = color.rgb;
+    o = tex2D(ReShade::BackBuffer, texcoord);
 }
 
 technique REST_FLIP

@@ -152,6 +152,8 @@ namespace ShaderToggler
         void setPreserveAlpha(bool alpha) { _preserveAlpha = alpha; }
         bool getFlipBuffer() const { return _flipBuffer; }
         void setFlipBuffer(bool flip) { _flipBuffer = flip; }
+        bool getFlipBufferBinding() const { return _flipBufferBinding; }
+        void setFlipBufferBinding(bool flip) { _flipBufferBinding = flip; }
         const reshade::api::resource_desc& getTargetBufferDescription() const { return _bufferDesc; }
         void setTargetBufferDescription(const reshade::api::resource_desc& desc) { _bufferDesc = desc; }
         bool getRecreateBuffer() const { return _recreateBuffer; }
@@ -213,6 +215,7 @@ namespace ShaderToggler
         bool _tonemapHDRtoSDRtoHDR = false;
         bool _preserveAlpha = false;
         bool _flipBuffer = false;
+        bool _flipBufferBinding = false;
         uint32_t _matchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;
         uint32_t _bindingMatchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;
         bool _requeueAfterRTMatchingFailure;

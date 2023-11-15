@@ -175,6 +175,16 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
                 shaderManager.CopyResource(cmd_list, preview_ping_srv, preview_pong_rtv, deviceData.huntPreview.width, deviceData.huntPreview.height);
                 //cmd_list->barrier(previewResPong, resource_usage::render_target, resource_usage::shader_resource);
             }
+
+            if (group.getFlipBuffer() && deviceData.specialEffects.flip.technique != 0)
+            {
+                deviceData.current_runtime->render_technique(deviceData.specialEffects.flip.technique, cmd_list, preview_pong_rtv);
+            }
+
+            if (group.getToneMap() && deviceData.specialEffects.tonemap_to_sdr.technique != 0)
+            {
+                deviceData.current_runtime->render_technique(deviceData.specialEffects.tonemap_to_sdr.technique, cmd_list, preview_pong_rtv);
+            }
         }
 
         deviceData.huntPreview.matched = true;

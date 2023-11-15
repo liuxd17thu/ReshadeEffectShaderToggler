@@ -218,6 +218,7 @@ namespace ShaderToggler
         iniFile.SetValue("TextureBindingName", _textureBindingName, "", sectionRoot);
         iniFile.SetBool("ClearTextureBindings", _clearBindings, "", sectionRoot);
         iniFile.SetBool("CopyTextureBinding", _copyTextureBinding, "", sectionRoot);
+        iniFile.SetBool("FlipBufferBinding", _flipBufferBinding, "", sectionRoot);
 
         iniFile.SetBool("ExtractConstants", _extractConstants, "", sectionRoot);
         iniFile.SetUInt("ConstantPipelineSlot", _cbSlotIndex, "", sectionRoot);
@@ -487,5 +488,7 @@ namespace ShaderToggler
         _preserveAlpha = iniFile.GetBoolOrDefault("PreserveTargetAlphaChannel", sectionRoot, false);
 
         _flipBuffer = iniFile.GetBoolOrDefault("FlipBuffer", sectionRoot, false);
+
+        _flipBufferBinding = iniFile.GetBoolOrDefault("FlipBufferBinding", sectionRoot, false);
     }
 }

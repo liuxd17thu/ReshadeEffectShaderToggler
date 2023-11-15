@@ -527,6 +527,7 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
 
         bool copyBinding = group->getCopyTextureBinding();
         bool clearBinding = group->getClearBindings();
+        bool flipBinding = group->getFlipBufferBinding();
 
         if (ImGui::BeginTable("Bindingsettings", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody))
         {
@@ -584,6 +585,15 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
 
             ImGui::TableNextRow();
 
+            ImGui::BeginDisabled(!copyBinding);
+            ImGui::TableNextColumn();
+            ImGui::Text("Flip binding texture");
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##flipbinding", &flipBinding);
+            ImGui::EndDisabled();
+
+            ImGui::TableNextRow();
+
             ImGui::TableNextColumn();
             ImGui::Text("Clear binding on hash miss");
             ImGui::TableNextColumn();
@@ -604,6 +614,7 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
         group->setTextureBindingName(tmpBuffer);
         group->setCopyTextureBinding(copyBinding);
         group->setClearBindings(clearBinding);
+        group->setFlipBufferBinding(flipBinding);
 
         ImGui::Separator();
 

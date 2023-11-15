@@ -86,6 +86,7 @@ struct __declspec(novtable) TextureBindingData final
     reshade::api::resource res;
     reshade::api::format format;
     reshade::api::resource_view srv;
+    reshade::api::resource_view rtv;
     uint32_t width;
     uint32_t height;
     uint16_t levels;

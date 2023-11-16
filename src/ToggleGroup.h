@@ -35,6 +35,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#include "reshade.hpp"
 #include "CDataFile.h"
 
 namespace ShaderToggler
@@ -147,6 +148,16 @@ namespace ShaderToggler
         void setClearPreviewAlpha(bool previewClearAlpha) { _previewClearAlpha = previewClearAlpha; }
         bool getToneMap() const { return _tonemapHDRtoSDRtoHDR; }
         void setToneMap(bool tonemap) { _tonemapHDRtoSDRtoHDR = tonemap; }
+        bool getPreserveAlpha() const { return _preserveAlpha; }
+        void setPreserveAlpha(bool alpha) { _preserveAlpha = alpha; }
+        bool getFlipBuffer() const { return _flipBuffer; }
+        void setFlipBuffer(bool flip) { _flipBuffer = flip; }
+        bool getFlipBufferBinding() const { return _flipBufferBinding; }
+        void setFlipBufferBinding(bool flip) { _flipBufferBinding = flip; }
+        const reshade::api::resource_desc& getTargetBufferDescription() const { return _bufferDesc; }
+        void setTargetBufferDescription(const reshade::api::resource_desc& desc) { _bufferDesc = desc; }
+        bool getRecreateBuffer() const { return _recreateBuffer; }
+        void setRecreateBuffer(bool recreate) { _recreateBuffer = recreate; }
         void dispatchCBCycle(DescriptorCycle cycle) { _cbCycle = cycle; }
         DescriptorCycle consumeCBCycle() 
         { 
@@ -202,6 +213,9 @@ namespace ShaderToggler
         bool _previewClearAlpha = true;
         bool _hasTechniqueExceptions; // _preferredTechniques are handled as exception to _allowAllTechniques
         bool _tonemapHDRtoSDRtoHDR = false;
+        bool _preserveAlpha = false;
+        bool _flipBuffer = false;
+        bool _flipBufferBinding = false;
         uint32_t _matchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;
         uint32_t _bindingMatchSwapchainResolution = SWAPCHAIN_MATCH_MODE_RESOLUTION;
         bool _requeueAfterRTMatchingFailure;
@@ -212,5 +226,7 @@ namespace ShaderToggler
         DescriptorCycle _cbCycle;
         DescriptorCycle _srvCycle;
         DescriptorCycle _rtCycle;
+        reshade::api::resource_desc _bufferDesc = {};
+        bool _recreateBuffer = false;
     };
 }

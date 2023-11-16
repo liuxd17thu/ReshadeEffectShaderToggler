@@ -306,6 +306,8 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
 
     bool retry = group->getRequeueAfterRTMatchingFailure();
     bool tonemap = group->getToneMap();
+    bool preserveAlpha = group->getPreserveAlpha();
+    bool flipbuffer = group->getFlipBuffer();
     static const char* swapchainMatchOptions[] = { "分辨率", "宽高比", "扩展的宽高比", "无"};
     uint32_t selectedSwapchainMatchMode = group->getMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
@@ -378,6 +380,22 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
+            ImGui::Text("翻转渲染目标");
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##flipbuffer", &flipbuffer);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+
+            ImGui::Text("保留目标Alpha通道");
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##preserveAlpha", &preserveAlpha);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+
+
+
             ImGui::Text("匹配交换链");
             ImGui::TableNextColumn();
             if (ImGui::BeginCombo("##effSwapChainMatchMode", typesSelectedSwapchainMatchMode, ImGuiComboFlags_None))
@@ -403,6 +421,8 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
         group->setMatchSwapchainResolution(selectedSwapchainMatchMode);
         group->setInvocationLocation(selectedIndex);
         group->setToneMap(tonemap);
+        group->setPreserveAlpha(preserveAlpha);
+        group->setFlipBuffer(flipbuffer);
 
         ImGui::Separator();
 
@@ -509,6 +529,7 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
 
         bool copyBinding = group->getCopyTextureBinding();
         bool clearBinding = group->getClearBindings();
+        bool flipBinding = group->getFlipBufferBinding();
 
         if (ImGui::BeginTable("Bindingsettings", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody))
         {
@@ -566,6 +587,15 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
 
             ImGui::TableNextRow();
 
+            ImGui::BeginDisabled(!copyBinding);
+            ImGui::TableNextColumn();
+            ImGui::Text("翻转绑定纹理");
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##flipbinding", &flipBinding);
+            ImGui::EndDisabled();
+
+            ImGui::TableNextRow();
+
             ImGui::TableNextColumn();
             ImGui::Text("Hash缺失时清除绑定");
             ImGui::TableNextColumn();
@@ -586,6 +616,7 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
         group->setTextureBindingName(tmpBuffer);
         group->setCopyTextureBinding(copyBinding);
         group->setClearBindings(clearBinding);
+        group->setFlipBufferBinding(flipBinding);
 
         ImGui::Separator();
 
@@ -1059,7 +1090,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         }
         ImGui::Separator();
 
-        std::vector<ShaderToggler::ToggleGroup> toRemove;
+        std::vector<ShaderToggler::ToggleGroup*> toRemove;
         for (auto& [_,group] : instance.GetToggleGroups())
         {
 
@@ -1067,7 +1098,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
             ImGui::AlignTextToFramePadding();
             if (ImGui::Button("X"))
             {
-                toRemove.push_back(group);
+                toRemove.push_back(&group);
             }
             ImGui::SameLine();
             ImGui::Text(" %d ", group.getId());
@@ -1176,8 +1207,10 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         }
         for (const auto& group : toRemove)
         {
+            instance.SignalToggleGroupRemoved(runtime, group);
+
             std::erase_if(instance.GetToggleGroups(), [&group](const auto& item) {
-                return item.first == group.getId();
+                return item.first == group->getId();
                 });
         }
 

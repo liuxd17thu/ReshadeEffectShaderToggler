@@ -222,6 +222,7 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="TechniqueManager.h" />
     <ClInclude Include="ToggleGroup.h" />
+    <ClInclude Include="ToggleGroupResourceManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AddonUIData.cpp" />
@@ -251,6 +252,7 @@
     <ClCompile Include="StateTracking.cpp" />
     <ClCompile Include="TechniqueManager.cpp" />
     <ClCompile Include="ToggleGroup.cpp" />
+    <ClCompile Include="ToggleGroupResourceManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ShaderToggler.rc" />

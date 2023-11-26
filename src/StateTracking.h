@@ -113,8 +113,8 @@ namespace StateTracking
 
         std::array<std::pair<reshade::api::pipeline_layout, std::vector<root_entry>>, ALL_SHADER_STAGES_SIZE> root_tables;
         std::array<reshade::api::shader_stage, ALL_SHADER_STAGES_SIZE> root_table_stages;
-        std::vector<std::vector<uint32_t>> constant_buffer;
-        std::vector<std::vector<descriptor_tracking::descriptor_data>> descriptor_buffer;
+        std::array<std::vector<std::vector<uint32_t>>, ALL_SHADER_STAGES_SIZE> constant_buffer;
+        std::array<std::vector<std::vector<descriptor_tracking::descriptor_data>>, ALL_SHADER_STAGES_SIZE> descriptor_buffer;
 
         std::unordered_map<uint64_t, barrier_track> resource_barrier_track;
 

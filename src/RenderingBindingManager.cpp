@@ -117,13 +117,14 @@ uint32_t RenderingBindingManager::UpdateTextureBinding(effect_runtime* runtime, 
     {
         groupResource.target_description = desc;
         groupResource.state = ShaderToggler::GroupResourceState::RESOURCE_INVALID;
+        runtime->update_texture_bindings(group->getTextureBindingName().c_str(), empty_srv, empty_srv);
 
         return 0;
     }
 
     if (groupResource.state == ShaderToggler::GroupResourceState::RESOURCE_RECREATED || groupResource.state == ShaderToggler::GroupResourceState::RESOURCE_CLEARED)
     {
-        runtime->update_texture_bindings(group->getTextureBindingName().c_str(), groupResource.srv);
+        runtime->update_texture_bindings(group->getTextureBindingName().c_str(), groupResource.srv, groupResource.srv);
         groupResource.state = ShaderToggler::GroupResourceState::RESOURCE_VALID;
     }
 
@@ -197,12 +198,11 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
 
             GroupResource& bindingResource = group->GetGroupResource(ShaderToggler::GroupResourceType::RESOURCE_BINDING);
 
-            if (!bindingResource.enabled())
+            if (!group->getCopyTextureBinding())
             {
-                resource_view view_non_srgb = { 0 };
-                resource_view view_srgb = { 0 };
-
-                resourceManager.SetShaderResourceViewHandles(active_resource.handle, &view_non_srgb, &view_srgb);
+                GlobalResourceView& view = resourceManager.GetResourceView(active_resource.handle);
+                resource_view view_non_srgb = view.srv;
+                resource_view view_srgb = view.rtv_srgb;
 
                 if (view_non_srgb == 0)
                 {
@@ -213,7 +213,7 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
 
                 resource target_res = bindingResource.res;
 
-                if (target_res != active_resource)
+                if (target_res != active_resource || bindingResource.state == ShaderToggler::GroupResourceState::RESOURCE_CLEARED)
                 {
                     runtime->update_texture_bindings(group->getTextureBindingName().c_str(), view_non_srgb, view_srgb);
 
@@ -340,9 +340,9 @@ void RenderingBindingManager::ClearUnmatchedTextureBindings(reshade::api::comman
         ToggleGroup& group = groupData.second;
         GroupResource& resources = group.GetGroupResource(ShaderToggler::GroupResourceType::RESOURCE_BINDING);
 
-        if (!data.bindingsUpdated.contains(&group) && resources.clear_on_miss() && resources.state != ShaderToggler::GroupResourceState::RESOURCE_CLEARED)
+        if (!data.bindingsUpdated.contains(&group) && resources.clear_on_miss() && empty_srv != 0 && resources.state != ShaderToggler::GroupResourceState::RESOURCE_CLEARED)
         {
-            data.current_runtime->update_texture_bindings(group.getTextureBindingName().c_str(), empty_srv);
+            data.current_runtime->update_texture_bindings(group.getTextureBindingName().c_str(), empty_srv, empty_srv);
             resources.state = ShaderToggler::GroupResourceState::RESOURCE_CLEARED;
         }
     }

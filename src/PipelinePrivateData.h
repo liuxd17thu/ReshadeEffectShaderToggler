@@ -10,6 +10,7 @@
 #include "ToggleGroup.h"
 
 using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>;
+using binding_queue = std::unordered_map<ShaderToggler::ToggleGroup*, std::tuple<uint64_t, reshade::api::resource>>;
 
 struct __declspec(novtable) EffectData final {
     constexpr EffectData() : rendered(false), enabled_in_screenshot(true), technique({}), timeout(-1) {}
@@ -45,7 +46,7 @@ struct __declspec(novtable) EffectData final {
 
 struct __declspec(novtable) ShaderData final {
     uint32_t activeShaderHash = -1;
-    effect_queue bindingsToUpdate;
+    binding_queue bindingsToUpdate;
     std::unordered_set<ShaderToggler::ToggleGroup*> constantBuffersToUpdate;
     effect_queue techniquesToRender;
     std::unordered_set<ShaderToggler::ToggleGroup*> srvToUpdate;
@@ -124,11 +125,13 @@ struct __declspec(novtable) SpecialEffect final
     reshade::api::effect_technique technique;
 };
 
-struct __declspec(novtable) SpecialEffects final
+enum SpecialEffects : uint32_t
 {
-    SpecialEffect tonemap_to_sdr = SpecialEffect{ "REST_TONEMAP_TO_SDR", reshade::api::effect_technique {0} };
-    SpecialEffect tonemap_to_hdr = SpecialEffect{ "REST_TONEMAP_TO_HDR", reshade::api::effect_technique {0} };
-    SpecialEffect flip = SpecialEffect{ "REST_FLIP", reshade::api::effect_technique {0} };
+    REST_TONEMAP_TO_SDR = 0,
+    REST_TONEMAP_TO_HDR,
+    REST_FLIP,
+    REST_NOOP,
+    REST_EFFECTS_COUNT
 };
 
 struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContainer {
@@ -139,11 +142,14 @@ struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContai
     std::vector<std::pair<std::string, EffectData*>> allSortedTechniques;
     std::unordered_map<std::string, EffectData*> allEnabledTechniques;
     std::shared_mutex binding_mutex;
-    std::unordered_map<std::string, TextureBindingData> bindingMap;
-    std::unordered_set<std::string> bindingsUpdated;
+    std::unordered_set<const ShaderToggler::ToggleGroup*> bindingsUpdated;
     std::unordered_set<const ShaderToggler::ToggleGroup*> constantsUpdated;
     std::unordered_set<const ShaderToggler::ToggleGroup*> srvUpdated;
-    bool reload_bindings = false;
     HuntPreview huntPreview;
-    SpecialEffects specialEffects;
+    SpecialEffect specialEffects[4] = {
+        SpecialEffect{ "REST_TONEMAP_TO_SDR", reshade::api::effect_technique {0} },
+        SpecialEffect{ "REST_TONEMAP_TO_HDR", reshade::api::effect_technique {0} },
+        SpecialEffect{ "REST_FLIP", reshade::api::effect_technique {0} },
+        SpecialEffect{ "REST_NOOP", reshade::api::effect_technique {0} },
+    };
 };

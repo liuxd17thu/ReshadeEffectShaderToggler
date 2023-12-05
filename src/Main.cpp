@@ -92,7 +92,7 @@ static Rendering::ResourceManager resourceManager;
 static Rendering::ToggleGroupResourceManager groupResourceManager;
 static Rendering::RenderingShaderManager renderingShaderManager(g_addonUIData, resourceManager);
 static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, resourceManager, renderingShaderManager, groupResourceManager);
-static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager);
+static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager, groupResourceManager);
 static Rendering::RenderingPreviewManager renderingPreviewManager(g_addonUIData, resourceManager, renderingShaderManager);
 static Rendering::RenderingQueueManager renderingQueueManager(g_addonUIData, resourceManager);
 static ShaderToggler::TechniqueManager techniqueManager(keyMonitor, allTechniques);
@@ -155,7 +155,7 @@ static bool onCreateSwapchain(swapchain_desc& desc, void* hwnd)
 
 static void onInitSwapchain(reshade::api::swapchain* swapchain)
 {
-    //resourceManager.OnInitSwapchain(swapchain);
+    resourceManager.OnInitSwapchain(swapchain);
 }
 
 
@@ -246,7 +246,7 @@ static void onInitEffectRuntime(effect_runtime* runtime)
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
     keyMonitor.Init(runtime);
-    resourceManager.OnInitSwapchain(runtime);
+    //resourceManager.OnInitSwapchain(runtime);
     renderingShaderManager.InitShaders(runtime->get_device());
 
     // Dispose of texture bindings created from the runtime below
@@ -287,6 +287,7 @@ static void onDestroyEffectRuntime(effect_runtime* runtime)
     // Pick the runtime on top of our stack if there are any
     if (runtime == data.current_runtime)
     {
+        groupResourceManager.DisposeGroupBuffers(runtime, g_addonUIData.GetToggleGroups());
         renderingBindingManager.DisposeTextureBindings(runtime);
 
         if (runtimes.size() > 0)
@@ -532,9 +533,6 @@ static void onPresent(command_queue* queue, swapchain* swapchain, const rect* so
         if (runtime->get_effects_state())
         {
             renderingEffectManager.RenderRemainingEffects(runtime);
-            resourceManager.CheckPreview(queue->get_immediate_command_list(), dev, runtime);
-            renderingBindingManager.ClearUnmatchedTextureBindings(runtime->get_command_queue()->get_immediate_command_list());
-            groupResourceManager.CheckGroupBuffers(queue->get_immediate_command_list(), dev, runtime);
         }
     }
 
@@ -552,19 +550,24 @@ static void onReshadePresent(effect_runtime* runtime)
 
     keyMonitor.PollKeyStates(runtime);
 
+    if (g_addonUIData.GetPreventRuntimeReload())
+    {
+        renderingEffectManager.PreventRuntimeReload(queue->get_immediate_command_list());
+    }
+
+    if (runtime->get_effects_state())
+    {
+        resourceManager.CheckPreview(queue->get_immediate_command_list(), dev, runtime);
+        groupResourceManager.CheckGroupBuffers(runtime, g_addonUIData.GetToggleGroups());
+        renderingBindingManager.ClearUnmatchedTextureBindings(runtime->get_command_queue()->get_immediate_command_list());
+        resourceManager.CheckResourceViews(runtime);
+    }
+
     techniqueManager.OnReshadePresent(runtime);
 
     deviceData.bindingsUpdated.clear();
     deviceData.constantsUpdated.clear();
     deviceData.huntPreview.Reset();
-
-    if (deviceData.reload_bindings)
-    {
-        renderingBindingManager.DisposeTextureBindings(runtime);
-        renderingBindingManager.InitTextureBingings(runtime);
-
-        deviceData.reload_bindings = false;
-    }
 
     CheckHotkeys(g_addonUIData, runtime);
 }
@@ -606,7 +609,7 @@ static bool Init()
 
     g_addonUIData.AddToggleGroupRemovalCallback(std::bind(&Rendering::ToggleGroupResourceManager::ToggleGroupRemoved, &groupResourceManager, std::placeholders::_1, std::placeholders::_2));
 
-    return constantManager.Init(g_addonUIData, &constantCopy, &constantHandler);
+    return constantManager.Init(g_addonUIData, groupResourceManager, &constantCopy, &constantHandler);
 }
 
 

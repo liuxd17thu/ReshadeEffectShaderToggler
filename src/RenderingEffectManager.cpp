@@ -30,10 +30,10 @@ bool RenderingEffectManager::RenderRemainingEffects(effect_runtime* runtime)
     bool rendered = false;
 
     resource res = runtime->get_current_back_buffer();
-    resource_view active_rtv = { 0 };
-    resource_view active_rtv_srgb = { 0 };
 
-    resourceManager.SetResourceViewHandles(res.handle, &active_rtv, &active_rtv_srgb);
+    GlobalResourceView& view = resourceManager.GetResourceView(res.handle);
+    resource_view active_rtv = view.rtv;
+    resource_view active_rtv_srgb = view.rtv_srgb;
 
     if (deviceData.current_runtime == nullptr || active_rtv == 0 || !deviceData.rendered_effects) {
         return false;
@@ -105,27 +105,32 @@ bool RenderingEffectManager::_RenderEffects(
         resource_view view_srgb = {};
         resource_view group_view = {};
         resource_desc desc = cmd_list->get_device()->get_resource_desc(active_resource);
+        GroupResource& groupResource = group->GetGroupResource(GroupResourceType::RESOURCE_ALPHA);
+        GlobalResourceView& view = resourceManager.GetResourceView(active_resource.handle);
         bool copyPreserveAlpha = false;
 
         if (group->getPreserveAlpha())
         {
-            if (groupResourceManager.IsCompatibleWithGroupFormat(runtime, active_resource, group))
+            if (groupResourceManager.IsCompatibleWithGroupFormat(runtime->get_device(), GroupResourceType::RESOURCE_ALPHA, active_resource, group))
             {
                 resource group_res = {};
-                groupResourceManager.SetGroupBufferHandles(group, &group_res, &view_non_srgb, &view_srgb, &group_view);
+                groupResourceManager.SetGroupBufferHandles(group, GroupResourceType::RESOURCE_ALPHA, &group_res, &view_non_srgb, &view_srgb, &group_view);
                 cmd_list->copy_resource(active_resource, group_res);
                 copyPreserveAlpha = true;
             }
             else
             {
-                resourceManager.SetResourceViewHandles(active_resource.handle, &view_non_srgb, &view_srgb);
-                group->setRecreateBuffer(true);
-                group->setTargetBufferDescription(desc);
+                view_non_srgb = view.rtv;
+                view_srgb = view.rtv_srgb;
+
+                groupResource.state = GroupResourceState::RESOURCE_INVALID;
+                groupResource.target_description = desc;
             }
         }
         else
         {
-            resourceManager.SetResourceViewHandles(active_resource.handle, &view_non_srgb, &view_srgb);
+            view_non_srgb = view.rtv;
+            view_srgb = view.rtv_srgb;
         }
 
         if (view_non_srgb == 0)
@@ -133,14 +138,14 @@ bool RenderingEffectManager::_RenderEffects(
             continue;
         }
 
-        if (group->getFlipBuffer() && deviceData.specialEffects.flip.technique != 0)
+        if (group->getFlipBuffer() && deviceData.specialEffects[REST_FLIP].technique != 0)
         {
-            runtime->render_technique(deviceData.specialEffects.flip.technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(deviceData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
-        if (group->getToneMap() && deviceData.specialEffects.tonemap_to_sdr.technique != 0)
+        if (group->getToneMap() && deviceData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
         {
-            runtime->render_technique(deviceData.specialEffects.tonemap_to_sdr.technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(deviceData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         for (const auto& effectTech : effectList)
@@ -157,23 +162,23 @@ bool RenderingEffectManager::_RenderEffects(
             rendered = true;
         }
 
-        if (group->getToneMap() && deviceData.specialEffects.tonemap_to_hdr.technique != 0)
+        if (group->getToneMap() && deviceData.specialEffects[REST_TONEMAP_TO_HDR].technique != 0)
         {
-            runtime->render_technique(deviceData.specialEffects.tonemap_to_hdr.technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(deviceData.specialEffects[REST_TONEMAP_TO_HDR].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
-        if (group->getFlipBuffer() && deviceData.specialEffects.flip.technique != 0)
+        if (group->getFlipBuffer() && deviceData.specialEffects[REST_FLIP].technique != 0)
         {
-            runtime->render_technique(deviceData.specialEffects.flip.technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(deviceData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         if (copyPreserveAlpha)
         {
-            resource_view target_view_non_srgb = {};
-            resource_view target_view_srgb = {};
+            resource_view target_view_non_srgb = view.rtv;
+            resource_view target_view_srgb = view.rtv_srgb;
 
-            resourceManager.SetResourceViewHandles(active_resource.handle, &target_view_non_srgb, &target_view_srgb);
-            shaderManager.CopyResourceMaskAlpha(cmd_list, group_view, target_view_non_srgb, desc.texture.width, desc.texture.height);
+            if (target_view_non_srgb != 0)
+                shaderManager.CopyResourceMaskAlpha(cmd_list, group_view, target_view_non_srgb, desc.texture.width, desc.texture.height);
         }
     }
 
@@ -228,7 +233,10 @@ void RenderingEffectManager::RenderEffects(command_list* cmd_list, uint64_t call
         return;
     }
 
-    deviceData.current_runtime->render_effects(cmd_list, resource_view{ 0 }, resource_view{ 0 });
+    if (!deviceData.rendered_effects)
+    {
+        deviceData.current_runtime->render_effects(cmd_list, resource_view{ 0 }, resource_view{ 0 });
+    }
 
     unique_lock<shared_mutex> dev_mutex(deviceData.render_mutex);
     rendered =
@@ -255,5 +263,25 @@ void RenderingEffectManager::RenderEffects(command_list* cmd_list, uint64_t call
     if (rendered)
     {
         cmd_list->get_private_data<state_tracking>().apply(cmd_list);
+    }
+}
+
+
+void RenderingEffectManager::PreventRuntimeReload(reshade::api::command_list* cmd_list)
+{
+    DeviceDataContainer& deviceData = cmd_list->get_device()->get_private_data<DeviceDataContainer>();
+
+    // cringe
+    if (deviceData.specialEffects[REST_NOOP].technique != 0)
+    {
+        resource res = deviceData.current_runtime->get_current_back_buffer();
+        GlobalResourceView& view = resourceManager.GetResourceView(res.handle);
+        resource_view active_rtv = view.rtv;
+        resource_view active_rtv_srgb = view.rtv_srgb;
+
+        if (resourceManager.dummy_rtv != 0)
+            deviceData.current_runtime->render_technique(deviceData.specialEffects[REST_NOOP].technique, cmd_list, resourceManager.dummy_rtv, resourceManager.dummy_rtv);
+
+        deviceData.current_runtime->render_technique(deviceData.specialEffects[REST_NOOP].technique, cmd_list, active_rtv, active_rtv_srgb);
     }
 }

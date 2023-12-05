@@ -62,9 +62,9 @@ void state_block::apply_descriptors(command_list* cmd_list) const
 
     for (uint32_t i = 0; i < it; i++)
     {
-        if (descriptors[i].type == root_entry_type::push_descriptors && descriptors[i].buffer_index >= 0 && descriptor_buffer[descriptors[i].buffer_index].size() > 0)
+        if (descriptors[i].type == root_entry_type::push_descriptors && descriptors[i].buffer_index >= 0 && descriptor_buffer[0][descriptors[i].buffer_index].size() > 0)
         {
-            const descriptor_tracking::descriptor_data* desc = &descriptor_buffer[descriptors[i].buffer_index][0];
+            const descriptor_tracking::descriptor_data* desc = &descriptor_buffer[0][descriptors[i].buffer_index][0];
 
             switch (desc->type)
             {
@@ -192,14 +192,17 @@ void state_block::clear()
     scissor_rects.clear();
     root_tables.fill(make_pair(pipeline_layout{ 0 }, std::vector<root_entry>()));
     root_table_stages.fill(static_cast<shader_stage>(0));
-    constant_buffer.clear();
-    descriptor_buffer.clear();
+    std::for_each(constant_buffer.begin(), constant_buffer.end(), [](std::vector<std::vector<uint32_t>>& v) { v.clear(); });
+    std::for_each(descriptor_buffer.begin(), descriptor_buffer.end(), [](std::vector<std::vector<descriptor_tracking::descriptor_data>>& v) { v.clear(); });
     current_pipeline.fill(pipeline{ 0 });
     current_pipeline_stage.fill(static_cast<pipeline_stage>(0));
     resource_barrier_track.clear();
+}
 
-    constant_buffer.reserve(1000);
-    descriptor_buffer.reserve(1000);
+void state_block::clear_present(effect_runtime* runtime)
+{
+     render_targets.clear();
+     depth_stencil = { 0 };
 }
 
 static inline int32_t get_shader_stage_index(shader_stage stages)
@@ -318,12 +321,14 @@ static void on_bind_descriptor_tables(command_list* cmd_list, shader_stage stage
     const auto& descriptor_state = cmd_list->get_device()->get_private_data<descriptor_tracking>();
     auto& [desc_layout, root_table] = state_tracker.root_tables[idx];
     auto& state_stages = state_tracker.root_table_stages[idx];
-    auto& constant_buffer = state_tracker.constant_buffer;
-    auto& descriptor_buffer = state_tracker.descriptor_buffer;
+    auto& descriptor_buffer = state_tracker.descriptor_buffer[idx];
+    auto& constant_buffer = state_tracker.constant_buffer[idx];
 
     if (desc_layout != layout)
     {
         root_table.clear(); // Layout changed, which resets all descriptor set bindings
+        descriptor_buffer.clear();
+        constant_buffer.clear();
     }
 
     desc_layout = layout;
@@ -378,12 +383,14 @@ static void on_bind_descriptor_tables_no_track(command_list* cmd_list, shader_st
     auto& state_tracker = cmd_list->get_private_data<state_tracking>();
     auto& [desc_layout, root_table] = state_tracker.root_tables[idx];
     auto& state_stages = state_tracker.root_table_stages[idx];
-    auto& constant_buffer = state_tracker.constant_buffer;
-    auto& descriptor_buffer = state_tracker.descriptor_buffer;
+    auto& constant_buffer = state_tracker.constant_buffer[idx];
+    auto& descriptor_buffer = state_tracker.descriptor_buffer[idx];
 
     if (desc_layout != layout)
     {
         root_table.clear(); // Layout changed, which resets all descriptor set bindings
+        constant_buffer.clear();
+        descriptor_buffer.clear();
     }
 
     desc_layout = layout;
@@ -437,8 +444,7 @@ static void on_push_descriptors(command_list* cmd_list, shader_stage stages, pip
     auto& state_tracker = cmd_list->get_private_data<state_tracking>();
     auto& [desc_layout, root_table] = state_tracker.root_tables[idx];
     auto& state_stages = state_tracker.root_table_stages[idx];
-    auto& constant_buffer = state_tracker.constant_buffer;
-    auto& descriptor_buffer = state_tracker.descriptor_buffer;
+    auto& descriptor_buffer = state_tracker.descriptor_buffer[idx];
     
     desc_layout = layout;
     state_stages = stages;
@@ -483,8 +489,7 @@ static void on_push_constants(command_list* cmd_list, shader_stage stages, pipel
     auto& state_tracker = cmd_list->get_private_data<state_tracking>();
     auto& [desc_layout, root_table] = state_tracker.root_tables[idx];
     auto& state_stages = state_tracker.root_table_stages[idx];
-    auto& constant_buffer = state_tracker.constant_buffer;
-    auto& descriptor_buffer = state_tracker.descriptor_buffer;
+    auto& constant_buffer = state_tracker.constant_buffer[idx];
     
     desc_layout = layout;
     state_stages = stages;
@@ -534,7 +539,7 @@ const descriptor_tracking::descriptor_data* state_block::get_descriptor_at(uint3
 
         if ((root_entry.type == root_entry_type::push_descriptors || root_entry.type == root_entry_type::descriptor_table) && root_entry.buffer_index >= 0)
         {
-            const auto& table_entry = descriptor_buffer[root_entry.buffer_index];
+            const auto& table_entry = descriptor_buffer[stageIndex][root_entry.buffer_index];
 
             if (table_entry.size() > binding)
             {
@@ -579,7 +584,7 @@ const std::vector<uint32_t>* state_block::get_constants_at(uint32_t stageIndex, 
 
         if (root_entry.type == root_entry_type::push_constants && root_entry.buffer_index >= 0)
         {
-            return &constant_buffer.at(root_entry.buffer_index);
+            return &constant_buffer[stageIndex][root_entry.buffer_index];
         }
     }
 
@@ -595,7 +600,10 @@ static void on_reset_command_list(command_list* cmd_list)
 static void on_reshade_present(effect_runtime* runtime)
 {
     if (runtime->get_device()->get_api() != device_api::d3d12 && runtime->get_device()->get_api() != device_api::vulkan)
-        on_reset_command_list(runtime->get_command_queue()->get_immediate_command_list());
+    {
+        auto& state = runtime->get_command_queue()->get_immediate_command_list()->get_private_data<state_tracking>();
+        state.clear_present(runtime);
+    }
 }
 
 void state_block::start_resource_barrier_tracking(reshade::api::resource res, reshade::api::resource_usage current_usage)
@@ -665,8 +673,8 @@ void state_tracking::register_events(bool track)
     reshade::register_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
     reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewports);
     reshade::register_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
-    reshade::register_event<reshade::addon_event::reshade_present>(on_reshade_present);
     reshade::register_event<reshade::addon_event::barrier>(on_barrier);
+    reshade::register_event<reshade::addon_event::reshade_present>(on_reshade_present);
 
     reshade::register_event<reshade::addon_event::push_descriptors>(on_push_descriptors);
     reshade::register_event<reshade::addon_event::push_constants>(on_push_constants);
@@ -694,8 +702,8 @@ void state_tracking::unregister_events()
     reshade::unregister_event<reshade::addon_event::bind_pipeline_states>(on_bind_pipeline_states);
     reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewports);
     reshade::unregister_event<reshade::addon_event::bind_scissor_rects>(on_bind_scissor_rects);
-    reshade::unregister_event<reshade::addon_event::reshade_present>(on_reshade_present);
     reshade::unregister_event<reshade::addon_event::barrier>(on_barrier);
+    reshade::unregister_event<reshade::addon_event::reshade_present>(on_reshade_present);
 
     reshade::unregister_event<reshade::addon_event::push_descriptors>(on_push_descriptors);
     reshade::unregister_event<reshade::addon_event::push_constants>(on_push_constants);

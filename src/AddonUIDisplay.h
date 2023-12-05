@@ -263,30 +263,27 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
     ImGui::EndChild();
 }
 
-static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, const std::string& binding)
+static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, ShaderToggler::ToggleGroup* group)
 {
     if (ImGui::BeginChild("BindingPreview##child", { 0, 0 }, true, ImGuiWindowFlags_None))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
-        reshade::api::resource_view srv = reshade::api::resource_view{ 0 };
-        resManager.SetPongPreviewHandles(nullptr, nullptr, &srv);
-        const auto& it = deviceData.bindingMap.find(binding);
+        ShaderToggler::GroupResource& groupResource = group->GetGroupResource(ShaderToggler::GroupResourceType::RESOURCE_BINDING);
 
-        if (it != deviceData.bindingMap.end())
+        if (groupResource.srv != 0)
         {
-            auto& [_, texData] = *it;
-            ImGui::Text(std::format("格式: {} ", static_cast<uint32_t>(texData.format)).c_str());
+            ImGui::Text(std::format("格式: {} ", static_cast<uint32_t>(groupResource.target_description.texture.format)).c_str());
             ImGui::SameLine();
-            ImGui::Text(std::format("宽度: {} ", texData.width).c_str());
+            ImGui::Text(std::format("宽度: {} ", groupResource.target_description.texture.width).c_str());
             ImGui::SameLine();
-            ImGui::Text(std::format("高度: {} ", texData.height).c_str());
+            ImGui::Text(std::format("高度: {} ", groupResource.target_description.texture.height).c_str());
             ImGui::Separator();
 
             if (ImGui::BeginChild("BindingPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
             {
-                DrawPreview(texData.srv.handle, texData.width, texData.height);
+                DrawPreview(groupResource.srv.handle, groupResource.target_description.texture.width, groupResource.target_description.texture.height);
             }
             ImGui::EndChild();
         }
@@ -604,11 +601,6 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
             ImGui::TableNextRow();
 
             ImGui::TableNextColumn();
-            if (ImGui::Button("应用"))
-            {
-                deviceData.reload_bindings = true;
-            }
-            ImGui::TableNextColumn();
 
             ImGui::EndTable();
         }
@@ -813,7 +805,7 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
     if (ImGui::IsItemActive())
         height += ImGui::GetIO().MouseDelta.y;
 
-    DisplayBindingPreview(instance, resManager, runtime, group->getTextureBindingName());
+    DisplayBindingPreview(instance, resManager, runtime, group);
 
     ImGui::PopStyleVar();
 }
@@ -1066,6 +1058,10 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         bool trackDescriptors = instance.GetTrackDescriptors();
         ImGui::Checkbox("跟踪描述符", &trackDescriptors);
         instance.SetTrackDescriptors(trackDescriptors);
+
+        bool runtimeReload = instance.GetPreventRuntimeReload();
+        ImGui::Checkbox("Prevent runtime reload", &runtimeReload);
+        instance.SetPreventRuntimeReload(runtimeReload);
     }
 
     if (ImGui::CollapsingHeader("快捷键", ImGuiTreeNodeFlags_None))

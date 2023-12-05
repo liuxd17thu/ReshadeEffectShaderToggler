@@ -1060,7 +1060,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         instance.SetTrackDescriptors(trackDescriptors);
 
         bool runtimeReload = instance.GetPreventRuntimeReload();
-        ImGui::Checkbox("Prevent runtime reload", &runtimeReload);
+        ImGui::Checkbox("避免运行时重载", &runtimeReload);
         instance.SetPreventRuntimeReload(runtimeReload);
     }
 

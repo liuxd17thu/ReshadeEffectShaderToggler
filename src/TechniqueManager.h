@@ -19,9 +19,16 @@ namespace ShaderToggler
         void OnReshadePresent(reshade::api::effect_runtime* runtime);
         bool OnReshadeReorderTechniques(reshade::api::effect_runtime* runtime, size_t count, reshade::api::effect_technique* techniques);
 
+        void AddEffectsReloadingCallback(std::function<void(reshade::api::effect_runtime*)> callback);
+        void SignalEffectsReloading(reshade::api::effect_runtime* runtime);
+        void AddEffectsReloadedCallback(std::function<void(reshade::api::effect_runtime*)> callback);
+        void SignalEffectsReloaded(reshade::api::effect_runtime* runtime);
+
     private:
         KeyMonitor& keyMonitor;
         std::vector<std::string>& allTechniques;
+        std::vector<std::function<void(reshade::api::effect_runtime*)>> effectsReloadingCallback;
+        std::vector<std::function<void(reshade::api::effect_runtime*)>> effectsReloadedCallback;
 
         static constexpr size_t CHAR_BUFFER_SIZE = 256;
         static char charBuffer[CHAR_BUFFER_SIZE];

@@ -12,9 +12,35 @@ TechniqueManager::TechniqueManager(KeyMonitor& kMonitor, vector<string>& techniq
 
 }
 
+void TechniqueManager::AddEffectsReloadingCallback(std::function<void(reshade::api::effect_runtime*)> callback)
+{
+    effectsReloadingCallback.push_back(callback);
+}
+
+void TechniqueManager::AddEffectsReloadedCallback(std::function<void(reshade::api::effect_runtime*)> callback)
+{
+    effectsReloadedCallback.push_back(callback);
+}
+
+void TechniqueManager::SignalEffectsReloading(reshade::api::effect_runtime* runtime)
+{
+    for (auto& func : effectsReloadingCallback)
+    {
+        func(runtime);
+    }
+}
+
+void TechniqueManager::SignalEffectsReloaded(reshade::api::effect_runtime* runtime)
+{
+    for (auto& func : effectsReloadedCallback)
+    {
+        func(runtime);
+    }
+}
+
 void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* runtime)
 {
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+    RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
     data.allEnabledTechniques.clear();
     data.allSortedTechniques.clear();
     data.allTechniques.clear();
@@ -49,11 +75,25 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
             data.allEnabledTechniques.emplace(name, &it.first->second);
         }
         });
+
+    int32_t enabledCount = static_cast<int32_t>(data.allEnabledTechniques.size());
+
+    if (enabledCount == 0 || enabledCount - data.previousEnableCount < 0)
+    {
+        SignalEffectsReloading(runtime);
+    }
+    else
+    {
+        SignalEffectsReloaded(runtime);
+    }
+
+    data.previousEnableCount = enabledCount;
 }
 
 bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* runtime, reshade::api::effect_technique technique, bool enabled)
 {
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+    RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
+
     charBufferSize = CHAR_BUFFER_SIZE;
     runtime->get_technique_name(technique, charBuffer, &charBufferSize);
     string techName(charBuffer);
@@ -91,12 +131,14 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
         }
     }
 
+    data.previousEnableCount = static_cast<int32_t>(data.allEnabledTechniques.size());
+
     return false;
 }
 
 bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* runtime, size_t count, reshade::api::effect_technique* techniques)
 {
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+    RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
     data.allSortedTechniques.clear();
     data.allEnabledTechniques.clear();
     data.allTechniques.clear();
@@ -142,8 +184,7 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
 
 void TechniqueManager::OnReshadePresent(reshade::api::effect_runtime* runtime)
 {
-    device* dev = runtime->get_device();
-    DeviceDataContainer& deviceData = dev->get_private_data<DeviceDataContainer>();
+    RuntimeDataContainer& deviceData = runtime->get_private_data<RuntimeDataContainer>();
 
     for (auto el = deviceData.allEnabledTechniques.begin(); el != deviceData.allEnabledTechniques.end();)
     {

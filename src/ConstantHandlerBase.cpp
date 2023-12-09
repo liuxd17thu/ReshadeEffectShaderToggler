@@ -133,25 +133,16 @@ void ConstantHandlerBase::ClearConstantVariables()
     restVariables.clear();
 }
 
-void ConstantHandlerBase::OnReshadeSetTechniqueState(effect_runtime* runtime, int32_t enabledCount)
-{
-    previousEnableCount = enabledCount;
-}
-
-void ConstantHandlerBase::OnReshadeReloadedEffects(effect_runtime* runtime, int32_t enabledCount)
+void ConstantHandlerBase::OnEffectsReloading(effect_runtime* runtime)
 {
     unique_lock<shared_mutex> lock(varMutex);
+    ClearConstantVariables();
+}
 
-    if (enabledCount == 0 || enabledCount - previousEnableCount < 0)
-    {
-        ClearConstantVariables();
-    }
-    else
-    {
-        ReloadConstantVariables(runtime);
-    }
-
-    previousEnableCount = enabledCount;
+void ConstantHandlerBase::OnEffectsReloaded(effect_runtime* runtime)
+{
+    unique_lock<shared_mutex> lock(varMutex);
+    ReloadConstantVariables(runtime);
 }
 
 bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, CommandListDataContainer& cmdData, DeviceDataContainer& devData, ToggleGroup* group, uint32_t index)

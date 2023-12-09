@@ -238,10 +238,18 @@ static inline int32_t get_pipeline_stage_index(pipeline_stage stages)
 static void on_init_command_list(command_list* cmd_list)
 {
     cmd_list->create_private_data<state_tracking>();
+
+    auto& deviceState = cmd_list->get_device()->get_private_data<DeviceStateTracking>();
+    std::unique_lock<std::shared_mutex> lock(deviceState.cmd_list_mutex);
+    deviceState.cmd_lists.emplace(cmd_list);
 }
 static void on_destroy_command_list(command_list* cmd_list)
 {
     cmd_list->destroy_private_data<state_tracking>();
+
+    auto& deviceState = cmd_list->get_device()->get_private_data<DeviceStateTracking>();
+    std::unique_lock<std::shared_mutex> lock(deviceState.cmd_list_mutex);
+    deviceState.cmd_lists.erase(cmd_list);
 }
 
 static void on_bind_render_targets_and_depth_stencil(command_list* cmd_list, uint32_t count, const resource_view* rtvs, resource_view dsv)
@@ -260,6 +268,45 @@ static void on_bind_pipeline(command_list* cmd_list, pipeline_stage stages, pipe
     state.current_pipeline[idx] = pipeline;
     state.current_pipeline_stage[idx] = stages;
 }
+
+static void on_destroy_pipeline(device* device, pipeline pipeline)
+{
+    auto& deviceState = device->get_private_data<DeviceStateTracking>();
+    std::shared_lock<std::shared_mutex> lock(deviceState.cmd_list_mutex);
+
+    for (const auto& cmd_list : deviceState.cmd_lists)
+    {
+        auto& state = cmd_list->get_private_data<state_tracking>();
+        
+        for (uint32_t s = 0; s < ALL_PIPELINE_STAGES_SIZE; s++)
+        {
+            if (state.current_pipeline[s] == pipeline)
+            {
+                state.current_pipeline[s] = {};
+                state.current_pipeline_stage[s] = static_cast<pipeline_stage>(0);
+            }
+        }
+    }
+}
+
+//static void on_destroy_resource_view(device* device, resource_view view)
+//{
+//    auto& deviceState = device->get_private_data<DeviceStateTracking>();
+//    std::shared_lock<std::shared_mutex> lock(deviceState.cmd_list_mutex);
+//
+//    for (auto& cmd_list : deviceState.cmd_lists)
+//    {
+//        auto& state = cmd_list->get_private_data<state_tracking>();
+//
+//        for (uint32_t s = 0; s < state.render_targets.size(); s++)
+//        {
+//            if (state.render_targets[s] == view)
+//            {
+//                state.render_targets[s] = {};
+//            }
+//        }
+//    }
+//}
 
 static void on_bind_pipeline_states(command_list* cmd_list, uint32_t count, const dynamic_state* states, const uint32_t* values)
 {
@@ -657,6 +704,16 @@ static void on_barrier(command_list* cmd_list, uint32_t count, const resource* r
     }
 }
 
+static void on_init_device(device* device)
+{
+    device->create_private_data<DeviceStateTracking>();
+}
+
+static void on_destroy_device(device* device)
+{
+    device->destroy_private_data<DeviceStateTracking>();
+}
+
 void state_tracking::register_events(bool track)
 {
     // disable for now
@@ -689,6 +746,11 @@ void state_tracking::register_events(bool track)
     }
 
     reshade::register_event<reshade::addon_event::reset_command_list>(on_reset_command_list);
+
+    reshade::register_event<reshade::addon_event::init_device>(on_init_device);
+    reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
+    reshade::register_event<reshade::addon_event::destroy_pipeline>(on_destroy_pipeline);
+    //reshade::register_event<reshade::addon_event::destroy_resource_view>(on_destroy_resource_view);
 }
 void state_tracking::unregister_events()
 {
@@ -718,4 +780,9 @@ void state_tracking::unregister_events()
     }
 
     reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset_command_list);
+
+    reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
+    reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
+    reshade::unregister_event<reshade::addon_event::destroy_pipeline>(on_destroy_pipeline);
+    //reshade::unregister_event<reshade::addon_event::destroy_resource_view>(on_destroy_resource_view);
 }

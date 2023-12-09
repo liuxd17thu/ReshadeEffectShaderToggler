@@ -91,8 +91,8 @@ namespace Shim
             void ClearConstantVariables();
             void ApplyConstantValues(reshade::api::effect_runtime* runtime, const ShaderToggler::ToggleGroup*, const std::unordered_map<std::string, std::tuple<constant_type, std::vector<reshade::api::effect_uniform_variable>>>& constants);
 
-            void OnReshadeReloadedEffects(reshade::api::effect_runtime* runtime, int32_t enabledCount);
-            void OnReshadeSetTechniqueState(reshade::api::effect_runtime* runtime, int32_t enabledCount);
+            void OnEffectsReloading(reshade::api::effect_runtime* runtime);
+            void OnEffectsReloaded(reshade::api::effect_runtime* runtime);
 
             std::unordered_map<std::string, std::tuple<constant_type, std::vector<reshade::api::effect_uniform_variable>>>* GetRESTVariables();
 

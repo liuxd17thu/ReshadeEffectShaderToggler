@@ -31,16 +31,19 @@ void RenderingBindingManager::DisposeTextureBindings(effect_runtime* runtime)
     if (empty_res != 0)
     {
         runtime->get_device()->destroy_resource(empty_res);
+        empty_res = { 0 };
     }
 
     if (empty_rtv != 0)
     {
         runtime->get_device()->destroy_resource_view(empty_rtv);
+        empty_rtv = { 0 };
     }
 
     if (empty_srv != 0)
     {
         runtime->get_device()->destroy_resource_view(empty_srv);
+        empty_srv = { 0 };
     }
 }
 
@@ -57,7 +60,7 @@ bool RenderingBindingManager::_CreateTextureBinding(reshade::api::effect_runtime
 
     reshade::api::resource_usage res_usage = resource_usage::copy_dest | resource_usage::shader_resource | resource_usage::render_target;
 
-    if (!runtime->get_device()->create_resource(
+    if (*res == 0 && !runtime->get_device()->create_resource(
         resource_desc(width, height, 1, levels, format, 1, memory_heap::gpu_only, res_usage),
         nullptr, resource_usage::shader_resource, res))
     {
@@ -65,13 +68,13 @@ bool RenderingBindingManager::_CreateTextureBinding(reshade::api::effect_runtime
         return false;
     }
 
-    if (!runtime->get_device()->create_resource_view(*res, resource_usage::shader_resource, resource_view_desc(format_to_default_typed(format, 0)), srv))
+    if (*srv == 0 && !runtime->get_device()->create_resource_view(*res, resource_usage::shader_resource, resource_view_desc(format_to_default_typed(format, 0)), srv))
     {
         reshade::log_message(reshade::log_level::error, "Failed to create texture binding resource view!");
         return false;
     }
 
-    if (!runtime->get_device()->create_resource_view(*res, resource_usage::render_target, resource_view_desc(format_to_default_typed(format, 0)), rtv))
+    if (*rtv == 0 && !runtime->get_device()->create_resource_view(*res, resource_usage::render_target, resource_view_desc(format_to_default_typed(format, 0)), rtv))
     {
         reshade::log_message(reshade::log_level::error, "Failed to create texture binding resource view!");
         return false;
@@ -183,12 +186,17 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
     vector<ToggleGroup*>& removalList,
     const unordered_set<ToggleGroup*>& toUpdateBindings)
 {
+    effect_runtime* runtime = deviceData.current_runtime;
+
+    if (runtime == nullptr)
+        return;
+
+    auto& runtimeData = runtime->get_private_data<RuntimeDataContainer>();
+
     for (auto& [group, bindingData] : bindingsToUpdate)
     {
         if (toUpdateBindings.contains(group) && !deviceData.bindingsUpdated.contains(group))
         {
-            effect_runtime* runtime = deviceData.current_runtime;
-
             resource active_resource = std::get<1>(bindingData);
 
             if (active_resource == 0)
@@ -236,9 +244,9 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
                 {
                     cmd_list->copy_resource(active_resource, target_res);
 
-                    if (group->getFlipBufferBinding() && bindingResource.rtv != 0 && deviceData.specialEffects[REST_FLIP].technique != 0)
+                    if (group->getFlipBufferBinding() && bindingResource.rtv != 0 && runtimeData.specialEffects[REST_FLIP].technique != 0)
                     {
-                        runtime->render_technique(deviceData.specialEffects[REST_FLIP].technique, cmd_list, bindingResource.rtv, bindingResource.rtv_srgb);
+                        runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, bindingResource.rtv, bindingResource.rtv_srgb);
                     }
                 }
             }

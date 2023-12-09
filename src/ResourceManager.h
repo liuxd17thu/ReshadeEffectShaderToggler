@@ -82,6 +82,9 @@ namespace Rendering
         void SetPongPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);
 
+        void OnEffectsReloading(reshade::api::effect_runtime* runtime);
+        void OnEffectsReloaded(reshade::api::effect_runtime* runtime);
+
         GlobalResourceView& GetResourceView(uint64_t handle);
         void CheckResourceViews(reshade::api::effect_runtime* runtime);
 
@@ -97,6 +100,8 @@ namespace Rendering
         ResourceShimType _shimType = ResourceShimType::Resource_Shim_None;
         Shim::Resources::ResourceShim* rShim = nullptr;
         bool in_destroy_device = false;
+
+        bool effects_reloading = false;
 
         //std::unordered_map<uint64_t, std::pair<reshade::api::resource_view, reshade::api::resource_view>> s_sRGBResourceViews;
         //std::unordered_map<uint64_t, std::pair<reshade::api::resource_view, reshade::api::resource_view>> s_SRVs;

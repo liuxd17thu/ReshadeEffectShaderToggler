@@ -14,7 +14,7 @@ namespace Rendering
 
         void RenderEffects(reshade::api::command_list* cmd_list, uint64_t callLocation = CALL_DRAW, uint64_t invocation = MATCH_NONE);
         bool RenderRemainingEffects(reshade::api::effect_runtime* runtime);
-        void PreventRuntimeReload(reshade::api::command_list* cmd_list);
+        void PreventRuntimeReload(reshade::api::effect_runtime* runtime, reshade::api::command_list* cmd_list);
     private:
         AddonImGui::AddonUIData& uiData;
         ResourceManager& resourceManager;
@@ -24,6 +24,7 @@ namespace Rendering
         bool _RenderEffects(
             reshade::api::command_list* cmd_list,
             DeviceDataContainer& deviceData,
+            RuntimeDataContainer& runtimeData,
             const std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>& techniquesToRender,
             std::vector<std::string>& removalList,
             const std::unordered_set<std::string>& toRenderNames);

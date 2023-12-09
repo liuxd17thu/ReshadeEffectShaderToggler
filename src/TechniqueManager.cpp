@@ -76,7 +76,7 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
         }
         });
 
-    int32_t enabledCount = static_cast<int32_t>(data.allEnabledTechniques.size());
+    int32_t enabledCount = static_cast<int32_t>(data.allTechniques.size());
 
     if (enabledCount == 0 || enabledCount - data.previousEnableCount < 0)
     {
@@ -130,8 +130,6 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
             data.allEnabledTechniques.emplace(techName, &it->second);
         }
     }
-
-    data.previousEnableCount = static_cast<int32_t>(data.allEnabledTechniques.size());
 
     return false;
 }

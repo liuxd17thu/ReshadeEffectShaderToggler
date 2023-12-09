@@ -105,31 +105,31 @@ void ToggleGroupResourceManager::ToggleGroupRemoved(reshade::api::effect_runtime
 
         if (resources.owning)
         {
-            DisposeGroupResources(runtime, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+            DisposeGroupResources(runtime->get_device(), resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
         }
     }
 }
 
-void ToggleGroupResourceManager::DisposeGroupResources(effect_runtime* runtime, resource& res, resource_view& rtv, resource_view& rtv_srgb, resource_view& srv)
+void ToggleGroupResourceManager::DisposeGroupResources(device* device, resource& res, resource_view& rtv, resource_view& rtv_srgb, resource_view& srv)
 {
     if (srv != 0)
     {
-        runtime->get_device()->destroy_resource_view(srv);
+        device->destroy_resource_view(srv);
     }
 
     if (rtv != 0)
     {
-        runtime->get_device()->destroy_resource_view(rtv);
+        device->destroy_resource_view(rtv);
     }
 
     if (rtv_srgb != 0)
     {
-        runtime->get_device()->destroy_resource_view(rtv_srgb);
+        device->destroy_resource_view(rtv_srgb);
     }
 
     if (res != 0)
     {
-        runtime->get_device()->destroy_resource(res);
+        device->destroy_resource(res);
     }
 
     res = resource{ 0 };
@@ -138,10 +138,8 @@ void ToggleGroupResourceManager::DisposeGroupResources(effect_runtime* runtime, 
     rtv_srgb = resource_view{ 0 };
 }
 
-void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::effect_runtime* runtime, std::unordered_map<int, ShaderToggler::ToggleGroup>& groups)
+void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::device* device, std::unordered_map<int, ShaderToggler::ToggleGroup>& groups)
 {
-    runtime->get_command_queue()->wait_idle();
-    
     for (auto& groupEntry : groups)
     {
         ShaderToggler::ToggleGroup& group = groupEntry.second;
@@ -153,7 +151,7 @@ void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::effect_runtim
             if (!resources.owning)
                 continue;
 
-            DisposeGroupResources(runtime, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+            DisposeGroupResources(device, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
         }
     }
 }
@@ -176,7 +174,7 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
             // Dispose of buffers with the alpha preservation option disabled
             if (!resources.enabled())
             {
-                DisposeGroupResources(runtime, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+                DisposeGroupResources(runtime->get_device(), resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
                 continue;
             }
 
@@ -184,7 +182,7 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
             if (resources.state != GroupResourceState::RESOURCE_INVALID)
                 continue;
 
-            DisposeGroupResources(runtime, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+            DisposeGroupResources(runtime->get_device(), resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
 
             if (static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_ALPHA || static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_BINDING)
             {

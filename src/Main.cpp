@@ -126,8 +126,8 @@ static void onDestroyDevice(device* device)
 {
     DeviceDataContainer& data = device->get_private_data<DeviceDataContainer>();
 
-    groupResourceManager.DisposeGroupBuffers(data.current_runtime, g_addonUIData.GetToggleGroups());
-    renderingBindingManager.DisposeTextureBindings(data.current_runtime);
+    groupResourceManager.DisposeGroupBuffers(device, g_addonUIData.GetToggleGroups());
+    renderingBindingManager.DisposeTextureBindings(device);
     resourceManager.OnDestroyDevice(device);
     renderingShaderManager.DestroyShaders(device);
 

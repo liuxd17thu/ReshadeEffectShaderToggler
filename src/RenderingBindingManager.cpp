@@ -22,27 +22,27 @@ void RenderingBindingManager::InitTextureBingings(effect_runtime* runtime)
     CreateTextureBinding(runtime, &empty_res, &empty_srv, &empty_rtv, reshade::api::format::r8g8b8a8_unorm);
 }
 
-void RenderingBindingManager::DisposeTextureBindings(effect_runtime* runtime)
+void RenderingBindingManager::DisposeTextureBindings(device* device)
 {
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+    DeviceDataContainer& data = device->get_private_data<DeviceDataContainer>();
 
     unique_lock<shared_mutex> lock(data.binding_mutex);
 
     if (empty_res != 0)
     {
-        runtime->get_device()->destroy_resource(empty_res);
+        device->destroy_resource(empty_res);
         empty_res = { 0 };
     }
 
     if (empty_rtv != 0)
     {
-        runtime->get_device()->destroy_resource_view(empty_rtv);
+        device->destroy_resource_view(empty_rtv);
         empty_rtv = { 0 };
     }
 
     if (empty_srv != 0)
     {
-        runtime->get_device()->destroy_resource_view(empty_srv);
+        device->destroy_resource_view(empty_srv);
         empty_srv = { 0 };
     }
 }

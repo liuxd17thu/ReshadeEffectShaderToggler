@@ -8,6 +8,8 @@
 #include <vector>
 #include <array>
 #include <unordered_map>
+#include <shared_mutex>
+#include <unordered_set>
 #include <d3d9.h>
 #include "DescriptorTracking.h"
 
@@ -120,6 +122,11 @@ namespace StateTracking
         std::unordered_map<uint64_t, barrier_track> resource_barrier_track;
 
         IDirect3DStateBlock9* dx_state;
+    };
+
+    struct __declspec(uuid("EE0C0141-E361-42E5-AF64-25F2F677F37F")) DeviceStateTracking {
+        std::unordered_set<reshade::api::command_list*> cmd_lists;
+        std::shared_mutex cmd_list_mutex;
     };
 }
 

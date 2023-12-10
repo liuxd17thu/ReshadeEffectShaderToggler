@@ -84,6 +84,8 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
         return;
     }
 
+    RuntimeDataContainer& runtimeData = deviceData.current_runtime->get_private_data<RuntimeDataContainer>();
+
     const ToggleGroup& group = uiData.GetToggleGroups().at(uiData.GetToggleGroupIdShaderEditing());
 
     // Set views during draw call since we can be sure the correct ones are bound at that point
@@ -176,14 +178,14 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
                 //cmd_list->barrier(previewResPong, resource_usage::render_target, resource_usage::shader_resource);
             }
 
-            if (group.getFlipBuffer() && deviceData.specialEffects[REST_FLIP].technique != 0)
+            if (group.getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
             {
-                deviceData.current_runtime->render_technique(deviceData.specialEffects[REST_FLIP].technique, cmd_list, preview_pong_rtv);
+                deviceData.current_runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, preview_pong_rtv);
             }
 
-            if (group.getToneMap() && deviceData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
+            if (group.getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
             {
-                deviceData.current_runtime->render_technique(deviceData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, preview_pong_rtv);
+                deviceData.current_runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, preview_pong_rtv);
             }
         }
 

@@ -19,6 +19,6 @@ namespace Rendering
         ResourceManager& resourceManager;
 
         void _RescheduleGroups(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData);
-        void _CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData) const;
+        void _CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData, RuntimeDataContainer& runtimeData) const;
     };
 }

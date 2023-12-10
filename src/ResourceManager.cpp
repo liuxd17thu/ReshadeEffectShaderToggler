@@ -292,6 +292,15 @@ void ResourceManager::DisposePreview(reshade::api::effect_runtime* runtime)
     }
 }
 
+void ResourceManager::OnEffectsReloading(effect_runtime* runtime)
+{
+    effects_reloading = true;
+}
+
+void ResourceManager::OnEffectsReloaded(effect_runtime* runtime)
+{
+    effects_reloading = false;
+}
 
 void ResourceManager::CheckResourceViews(reshade::api::effect_runtime* runtime)
 {
@@ -308,7 +317,8 @@ void ResourceManager::CheckResourceViews(reshade::api::effect_runtime* runtime)
             }
             else
             {
-                view->second.ttl--;
+                if (!effects_reloading)
+                    view->second.ttl--;
                 view++;
             }
             continue;

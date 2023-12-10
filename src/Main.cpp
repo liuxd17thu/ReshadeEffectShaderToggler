@@ -124,6 +124,10 @@ static void onInitDevice(device* device)
 
 static void onDestroyDevice(device* device)
 {
+    DeviceDataContainer& data = device->get_private_data<DeviceDataContainer>();
+
+    groupResourceManager.DisposeGroupBuffers(device, g_addonUIData.GetToggleGroups());
+    renderingBindingManager.DisposeTextureBindings(device);
     resourceManager.OnDestroyDevice(device);
     renderingShaderManager.DestroyShaders(device);
 
@@ -209,27 +213,17 @@ static void onDestroyResourceView(device* device, resource_view view)
 
 static void onReshadeReloadedEffects(effect_runtime* runtime)
 {
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+    RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
     
     techniqueManager.OnReshadeReloadedEffects(runtime);
-
-    if (constantHandler != nullptr)
-    {
-        constantHandler->OnReshadeReloadedEffects(runtime, static_cast<int32_t>(data.allEnabledTechniques.size()));
-    }
 }
 
 
 static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique technique, bool enabled)
 {
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+    RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
     
     bool ret = techniqueManager.OnReshadeSetTechniqueState(runtime, technique, enabled);
-
-    if (constantHandler != nullptr)
-    {
-        constantHandler->OnReshadeSetTechniqueState(runtime, static_cast<int32_t>(data.allEnabledTechniques.size()));
-    }
     
     return ret;
 }
@@ -243,17 +237,11 @@ static bool onReshadeReorderTechniques(effect_runtime* runtime, size_t count, ef
 
 static void onInitEffectRuntime(effect_runtime* runtime)
 {
+    runtime->create_private_data<RuntimeDataContainer>();
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
     keyMonitor.Init(runtime);
-    //resourceManager.OnInitSwapchain(runtime);
     renderingShaderManager.InitShaders(runtime->get_device());
-
-    // Dispose of texture bindings created from the runtime below
-    if (data.current_runtime != nullptr)
-    {
-        renderingBindingManager.DisposeTextureBindings(data.current_runtime);
-    }
 
     // Push new runtime on top
     runtimes.push_back(runtime);
@@ -287,9 +275,6 @@ static void onDestroyEffectRuntime(effect_runtime* runtime)
     // Pick the runtime on top of our stack if there are any
     if (runtime == data.current_runtime)
     {
-        groupResourceManager.DisposeGroupBuffers(runtime, g_addonUIData.GetToggleGroups());
-        renderingBindingManager.DisposeTextureBindings(runtime);
-
         if (runtimes.size() > 0)
         {
             data.current_runtime = runtimes[runtimes.size() - 1];
@@ -311,6 +296,8 @@ static void onDestroyEffectRuntime(effect_runtime* runtime)
             }
         }
     }
+
+    runtime->destroy_private_data<RuntimeDataContainer>();
 }
 
 
@@ -552,7 +539,7 @@ static void onReshadePresent(effect_runtime* runtime)
 
     if (g_addonUIData.GetPreventRuntimeReload())
     {
-        renderingEffectManager.PreventRuntimeReload(queue->get_immediate_command_list());
+        renderingEffectManager.PreventRuntimeReload(runtime, queue->get_immediate_command_list());
     }
 
     if (runtime->get_effects_state())
@@ -602,20 +589,23 @@ static void displaySettings(effect_runtime* runtime)
 }
 
 
-static bool Init()
+static void Init()
 {
     resourceManager.SetResourceShim(g_addonUIData.GetResourceShim());
     resourceManager.Init();
+    constantManager.Init(g_addonUIData, groupResourceManager, &constantCopy, &constantHandler);
 
     g_addonUIData.AddToggleGroupRemovalCallback(std::bind(&Rendering::ToggleGroupResourceManager::ToggleGroupRemoved, &groupResourceManager, std::placeholders::_1, std::placeholders::_2));
-
-    return constantManager.Init(g_addonUIData, groupResourceManager, &constantCopy, &constantHandler);
+    techniqueManager.AddEffectsReloadingCallback(std::bind(&Shim::Constants::ConstantHandlerBase::OnEffectsReloading, constantHandler, std::placeholders::_1));
+    techniqueManager.AddEffectsReloadedCallback(std::bind(&Shim::Constants::ConstantHandlerBase::OnEffectsReloaded, constantHandler, std::placeholders::_1));
+    techniqueManager.AddEffectsReloadingCallback(std::bind(&Rendering::ResourceManager::OnEffectsReloading, &resourceManager, std::placeholders::_1));
+    techniqueManager.AddEffectsReloadedCallback(std::bind(&Rendering::ResourceManager::OnEffectsReloaded, &resourceManager, std::placeholders::_1));
 }
 
 
-static bool UnInit()
+static void UnInit()
 {
-    return constantManager.UnInit();
+    constantManager.UnInit();
 }
 
 static void CheckDrawCall(command_list* cmd_list, const uint64_t match_modifier = Rendering::MATCH_ALL)

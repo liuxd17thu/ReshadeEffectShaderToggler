@@ -137,19 +137,23 @@ enum SpecialEffects : uint32_t
 struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContainer {
     reshade::api::effect_runtime* current_runtime = nullptr;
     std::atomic_bool rendered_effects = false;
-    std::shared_mutex render_mutex;
-    std::unordered_map<std::string, EffectData> allTechniques;
-    std::vector<std::pair<std::string, EffectData*>> allSortedTechniques;
-    std::unordered_map<std::string, EffectData*> allEnabledTechniques;
     std::shared_mutex binding_mutex;
     std::unordered_set<const ShaderToggler::ToggleGroup*> bindingsUpdated;
     std::unordered_set<const ShaderToggler::ToggleGroup*> constantsUpdated;
     std::unordered_set<const ShaderToggler::ToggleGroup*> srvUpdated;
     HuntPreview huntPreview;
+};
+
+struct __declspec(uuid("838BAF1D-95C0-4A7E-A517-052642879986")) RuntimeDataContainer {
+    std::shared_mutex render_mutex;
+    std::unordered_map<std::string, EffectData> allTechniques;
+    std::vector<std::pair<std::string, EffectData*>> allSortedTechniques;
+    std::unordered_map<std::string, EffectData*> allEnabledTechniques;
     SpecialEffect specialEffects[4] = {
         SpecialEffect{ "REST_TONEMAP_TO_SDR", reshade::api::effect_technique {0} },
         SpecialEffect{ "REST_TONEMAP_TO_HDR", reshade::api::effect_technique {0} },
         SpecialEffect{ "REST_FLIP", reshade::api::effect_technique {0} },
         SpecialEffect{ "REST_NOOP", reshade::api::effect_technique {0} },
     };
+    int32_t previousEnableCount = 0;
 };

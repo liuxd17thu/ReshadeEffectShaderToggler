@@ -14,7 +14,7 @@ RenderingQueueManager::~RenderingQueueManager()
 
 }
 
-void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData) const
+void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData, RuntimeDataContainer& runtimeData) const
 {
     // Masks which checks to perform. Note that we will always schedule a draw call check for binding and effect updates,
     // this serves the purpose of assigning the resource_view to perform the update later on if needed.
@@ -69,7 +69,7 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
 
                 if (group->getAllowAllTechniques())
                 {
-                    for (const auto& [techName, techData] : deviceData.allEnabledTechniques)
+                    for (const auto& [techName, techData] : runtimeData.allEnabledTechniques)
                     {
                         if (group->getHasTechniqueExceptions() && group->preferredTechniques().contains(techName))
                         {
@@ -89,8 +89,8 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                 else if (group->preferredTechniques().size() > 0) {
                     for (auto& techName : group->preferredTechniques())
                     {
-                        const auto& techData = deviceData.allEnabledTechniques.find(techName);
-                        if (techData != deviceData.allEnabledTechniques.end() && !techData->second->rendered)
+                        const auto& techData = runtimeData.allEnabledTechniques.find(techName);
+                        if (techData != runtimeData.allEnabledTechniques.end() && !techData->second->rendered)
                         {
                             if (!sData.techniquesToRender.contains(techName))
                             {
@@ -116,13 +116,14 @@ void RenderingQueueManager::CheckCallForCommandList(reshade::api::command_list* 
 
     CommandListDataContainer& commandListData = commandList->get_private_data<CommandListDataContainer>();
     DeviceDataContainer& deviceData = commandList->get_device()->get_private_data<DeviceDataContainer>();
+    RuntimeDataContainer& runtimeData = deviceData.current_runtime->get_private_data<RuntimeDataContainer>();
 
-    shared_lock<shared_mutex> r_mutex(deviceData.render_mutex);
+    shared_lock<shared_mutex> r_mutex(runtimeData.render_mutex);
     shared_lock<shared_mutex> b_mutex(deviceData.binding_mutex);
 
-    _CheckCallForCommandList(commandListData.ps, commandListData, deviceData);
-    _CheckCallForCommandList(commandListData.vs, commandListData, deviceData);
-    _CheckCallForCommandList(commandListData.cs, commandListData, deviceData);
+    _CheckCallForCommandList(commandListData.ps, commandListData, deviceData, runtimeData);
+    _CheckCallForCommandList(commandListData.vs, commandListData, deviceData, runtimeData);
+    _CheckCallForCommandList(commandListData.cs, commandListData, deviceData, runtimeData);
 
     b_mutex.unlock();
     r_mutex.unlock();
@@ -184,9 +185,6 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
 
 void RenderingQueueManager::RescheduleGroups(CommandListDataContainer& commandListData, DeviceDataContainer& deviceData)
 {
-    std::shared_lock<std::shared_mutex> r_mutex(deviceData.render_mutex);
-    std::shared_lock<std::shared_mutex> b_mutex(deviceData.binding_mutex);
-
     if (commandListData.ps.techniquesToRender.size() > 0 || commandListData.ps.bindingsToUpdate.size() > 0)
     {
         _RescheduleGroups(commandListData.ps, commandListData, deviceData);
@@ -201,9 +199,6 @@ void RenderingQueueManager::RescheduleGroups(CommandListDataContainer& commandLi
     {
         _RescheduleGroups(commandListData.cs, commandListData, deviceData);
     }
-
-    b_mutex.unlock();
-    r_mutex.unlock();
 }
 
 

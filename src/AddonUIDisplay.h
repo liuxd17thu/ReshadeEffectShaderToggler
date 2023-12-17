@@ -120,7 +120,7 @@ static void DisplayTechniqueSelection(reshade::api::effect_runtime* runtime, Add
         ImGui::TableSetupColumn("##columnsetup", ImGuiTableColumnFlags_WidthFixed, tblWidth);
 
         ImGui::TableNextColumn();
-        ImGui::Text("Catch all techniques");
+        ImGui::Text("Apply all enabled techniques");
         ImGui::TableNextColumn();
         ImGui::Checkbox("##Catchalltechniques", &allowAll);
 

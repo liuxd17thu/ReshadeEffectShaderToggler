@@ -190,10 +190,7 @@ void ResourceManager::OnDestroyResource(device* device, resource res)
         rShim->OnDestroyResource(device, res);
     }
 
-    resource_desc desc = device->get_resource_desc(res);
-
-    if ((static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::render_target) || static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::shader_resource)) &&
-        desc.type == resource_type::texture_2d && !in_destroy_device)
+    if(!in_destroy_device)
     {
         std::shared_lock<shared_mutex> lock_view(view_mutex);
 

@@ -135,13 +135,11 @@ void ConstantHandlerBase::ClearConstantVariables()
 
 void ConstantHandlerBase::OnEffectsReloading(effect_runtime* runtime)
 {
-    unique_lock<shared_mutex> lock(varMutex);
     ClearConstantVariables();
 }
 
 void ConstantHandlerBase::OnEffectsReloaded(effect_runtime* runtime)
 {
-    unique_lock<shared_mutex> lock(varMutex);
     ReloadConstantVariables(runtime);
 }
 

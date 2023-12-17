@@ -134,7 +134,7 @@ void ResourceManager::DisposeView(device* device, const GlobalResourceView& view
     if (views.srv != 0)
         device->destroy_resource_view(views.srv);
     if (views.srv_srgb != 0)
-        device->destroy_resource_view(views.rtv_srgb);
+        device->destroy_resource_view(views.srv_srgb);
 }
 
 bool ResourceManager::OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd)
@@ -314,7 +314,7 @@ void ResourceManager::CheckResourceViews(reshade::api::effect_runtime* runtime)
     for (auto view = global_resources.begin(); view != global_resources.end();)
     {
         // valid but not used or just invalid, dispose
-        if (!effects_reloading && (view->second.state == GlobalResourceState::RESOURCE_VALID || view->second.state == GlobalResourceState::RESOURCE_INVALID))
+        if ((view->second.state != GlobalResourceState::RESOURCE_USED))
         {
             DisposeView(runtime->get_device(), view->second);
             view = global_resources.erase(view);

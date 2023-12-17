@@ -219,7 +219,7 @@ static void onReshadeReloadedEffects(effect_runtime* runtime)
 
     if (deviceData.current_runtime == runtime)
     {
-        unique_lock<shared_mutex> techLock(runtimeData.technique_mutex);
+        shared_lock<shared_mutex> techLock(runtimeData.technique_mutex);
         g_addonUIData.AssignPreferredGroupTechniques(runtimeData.allTechniques);
     }
 }
@@ -244,7 +244,7 @@ static bool onReshadeReorderTechniques(effect_runtime* runtime, size_t count, ef
 
     if (deviceData.current_runtime == runtime)
     {
-        unique_lock<shared_mutex> techLock(runtimeData.technique_mutex);
+        shared_lock<shared_mutex> techLock(runtimeData.technique_mutex);
         g_addonUIData.AssignPreferredGroupTechniques(runtimeData.allTechniques);
     }
 

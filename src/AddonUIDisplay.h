@@ -199,9 +199,12 @@ static void DisplayTechniqueSelection(reshade::api::effect_runtime* runtime, Add
     group->setHasTechniqueExceptions(exceptions);
     group->setAllowAllTechniques(allowAll);
 
-    group->setPreferredTechniques(newTechniques);
-    std::unique_lock<std::shared_mutex> techLock(runtimeData.technique_mutex);
-    instance.AssignPreferredGroupTechniques(runtimeData.allTechniques);
+    std::shared_lock<std::shared_mutex> techLock(runtimeData.technique_mutex);
+    if (runtimeData.allTechniques.size() > 0)
+    {
+        group->setPreferredTechniques(newTechniques);
+        instance.AssignPreferredGroupTechniques(runtimeData.allTechniques);
+    }
 }
 
 static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_t srcHeight)

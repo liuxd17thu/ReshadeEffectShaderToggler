@@ -76,7 +76,7 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
 
     int32_t enabledCount = static_cast<int32_t>(data.allTechniques.size());
 
-    if (enabledCount == 0 || enabledCount - data.previousEnableCount < 0)
+    if (enabledCount == 0 || enabledCount < data.previousEnableCount)
     {
         SignalEffectsReloading(runtime);
     }

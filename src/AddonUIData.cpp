@@ -41,10 +41,9 @@ using namespace ShaderToggler;
 using namespace Shim::Constants;
 using namespace std;
 
-AddonUIData::AddonUIData(ShaderManager* pixelShaderManager, ShaderManager* vertexShaderManager, ShaderManager* computeShaderManager, ConstantHandlerBase* cHandler, atomic_uint32_t* activeCollectorFrameCounter,
-    vector<string>* techniques):
+AddonUIData::AddonUIData(ShaderManager* pixelShaderManager, ShaderManager* vertexShaderManager, ShaderManager* computeShaderManager, ConstantHandlerBase* cHandler, atomic_uint32_t* activeCollectorFrameCounter):
     _pixelShaderManager(pixelShaderManager), _vertexShaderManager(vertexShaderManager), _computeShaderManager(computeShaderManager), _activeCollectorFrameCounter(activeCollectorFrameCounter),
-    _allTechniques(techniques), _constantHandler(cHandler)
+    _constantHandler(cHandler)
 {
     _toggleGroupIdShaderEditing = -1;
     _overlayOpacity = 0.2f;
@@ -81,6 +80,14 @@ void AddonUIData::SignalToggleGroupRemoved(reshade::api::effect_runtime* runtime
     for (auto& func : _removalCallbacks)
     {
         func(runtime, group);
+    }
+}
+
+void AddonUIData::AssignPreferredGroupTechniques(std::unordered_map<std::string, EffectData>& allTechniques)
+{
+    for (auto& it : _toggleGroups)
+    {
+        it.second.AssignPreferredTechniqueData(allTechniques);
     }
 }
 
@@ -165,12 +172,6 @@ void AddonUIData::UpdateToggleGroupsForShaderHashes()
         }
     }
 }
-
-const vector<string>* AddonUIData::GetAllTechniques() const
-{
-    return _allTechniques;
-}
-
 
 const atomic_int& AddonUIData::GetToggleGroupIdShaderEditing() const
 {

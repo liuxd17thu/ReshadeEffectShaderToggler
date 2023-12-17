@@ -7,7 +7,7 @@ using namespace std;
 size_t TechniqueManager::charBufferSize = CHAR_BUFFER_SIZE;
 char TechniqueManager::charBuffer[CHAR_BUFFER_SIZE];
 
-TechniqueManager::TechniqueManager(KeyMonitor& kMonitor, vector<string>& techniqueCollection) : keyMonitor(kMonitor), allTechniques(techniqueCollection)
+TechniqueManager::TechniqueManager(KeyMonitor& kMonitor) : keyMonitor(kMonitor)
 {
 
 }
@@ -41,13 +41,12 @@ void TechniqueManager::SignalEffectsReloaded(reshade::api::effect_runtime* runti
 void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* runtime)
 {
     RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
-    data.allEnabledTechniques.clear();
-    data.allSortedTechniques.clear();
-    data.allTechniques.clear();
-    allTechniques.clear();
+    unique_lock<shared_mutex> lock(data.technique_mutex);
 
-    Rendering::RenderingManager::EnumerateTechniques(runtime, [&data, this](effect_runtime* runtime, effect_technique technique, string& name) {
-        allTechniques.push_back(name);
+    data.allEnabledTechniques.clear();
+    data.allTechniques.clear();
+
+    Rendering::RenderingManager::EnumerateTechniques(runtime, [&data, this](effect_runtime* runtime, effect_technique technique, string& name, string& eff_name) {
         bool enabled = runtime->get_technique_state(technique);
 
         // Assign technique handles to REST effects
@@ -67,12 +66,11 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
             return;
         }
 
-        const auto& it = data.allTechniques.emplace(name, EffectData{ technique, runtime, enabled });
-        data.allSortedTechniques.push_back(make_pair(name, &it.first->second));
-    
+        const auto& it = data.allTechniques.emplace(name + " [" + eff_name + "]", EffectData{technique, runtime, enabled});
+
         if (enabled)
         {
-            data.allEnabledTechniques.emplace(name, &it.first->second);
+            data.allEnabledTechniques.emplace(&it.first->second);
         }
         });
 
@@ -93,10 +91,17 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
 bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* runtime, reshade::api::effect_technique technique, bool enabled)
 {
     RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
+    unique_lock<shared_mutex> lock(data.technique_mutex);
 
     charBufferSize = CHAR_BUFFER_SIZE;
     runtime->get_technique_name(technique, charBuffer, &charBufferSize);
     string techName(charBuffer);
+
+    charBufferSize = CHAR_BUFFER_SIZE;
+    runtime->get_technique_effect_name(technique, charBuffer, &charBufferSize);
+    string effName(charBuffer);
+
+    std::string effKey = techName + " [" + effName + "]";
 
     // Prevent REST techniques from being manually enabled
     for (uint32_t j = 0; j < REST_EFFECTS_COUNT; j++)
@@ -107,7 +112,7 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
         }
     }
 
-    const auto& it = data.allTechniques.find(techName);
+    const auto& it = data.allTechniques.find(effKey);
 
     if (it == data.allTechniques.end())
     {
@@ -118,16 +123,16 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
 
     if (!enabled)
     {
-        if (data.allEnabledTechniques.contains(techName))
+        if (data.allEnabledTechniques.contains(&it->second))
         {
-            data.allEnabledTechniques.erase(techName);
+            data.allEnabledTechniques.erase(&it->second);
         }
     }
     else
     {
-        if (data.allEnabledTechniques.find(techName) == data.allEnabledTechniques.end())
+        if (data.allEnabledTechniques.find(&it->second) == data.allEnabledTechniques.end())
         {
-            data.allEnabledTechniques.emplace(techName, &it->second);
+            data.allEnabledTechniques.emplace(&it->second);
         }
     }
 
@@ -137,7 +142,8 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
 bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* runtime, size_t count, reshade::api::effect_technique* techniques)
 {
     RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
-    data.allSortedTechniques.clear();
+    unique_lock<shared_mutex> lock(data.technique_mutex);
+
     data.allEnabledTechniques.clear();
     data.allTechniques.clear();
 
@@ -148,6 +154,12 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
         charBufferSize = CHAR_BUFFER_SIZE;
         runtime->get_technique_name(technique, charBuffer, &charBufferSize);
         string name(charBuffer);
+
+        charBufferSize = CHAR_BUFFER_SIZE;
+        runtime->get_technique_effect_name(technique, charBuffer, &charBufferSize);
+        string eff_name(charBuffer);
+
+        std::string effKey = name + " [" + eff_name + "]";
 
         bool enabled = runtime->get_technique_state(technique);
 
@@ -168,12 +180,11 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
             continue;
         }
 
-        const auto& it = data.allTechniques.emplace(name, EffectData{ technique, runtime, enabled });
-        data.allSortedTechniques.push_back(make_pair(name, &it.first->second));
+        const auto& it = data.allTechniques.emplace(effKey, EffectData{ technique, runtime, enabled });
 
         if (enabled)
         {
-            data.allEnabledTechniques.emplace(name, &it.first->second);
+            data.allEnabledTechniques.emplace(&it.first->second);
         }
     }
 
@@ -183,27 +194,30 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
 void TechniqueManager::OnReshadePresent(reshade::api::effect_runtime* runtime)
 {
     RuntimeDataContainer& deviceData = runtime->get_private_data<RuntimeDataContainer>();
+    unique_lock<shared_mutex> lock(deviceData.technique_mutex);
 
     for (auto el = deviceData.allEnabledTechniques.begin(); el != deviceData.allEnabledTechniques.end();)
     {
+        EffectData const* eff = *el;
+
         // Get rid of techniques with a timeout. We don't actually have a timer, so just get rid of them after they were rendered at least once
-        if (el->second->timeout >= 0 &&
-            el->second->technique != 0 &&
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - el->second->timeout_start).count() >= el->second->timeout)
+        if (eff->timeout >= 0 &&
+            eff->technique != 0 &&
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - eff->timeout_start).count() >= eff->timeout)
         {
-            runtime->set_technique_state(el->second->technique, false);
+            runtime->set_technique_state(eff->technique, false);
             el = deviceData.allEnabledTechniques.erase(el);
             continue;
         }
 
         // Prevent effects that are not supposed to be in screenshots from being rendered when ReShade is taking a screenshot
-        if (!el->second->enabled_in_screenshot && keyMonitor.GetKeyState(KeyMonitor::KEY_SCREEN_SHOT) == KeyState::KET_STATE_PRESSED)
+        if (!eff->enabled_in_screenshot && keyMonitor.GetKeyState(KeyMonitor::KEY_SCREEN_SHOT) == KeyState::KET_STATE_PRESSED)
         {
-            el->second->rendered = true;
+            eff->rendered = true;
         }
         else
         {
-            el->second->rendered = false;
+            eff->rendered = false;
         }
 
         el++;

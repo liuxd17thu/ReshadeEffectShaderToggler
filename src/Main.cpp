@@ -84,8 +84,7 @@ static ConstantCopyBase* constantCopy = nullptr;
 static bool constantHandlerHooked = false;
 
 static atomic_uint32_t g_activeCollectorFrameCounter = 0;
-static vector<string> allTechniques;
-static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, &g_computeShaderManager, constantHandler, &g_activeCollectorFrameCounter, &allTechniques);
+static AddonUIData g_addonUIData(&g_pixelShaderManager, &g_vertexShaderManager, &g_computeShaderManager, constantHandler, &g_activeCollectorFrameCounter);
 
 static KeyMonitor keyMonitor;
 static Rendering::ResourceManager resourceManager;
@@ -95,7 +94,7 @@ static Rendering::RenderingEffectManager renderingEffectManager(g_addonUIData, r
 static Rendering::RenderingBindingManager renderingBindingManager(g_addonUIData, resourceManager, groupResourceManager);
 static Rendering::RenderingPreviewManager renderingPreviewManager(g_addonUIData, resourceManager, renderingShaderManager);
 static Rendering::RenderingQueueManager renderingQueueManager(g_addonUIData, resourceManager);
-static ShaderToggler::TechniqueManager techniqueManager(keyMonitor, allTechniques);
+static ShaderToggler::TechniqueManager techniqueManager(keyMonitor);
 
 // TODO: actually implement ability to turn off srgb-view generation
 static vector<effect_runtime*> runtimes;
@@ -213,9 +212,16 @@ static void onDestroyResourceView(device* device, resource_view view)
 
 static void onReshadeReloadedEffects(effect_runtime* runtime)
 {
-    RuntimeDataContainer& data = runtime->get_private_data<RuntimeDataContainer>();
+    RuntimeDataContainer& runtimeData = runtime->get_private_data<RuntimeDataContainer>();
+    DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
     
     techniqueManager.OnReshadeReloadedEffects(runtime);
+
+    if (deviceData.current_runtime == runtime)
+    {
+        unique_lock<shared_mutex> techLock(runtimeData.technique_mutex);
+        g_addonUIData.AssignPreferredGroupTechniques(runtimeData.allTechniques);
+    }
 }
 
 
@@ -231,7 +237,18 @@ static bool onReshadeSetTechniqueState(effect_runtime* runtime, effect_technique
 
 static bool onReshadeReorderTechniques(effect_runtime* runtime, size_t count, effect_technique* techniques)
 {
-    return techniqueManager.OnReshadeReorderTechniques(runtime, count, techniques);
+    RuntimeDataContainer& runtimeData = runtime->get_private_data<RuntimeDataContainer>();
+    DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
+
+    bool ret = techniqueManager.OnReshadeReorderTechniques(runtime, count, techniques);
+
+    if (deviceData.current_runtime == runtime)
+    {
+        unique_lock<shared_mutex> techLock(runtimeData.technique_mutex);
+        g_addonUIData.AssignPreferredGroupTechniques(runtimeData.allTechniques);
+    }
+
+    return ret;
 }
 
 

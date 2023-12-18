@@ -310,23 +310,26 @@ void ResourceManager::OnEffectsReloaded(effect_runtime* runtime)
 
 void ResourceManager::CheckResourceViews(reshade::api::effect_runtime* runtime)
 {
-    std::unique_lock<shared_mutex> lock_view(view_mutex);
-    for (auto view = global_resources.begin(); view != global_resources.end();)
+    if (!effects_reloading)
     {
-        // valid but not used or just invalid, dispose
-        if ((view->second.state != GlobalResourceState::RESOURCE_USED))
+        std::unique_lock<shared_mutex> lock_view(view_mutex);
+        for (auto view = global_resources.begin(); view != global_resources.end();)
         {
-            DisposeView(runtime->get_device(), view->second);
-            view = global_resources.erase(view);
-            continue;
-        }
+            // valid but not used or just invalid, dispose
+            if (view->second.state != GlobalResourceState::RESOURCE_USED)
+            {
+                DisposeView(runtime->get_device(), view->second);
+                view = global_resources.erase(view);
+                continue;
+            }
 
-        if (view->second.state == GlobalResourceState::RESOURCE_USED)
-        {
-            view->second.state = GlobalResourceState::RESOURCE_VALID;
-        }
+            if (view->second.state == GlobalResourceState::RESOURCE_USED)
+            {
+                view->second.state = GlobalResourceState::RESOURCE_VALID;
+            }
 
-        view++;
+            view++;
+        }
     }
 }
 

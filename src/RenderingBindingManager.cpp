@@ -16,6 +16,9 @@ RenderingBindingManager::~RenderingBindingManager()
 
 void RenderingBindingManager::InitTextureBingings(effect_runtime* runtime)
 {
+    if (runtime == nullptr || runtime->get_device() == nullptr)
+        return;
+
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
 
     // Init empty texture

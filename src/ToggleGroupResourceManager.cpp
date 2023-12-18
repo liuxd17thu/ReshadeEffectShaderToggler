@@ -140,6 +140,9 @@ void ToggleGroupResourceManager::DisposeGroupResources(device* device, resource&
 
 void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::device* device, std::unordered_map<int, ShaderToggler::ToggleGroup>& groups)
 {
+    if (device == nullptr)
+        return;
+
     for (auto& groupEntry : groups)
     {
         ShaderToggler::ToggleGroup& group = groupEntry.second;
@@ -158,6 +161,9 @@ void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::device* devic
 
 void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime* runtime, std::unordered_map<int, ShaderToggler::ToggleGroup>& groups)
 {
+    if (runtime == nullptr || runtime->get_device() == nullptr)
+        return;
+
     runtime->get_command_queue()->wait_idle();
 
     for (auto& groupEntry : groups)

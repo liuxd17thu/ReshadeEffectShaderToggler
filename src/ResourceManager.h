@@ -73,8 +73,8 @@ namespace Rendering
         void SetResourceShim(const std::string& shim) { _shimType = ResolveResourceShimType(shim); }
         void Init();
 
-        void DisposePreview(reshade::api::effect_runtime* runtime);
-        void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime);
+        void DisposePreview(reshade::api::device* runtime);
+        void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device);
         void SetPingPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         void SetPongPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);

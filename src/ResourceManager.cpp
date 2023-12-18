@@ -215,6 +215,8 @@ void ResourceManager::OnDestroyDevice(device* device)
     }
     global_resources.clear();
 
+    DisposePreview(device);
+
     in_destroy_device = false;
 }
 
@@ -268,28 +270,26 @@ GlobalResourceView& ResourceManager::GetResourceView(device* device, uint64_t ha
     return res;
 }
 
-void ResourceManager::DisposePreview(reshade::api::effect_runtime* runtime)
+void ResourceManager::DisposePreview(reshade::api::device* device)
 {
     if (preview_res[0] == 0 && preview_res[1] == 0)
         return;
-
-    runtime->get_command_queue()->wait_idle();
 
     for (uint32_t i = 0; i < 2; i++)
     {
         if (preview_srv[i] != 0)
         {
-            runtime->get_device()->destroy_resource_view(preview_srv[i]);
+            device->destroy_resource_view(preview_srv[i]);
         }
 
         if (preview_rtv[i] != 0)
         {
-            runtime->get_device()->destroy_resource_view(preview_rtv[i]);
+            device->destroy_resource_view(preview_rtv[i]);
         }
 
         if (preview_res[i] != 0)
         {
-            runtime->get_device()->destroy_resource(preview_res[i]);
+            device->destroy_resource(preview_res[i]);
         }
 
         preview_res[i] = resource{ 0 };
@@ -333,13 +333,18 @@ void ResourceManager::CheckResourceViews(reshade::api::effect_runtime* runtime)
     }
 }
 
-void ResourceManager::CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime)
+void ResourceManager::CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device)
 {
+    if (device == nullptr)
+    {
+        return;
+    }
+
     DeviceDataContainer& deviceData = device->get_private_data<DeviceDataContainer>();
 
     if (deviceData.huntPreview.recreate_preview)
     {
-        DisposePreview(runtime);
+        DisposePreview(device);
         resource_desc desc = deviceData.huntPreview.target_desc;
         resource_desc preview_desc[2] = {
             resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_typeless(desc.texture.format), 1, memory_heap::gpu_only, resource_usage::copy_dest | resource_usage::copy_source | resource_usage::shader_resource | resource_usage::render_target),
@@ -348,17 +353,17 @@ void ResourceManager::CheckPreview(reshade::api::command_list* cmd_list, reshade
 
         for (uint32_t i = 0; i < 2; i++)
         {
-            if (!runtime->get_device()->create_resource(preview_desc[i], nullptr, resource_usage::shader_resource, &preview_res[i]))
+            if (!device->create_resource(preview_desc[i], nullptr, resource_usage::shader_resource, &preview_res[i]))
             {
                 reshade::log_message(reshade::log_level::error, "Failed to create preview render target!");
             }
 
-            if (preview_res[i] != 0 && !runtime->get_device()->create_resource_view(preview_res[i], resource_usage::shader_resource, resource_view_desc(format_to_default_typed(preview_desc[i].texture.format, 0)), &preview_srv[i]))
+            if (preview_res[i] != 0 && !device->create_resource_view(preview_res[i], resource_usage::shader_resource, resource_view_desc(format_to_default_typed(preview_desc[i].texture.format, 0)), &preview_srv[i]))
             {
                 reshade::log_message(reshade::log_level::error, "Failed to create preview shader resource view!");
             }
 
-            if (preview_res[i] != 0 && !runtime->get_device()->create_resource_view(preview_res[i], resource_usage::render_target, resource_view_desc(format_to_default_typed(preview_desc[i].texture.format, 0)), &preview_rtv[i]))
+            if (preview_res[i] != 0 && !device->create_resource_view(preview_res[i], resource_usage::render_target, resource_view_desc(format_to_default_typed(preview_desc[i].texture.format, 0)), &preview_rtv[i]))
             {
                 reshade::log_message(reshade::log_level::error, "Failed to create preview render target view!");
             }

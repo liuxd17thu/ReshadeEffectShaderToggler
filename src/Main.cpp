@@ -296,8 +296,6 @@ static void onDestroyEffectRuntime(effect_runtime* runtime)
         {
             data.current_runtime = runtimes[runtimes.size() - 1];
 
-            renderingBindingManager.InitTextureBingings(data.current_runtime);
-
             if (constantHandler != nullptr)
             {
                 constantHandler->ReloadConstantVariables(data.current_runtime);
@@ -561,7 +559,7 @@ static void onReshadePresent(effect_runtime* runtime)
 
     if (runtime->get_effects_state())
     {
-        resourceManager.CheckPreview(queue->get_immediate_command_list(), dev, runtime);
+        resourceManager.CheckPreview(queue->get_immediate_command_list(), dev);
         groupResourceManager.CheckGroupBuffers(runtime, g_addonUIData.GetToggleGroups());
         renderingBindingManager.ClearUnmatchedTextureBindings(runtime->get_command_queue()->get_immediate_command_list());
         resourceManager.CheckResourceViews(runtime);

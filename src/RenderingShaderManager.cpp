@@ -140,10 +140,29 @@ void RenderingShaderManager::InitShaders(reshade::api::device* device)
 
 void RenderingShaderManager::DestroyShaders(reshade::api::device* device)
 {
-    copyPipeline = {};
-    copyPipelineAlpha = {};
-    copyPipelineLayout = {};
-    copyPipelineSampler = {};
+    if (copyPipeline != 0)
+    {
+        device->destroy_pipeline(copyPipeline);
+        copyPipeline = {};
+    }
+
+    if (copyPipelineAlpha != 0)
+    {
+        device->destroy_pipeline(copyPipelineAlpha);
+        copyPipelineAlpha = {};
+    }
+
+    if (copyPipelineLayout != 0)
+    {
+        device->destroy_pipeline_layout(copyPipelineLayout);
+        copyPipelineLayout = {};
+    }
+
+    if (copyPipelineSampler != 0)
+    {
+        device->destroy_sampler(copyPipelineSampler);
+        copyPipelineSampler = {};
+    }
 }
 
 void RenderingShaderManager::ApplyShader(command_list* cmd_list, resource_view srv_src, resource_view rtv_dst, pipeline& sh_pipeline,

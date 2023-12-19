@@ -131,11 +131,13 @@ bool RenderingEffectManager::_RenderEffects(
         if (group->getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
         {
             runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
+            deviceData.rendered_effects = true;
         }
 
         if (group->getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
         {
             runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, view_non_srgb, view_srgb);
+            deviceData.rendered_effects = true;
         }
 
         for (const auto& effectTech : effectList)

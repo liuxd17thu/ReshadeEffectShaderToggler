@@ -181,11 +181,13 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
             if (group.getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
             {
                 deviceData.current_runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, preview_pong_rtv);
+                deviceData.rendered_effects = true;
             }
 
             if (group.getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
             {
                 deviceData.current_runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, preview_pong_rtv);
+                deviceData.rendered_effects = true;
             }
         }
 

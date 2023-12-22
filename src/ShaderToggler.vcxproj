@@ -222,6 +222,7 @@
     <ClInclude Include="TechniqueManager.h" />
     <ClInclude Include="ToggleGroup.h" />
     <ClInclude Include="ToggleGroupResourceManager.h" />
+    <ClInclude Include="Util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AddonUIData.cpp" />

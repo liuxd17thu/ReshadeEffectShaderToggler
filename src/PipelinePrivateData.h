@@ -118,6 +118,7 @@ struct __declspec(uuid("838BAF1D-95C0-4A7E-A517-052642879986")) RuntimeDataConta
     std::shared_mutex technique_mutex;
     std::unordered_map<std::string, EffectData> allTechniques;
     std::unordered_set<EffectData*> allEnabledTechniques;
+    std::vector<EffectData*> allSortedTechniques;
 
     SpecialEffect specialEffects[4] = {
         SpecialEffect{ "REST_TONEMAP_TO_SDR", reshade::api::effect_technique {0} },

@@ -45,6 +45,7 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
 
     data.allEnabledTechniques.clear();
     data.allTechniques.clear();
+    data.allSortedTechniques.clear();
 
     Rendering::RenderingManager::EnumerateTechniques(runtime, [&data, this](effect_runtime* runtime, effect_technique technique, string& name, string& eff_name) {
         bool enabled = runtime->get_technique_state(technique);
@@ -67,6 +68,7 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
         }
 
         const auto& it = data.allTechniques.emplace(name + " [" + eff_name + "]", EffectData{technique, runtime, enabled});
+        data.allSortedTechniques.push_back(&it.first->second);
 
         if (enabled)
         {
@@ -146,6 +148,7 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
 
     data.allEnabledTechniques.clear();
     data.allTechniques.clear();
+    data.allSortedTechniques.clear();
 
     for (uint32_t i = 0; i < count; i++)
     {
@@ -181,6 +184,7 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
         }
 
         const auto& it = data.allTechniques.emplace(effKey, EffectData{ technique, runtime, enabled });
+        data.allSortedTechniques.push_back(&it.first->second);
 
         if (enabled)
         {

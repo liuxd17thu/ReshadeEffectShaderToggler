@@ -1,5 +1,6 @@
 #include "RenderingEffectManager.h"
 #include "StateTracking.h"
+#include "Util.h"
 
 using namespace Rendering;
 using namespace ShaderToggler;
@@ -39,9 +40,9 @@ bool RenderingEffectManager::RenderRemainingEffects(effect_runtime* runtime)
         return false;
     }
 
-    for (auto& eff : runtimeData.allEnabledTechniques)
+    for (auto& eff : runtimeData.allSortedTechniques)
     {
-        if (!eff->rendered)
+        if (eff->enabled && !eff->rendered)
         {
             runtime->render_technique(eff->technique, cmd_list, active_rtv, active_rtv_srgb);
 
@@ -67,16 +68,23 @@ bool RenderingEffectManager::_RenderEffects(
 
     unordered_map<ToggleGroup*, pair<vector<EffectData*>, resource>> groupTechMap;
 
-    for (const auto& sTech : techniquesToRender)
+    for (const auto& aTech : runtimeData.allSortedTechniques)
     {
-        if (sTech.first->enabled && !sTech.first->rendered && toRenderNames.contains(sTech.first))
+        const auto& sTech = techniquesToRender.find(aTech);
+
+        if (sTech == techniquesToRender.end())
         {
-            const auto& [techName, techData] = sTech;
+            continue;
+        }
+
+        if (sTech->first->enabled && !sTech->first->rendered && toRenderNames.contains(sTech->first))
+        {
+            const auto& [techName, techData] = *sTech;
             const auto& [group, _, active_resource] = techData;
 
             auto& [gEffects, gResource] = groupTechMap[group];
 
-            gEffects.push_back(sTech.first);
+            gEffects.push_back(sTech->first);
             gResource = active_resource;
         }
     }
@@ -130,21 +138,18 @@ bool RenderingEffectManager::_RenderEffects(
 
         if (group->getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
         {
-            runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
-            deviceData.rendered_effects = true;
+            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         if (group->getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
         {
-            runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, view_non_srgb, view_srgb);
-            deviceData.rendered_effects = true;
+            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         for (const auto& effectTech : effectList)
         {
-            deviceData.rendered_effects = true;
+            Util::Rendering::render_technique(deviceData, effectTech->technique, cmd_list, view_non_srgb, view_srgb);
 
-            runtime->render_technique(effectTech->technique, cmd_list, view_non_srgb, view_srgb);
             effectTech->rendered = true;
 
             removalList.push_back(effectTech);
@@ -154,12 +159,12 @@ bool RenderingEffectManager::_RenderEffects(
 
         if (group->getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_HDR].technique != 0)
         {
-            runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_HDR].technique, cmd_list, view_non_srgb, view_srgb);
+            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_TONEMAP_TO_HDR].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         if (group->getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
         {
-            runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
+            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         if (copyPreserveAlpha)

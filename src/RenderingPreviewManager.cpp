@@ -141,7 +141,7 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
         //    return;
         //}
 
-        if (!resourceManager.IsCompatibleWithPreviewFormat(deviceData.current_runtime, rs))
+        if (!resourceManager.IsCompatibleWithPreviewFormat(deviceData.current_runtime, rs, deviceData.huntPreview.view_format))
         {
             deviceData.huntPreview.recreate_preview = true;
         }
@@ -184,12 +184,12 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
 
             if (group.getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
             {
-                Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_FLIP].technique, cmd_list, preview_pong_rtv);
+                deviceData.current_runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, preview_pong_rtv, preview_pong_rtv);
             }
 
             if (group.getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
             {
-                Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, preview_pong_rtv);
+                deviceData.current_runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, preview_pong_rtv, preview_pong_rtv);
             }
         }
 

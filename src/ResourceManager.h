@@ -76,7 +76,7 @@ namespace Rendering
         void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device);
         void SetPingPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         void SetPongPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
-        bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);
+        bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res, reshade::api::format view_format);
 
         void OnEffectsReloading(reshade::api::effect_runtime* runtime);
         void OnEffectsReloaded(reshade::api::effect_runtime* runtime);

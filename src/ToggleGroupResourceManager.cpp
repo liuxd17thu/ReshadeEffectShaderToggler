@@ -164,8 +164,6 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
     if (runtime == nullptr || runtime->get_device() == nullptr)
         return;
 
-    runtime->get_command_queue()->wait_idle();
-
     for (auto& groupEntry : groups)
     {
         ShaderToggler::ToggleGroup& group = groupEntry.second;

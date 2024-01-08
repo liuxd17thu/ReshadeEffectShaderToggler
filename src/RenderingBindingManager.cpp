@@ -251,7 +251,7 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
 
                     if (group->getFlipBufferBinding() && bindingResource.rtv != 0 && runtimeData.specialEffects[REST_FLIP].technique != 0)
                     {
-                        Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_FLIP].technique, cmd_list, bindingResource.rtv, bindingResource.rtv_srgb);
+                        deviceData.current_runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, bindingResource.rtv, bindingResource.rtv_srgb);
                     }
                 }
             }

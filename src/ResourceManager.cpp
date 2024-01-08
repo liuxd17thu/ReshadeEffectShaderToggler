@@ -403,17 +403,18 @@ void ResourceManager::SetPongPreviewHandles(reshade::api::resource* res, reshade
     }
 }
 
-bool ResourceManager::IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res)
+bool ResourceManager::IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res, reshade::api::format view_format)
 {
-    if (res == 0 || preview_res[0] == 0)
+    if (preview_res[0] == 0 || res == 0)
         return false;
 
-    resource_desc tdesc = runtime->get_device()->get_resource_desc(res);
+    resource_desc res_desc = runtime->get_device()->get_resource_desc(res);
     resource_desc preview_desc = runtime->get_device()->get_resource_desc(preview_res[0]);
+    resource_view_desc preview_view_desc = runtime->get_device()->get_resource_view_desc(preview_srv[0]);
 
-    if ((format_to_typeless(tdesc.texture.format) == preview_desc.texture.format || tdesc.texture.format == preview_desc.texture.format) &&
-        tdesc.texture.width == preview_desc.texture.width &&
-        tdesc.texture.height == preview_desc.texture.height)
+    if ((view_format == preview_view_desc.format) &&
+        res_desc.texture.width == preview_desc.texture.width &&
+        res_desc.texture.height == preview_desc.texture.height)
     {
         return true;
     }

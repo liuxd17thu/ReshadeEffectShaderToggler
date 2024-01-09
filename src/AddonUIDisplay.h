@@ -99,14 +99,15 @@ static void DisplayIsPartOfToggleGroup()
 }
 
 
-static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderToggler::ToggleGroup* group, float tblWidth = 0)
+static void DisplayTechniqueSelection(reshade::api::effect_runtime* runtime, AddonImGui::AddonUIData& instance, ShaderToggler::ToggleGroup* group, float tblWidth = 0)
 {
     if (group == nullptr)
     {
         return;
     }
 
-    const std::vector<std::string>* techniquesPtr = instance.GetAllTechniques();
+    RuntimeDataContainer& runtimeData = runtime->get_private_data<RuntimeDataContainer>();
+
     std::unordered_set<std::string> curTechniques = group->preferredTechniques();
     std::unordered_set<std::string> newTechniques;
     static char searchBuf[256] = "\0";
@@ -119,7 +120,7 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
         ImGui::TableSetupColumn("##columnsetup", ImGuiTableColumnFlags_WidthFixed, tblWidth);
 
         ImGui::TableNextColumn();
-        ImGui::Text("捕获所有效果器");
+        ImGui::Text("应用所有启用的效果器");
         ImGui::TableNextColumn();
         ImGui::Checkbox("##Catchalltechniques", &allowAll);
 
@@ -166,23 +167,23 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
 
         std::string searchString(searchBuf);
 
-        if (techniquesPtr != nullptr)
+        if (runtimeData.allTechniques.size() > 0)
         {
-            for (const auto& technique : *techniquesPtr)
+            for (const auto& [name, effData] : runtimeData.allTechniques)
             {
-                bool enabled = curTechniques.contains(technique);
+                bool enabled = curTechniques.contains(name);
 
-                if (std::ranges::search(technique, searchString,
+                if (std::ranges::search(name, searchString,
                     [](const wchar_t lhs, const wchar_t rhs) {return lhs == rhs; },
-                    std::towupper, std::towupper).begin() != technique.end())
+                    std::towupper, std::towupper).begin() != name.end())
                 {
                     ImGui::TableNextColumn();
-                    ImGui::Checkbox(technique.c_str(), &enabled);
+                    ImGui::Checkbox(name.c_str(), &enabled);
                 }
 
                 if (enabled)
                 {
-                    newTechniques.insert(technique);
+                    newTechniques.insert(name);
                 }
             }
         }
@@ -198,8 +199,12 @@ static void DisplayTechniqueSelection(AddonImGui::AddonUIData& instance, ShaderT
     group->setHasTechniqueExceptions(exceptions);
     group->setAllowAllTechniques(allowAll);
 
-    if(techniquesPtr != nullptr && techniquesPtr->size() > 0)
+    std::shared_lock<std::shared_mutex> techLock(runtimeData.technique_mutex);
+    if (runtimeData.allTechniques.size() > 0)
+    {
         group->setPreferredTechniques(newTechniques);
+        instance.AssignPreferredGroupTechniques(runtimeData.allTechniques);
+    }
 }
 
 static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_t srcHeight)
@@ -423,7 +428,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
 
         ImGui::Separator();
 
-        DisplayTechniqueSelection(instance, group, ImGui::GetWindowWidth() / 3);
+        DisplayTechniqueSelection(runtime, instance, group, ImGui::GetWindowWidth() / 3);
 
         ImGui::PopStyleVar();
     }

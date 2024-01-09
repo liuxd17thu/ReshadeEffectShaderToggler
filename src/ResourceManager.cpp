@@ -96,15 +96,17 @@ static inline bool isValidShaderResource(reshade::api::format format)
     return format != reshade::api::format::intz;
 }
 
-void ResourceManager::CreateViews(reshade::api::device* device, GlobalResourceView& gview)
+void ResourceManager::CreateViews(reshade::api::device* device, GlobalResourceView& gview, reshade::api::format format)
 {
     resource resource{ gview.resource_handle };
     resource_desc desc = device->get_resource_desc(resource);
 
     if ((static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::render_target) || static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::shader_resource)) && desc.type == resource_type::texture_2d)
     {
-        reshade::api::format format_non_srgb = format_to_default_typed(desc.texture.format, 0);
-        reshade::api::format format_srgb = format_to_default_typed(desc.texture.format, 1);
+        reshade::api::format f = format == reshade::api::format::unknown ? desc.texture.format : format;
+
+        reshade::api::format format_non_srgb = format_to_default_typed(f, 0);
+        reshade::api::format format_srgb = format_to_default_typed(f, 1);
 
         if (static_cast<uint32_t>(desc.usage & resource_usage::render_target))
         {
@@ -134,7 +136,7 @@ void ResourceManager::DisposeView(device* device, const GlobalResourceView& view
     if (views.srv != 0)
         device->destroy_resource_view(views.srv);
     if (views.srv_srgb != 0)
-        device->destroy_resource_view(views.rtv_srgb);
+        device->destroy_resource_view(views.srv_srgb);
 }
 
 bool ResourceManager::OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd)
@@ -190,10 +192,7 @@ void ResourceManager::OnDestroyResource(device* device, resource res)
         rShim->OnDestroyResource(device, res);
     }
 
-    resource_desc desc = device->get_resource_desc(res);
-
-    if ((static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::render_target) || static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::shader_resource)) &&
-        desc.type == resource_type::texture_2d && !in_destroy_device)
+    if(!in_destroy_device)
     {
         std::shared_lock<shared_mutex> lock_view(view_mutex);
 
@@ -218,6 +217,8 @@ void ResourceManager::OnDestroyDevice(device* device)
     }
     global_resources.clear();
 
+    DisposePreview(device);
+
     in_destroy_device = false;
 }
 
@@ -240,7 +241,12 @@ void ResourceManager::OnDestroyResourceView(device* device, resource_view view)
 {
 }
 
-GlobalResourceView& ResourceManager::GetResourceView(uint64_t handle)
+GlobalResourceView& ResourceManager::GetResourceView(device* device, const ResourceRenderData& data)
+{
+    return GetResourceView(device, data.resource.handle, data.format);
+}
+
+GlobalResourceView& ResourceManager::GetResourceView(device* device, uint64_t handle, reshade::api::format format)
 {
     static GlobalResourceView emptyView{ 0 };
     if (handle == 0)
@@ -256,34 +262,40 @@ GlobalResourceView& ResourceManager::GetResourceView(uint64_t handle)
         return emptyView;
     }
 
+    // unitialized
+    if (res.state == GlobalResourceState::RESOURCE_UNINITIALIZED)
+    {
+        CreateViews(device, res, format);
+        res.state = GlobalResourceState::RESOURCE_VALID;
+    }
+
     if (res.state == GlobalResourceState::RESOURCE_VALID)
         res.state = GlobalResourceState::RESOURCE_USED;
+
 
     return res;
 }
 
-void ResourceManager::DisposePreview(reshade::api::effect_runtime* runtime)
+void ResourceManager::DisposePreview(reshade::api::device* device)
 {
     if (preview_res[0] == 0 && preview_res[1] == 0)
         return;
-
-    runtime->get_command_queue()->wait_idle();
 
     for (uint32_t i = 0; i < 2; i++)
     {
         if (preview_srv[i] != 0)
         {
-            runtime->get_device()->destroy_resource_view(preview_srv[i]);
+            device->destroy_resource_view(preview_srv[i]);
         }
 
         if (preview_rtv[i] != 0)
         {
-            runtime->get_device()->destroy_resource_view(preview_rtv[i]);
+            device->destroy_resource_view(preview_rtv[i]);
         }
 
         if (preview_res[i] != 0)
         {
-            runtime->get_device()->destroy_resource(preview_res[i]);
+            device->destroy_resource(preview_res[i]);
         }
 
         preview_res[i] = resource{ 0 };
@@ -304,50 +316,41 @@ void ResourceManager::OnEffectsReloaded(effect_runtime* runtime)
 
 void ResourceManager::CheckResourceViews(reshade::api::effect_runtime* runtime)
 {
-    std::unique_lock<shared_mutex> lock_view(view_mutex);
-    for (auto view = global_resources.begin(); view != global_resources.end();)
+    if (!effects_reloading)
     {
-        // valid but not used or just invalid, dispose
-        if (view->second.state == GlobalResourceState::RESOURCE_VALID || view->second.state == GlobalResourceState::RESOURCE_INVALID)
+        std::unique_lock<shared_mutex> lock_view(view_mutex);
+        for (auto view = global_resources.begin(); view != global_resources.end();)
         {
-            if (view->second.state == GlobalResourceState::RESOURCE_INVALID || view->second.ttl == 0)
+            // valid but not used or just invalid, dispose
+            if (view->second.state != GlobalResourceState::RESOURCE_USED)
             {
                 DisposeView(runtime->get_device(), view->second);
                 view = global_resources.erase(view);
+                continue;
             }
-            else
+
+            if (view->second.state == GlobalResourceState::RESOURCE_USED)
             {
-                if (!effects_reloading)
-                    view->second.ttl--;
-                view++;
+                view->second.state = GlobalResourceState::RESOURCE_VALID;
             }
-            continue;
-        }
 
-        // unitialized
-        if (view->second.state == GlobalResourceState::RESOURCE_UNINITIALIZED)
-        {
-            CreateViews(runtime->get_device(), view->second);
-            view->second.state = GlobalResourceState::RESOURCE_VALID;
+            view++;
         }
-
-        if (view->second.state == GlobalResourceState::RESOURCE_USED)
-        {
-            view->second.state = GlobalResourceState::RESOURCE_VALID;
-        }
-
-        view->second.ttl = GLOBAL_RESOURCE_TTL;
-        view++;
     }
 }
 
-void ResourceManager::CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime)
+void ResourceManager::CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device)
 {
+    if (device == nullptr)
+    {
+        return;
+    }
+
     DeviceDataContainer& deviceData = device->get_private_data<DeviceDataContainer>();
 
     if (deviceData.huntPreview.recreate_preview)
     {
-        DisposePreview(runtime);
+        DisposePreview(device);
         resource_desc desc = deviceData.huntPreview.target_desc;
         resource_desc preview_desc[2] = {
             resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_typeless(desc.texture.format), 1, memory_heap::gpu_only, resource_usage::copy_dest | resource_usage::copy_source | resource_usage::shader_resource | resource_usage::render_target),
@@ -356,17 +359,17 @@ void ResourceManager::CheckPreview(reshade::api::command_list* cmd_list, reshade
 
         for (uint32_t i = 0; i < 2; i++)
         {
-            if (!runtime->get_device()->create_resource(preview_desc[i], nullptr, resource_usage::shader_resource, &preview_res[i]))
+            if (!device->create_resource(preview_desc[i], nullptr, resource_usage::shader_resource, &preview_res[i]))
             {
                 reshade::log_message(reshade::log_level::error, "Failed to create preview render target!");
             }
 
-            if (preview_res[i] != 0 && !runtime->get_device()->create_resource_view(preview_res[i], resource_usage::shader_resource, resource_view_desc(format_to_default_typed(preview_desc[i].texture.format, 0)), &preview_srv[i]))
+            if (preview_res[i] != 0 && !device->create_resource_view(preview_res[i], resource_usage::shader_resource, resource_view_desc(format_to_default_typed(deviceData.huntPreview.view_format, 0)), &preview_srv[i]))
             {
                 reshade::log_message(reshade::log_level::error, "Failed to create preview shader resource view!");
             }
 
-            if (preview_res[i] != 0 && !runtime->get_device()->create_resource_view(preview_res[i], resource_usage::render_target, resource_view_desc(format_to_default_typed(preview_desc[i].texture.format, 0)), &preview_rtv[i]))
+            if (preview_res[i] != 0 && !device->create_resource_view(preview_res[i], resource_usage::render_target, resource_view_desc(format_to_default_typed(deviceData.huntPreview.view_format, 0)), &preview_rtv[i]))
             {
                 reshade::log_message(reshade::log_level::error, "Failed to create preview render target view!");
             }
@@ -400,17 +403,18 @@ void ResourceManager::SetPongPreviewHandles(reshade::api::resource* res, reshade
     }
 }
 
-bool ResourceManager::IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res)
+bool ResourceManager::IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res, reshade::api::format view_format)
 {
-    if (res == 0 || preview_res[0] == 0)
+    if (preview_res[0] == 0 || res == 0)
         return false;
 
-    resource_desc tdesc = runtime->get_device()->get_resource_desc(res);
+    resource_desc res_desc = runtime->get_device()->get_resource_desc(res);
     resource_desc preview_desc = runtime->get_device()->get_resource_desc(preview_res[0]);
+    resource_view_desc preview_view_desc = runtime->get_device()->get_resource_view_desc(preview_srv[0]);
 
-    if ((format_to_typeless(tdesc.texture.format) == preview_desc.texture.format || tdesc.texture.format == preview_desc.texture.format) &&
-        tdesc.texture.width == preview_desc.texture.width &&
-        tdesc.texture.height == preview_desc.texture.height)
+    if ((view_format == preview_view_desc.format) &&
+        res_desc.texture.width == preview_desc.texture.width &&
+        res_desc.texture.height == preview_desc.texture.height)
     {
         return true;
     }

@@ -39,13 +39,10 @@ namespace Rendering
         RESOURCE_INVALID = 3,
     };
 
-    constexpr uint32_t GLOBAL_RESOURCE_TTL = 60;
-
     struct __declspec(novtable) GlobalResourceView final
     {
-        constexpr GlobalResourceView() : resource_handle { 0 }, rtv { 0 }, rtv_srgb { 0 }, srv { 0 }, srv_srgb { 0 }, state(GlobalResourceState::RESOURCE_UNINITIALIZED), ttl(GLOBAL_RESOURCE_TTL) { }
-        constexpr GlobalResourceView(uint64_t handle) : resource_handle{ handle }, rtv{ 0 }, rtv_srgb{ 0 }, srv{ 0 }, srv_srgb{ 0 }, state(GlobalResourceState::RESOURCE_UNINITIALIZED), ttl(GLOBAL_RESOURCE_TTL) { }
-        constexpr GlobalResourceView(reshade::api::resource_desc desc) : resource_handle { 0 }, rtv { 0 }, rtv_srgb{ 0 }, srv{ 0 }, srv_srgb{ 0 }, state(GlobalResourceState::RESOURCE_UNINITIALIZED), ttl(GLOBAL_RESOURCE_TTL){ }
+        constexpr GlobalResourceView() : resource_handle { 0 }, rtv { 0 }, rtv_srgb { 0 }, srv { 0 }, srv_srgb { 0 }, state(GlobalResourceState::RESOURCE_UNINITIALIZED) { }
+        constexpr GlobalResourceView(uint64_t handle) : resource_handle{ handle }, rtv{ 0 }, rtv_srgb{ 0 }, srv{ 0 }, srv_srgb{ 0 }, state(GlobalResourceState::RESOURCE_UNINITIALIZED) { }
 
         uint64_t resource_handle;
         reshade::api::resource_view rtv;
@@ -53,7 +50,6 @@ namespace Rendering
         reshade::api::resource_view srv;
         reshade::api::resource_view srv_srgb;
         GlobalResourceState state;
-        uint32_t ttl;
     };
 
     class __declspec(novtable) ResourceManager final
@@ -76,16 +72,17 @@ namespace Rendering
         void SetResourceShim(const std::string& shim) { _shimType = ResolveResourceShimType(shim); }
         void Init();
 
-        void DisposePreview(reshade::api::effect_runtime* runtime);
-        void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device, reshade::api::effect_runtime* runtime);
+        void DisposePreview(reshade::api::device* runtime);
+        void CheckPreview(reshade::api::command_list* cmd_list, reshade::api::device* device);
         void SetPingPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
         void SetPongPreviewHandles(reshade::api::resource* res, reshade::api::resource_view* rtv, reshade::api::resource_view* srv);
-        bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res);
+        bool IsCompatibleWithPreviewFormat(reshade::api::effect_runtime* runtime, reshade::api::resource res, reshade::api::format view_format);
 
         void OnEffectsReloading(reshade::api::effect_runtime* runtime);
         void OnEffectsReloaded(reshade::api::effect_runtime* runtime);
 
-        GlobalResourceView& GetResourceView(uint64_t handle);
+        GlobalResourceView& GetResourceView(reshade::api::device* device, const ResourceRenderData& data);
+        GlobalResourceView& GetResourceView(reshade::api::device* device, uint64_t handle, reshade::api::format format = reshade::api::format::unknown);
         void CheckResourceViews(reshade::api::effect_runtime* runtime);
 
         static EmbeddedResourceData GetResourceData(uint16_t id);
@@ -94,7 +91,7 @@ namespace Rendering
         reshade::api::resource_view dummy_rtv;
     private:
         void DisposeView(reshade::api::device* device, const GlobalResourceView& views);
-        void CreateViews(reshade::api::device* device, GlobalResourceView& gview);
+        void CreateViews(reshade::api::device* device, GlobalResourceView& gview, reshade::api::format format = reshade::api::format::unknown);
         static ResourceShimType ResolveResourceShimType(const std::string&);
 
         ResourceShimType _shimType = ResourceShimType::Resource_Shim_None;

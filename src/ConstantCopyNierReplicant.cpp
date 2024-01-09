@@ -32,6 +32,7 @@ void ConstantCopyNierReplicant::OnMapBufferRegion(device* device, resource resou
     {
         resource_desc desc = device->get_resource_desc(resource);
 
+        std::shared_lock<std::shared_mutex> lock(deviceHostMutex);
         const auto& it = deviceToHostConstantBuffer.find(resource.handle);
 
         if (it != deviceToHostConstantBuffer.end())

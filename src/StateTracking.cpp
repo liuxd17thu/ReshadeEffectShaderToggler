@@ -635,7 +635,7 @@ const std::vector<uint32_t>* state_block::get_constants_at(uint32_t stageIndex, 
         }
     }
 
-    return {};
+    return nullptr;
 }
 
 static void on_reset_command_list(command_list* cmd_list)

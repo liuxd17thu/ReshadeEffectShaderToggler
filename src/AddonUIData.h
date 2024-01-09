@@ -38,6 +38,7 @@
 #include "CDataFile.h"
 #include "ToggleGroup.h"
 #include "ConstantHandlerBase.h"
+#include "EffectData.h"
 
 constexpr auto FRAMECOUNT_COLLECTION_PHASE_DEFAULT = 10;
 constexpr auto HASH_FILE_NAME = "ReshadeEffectShaderToggler.ini";
@@ -95,7 +96,6 @@ namespace AddonImGui
         ShaderToggler::ShaderManager* _computeShaderManager;
         Shim::Constants::ConstantHandlerBase* _constantHandler;
         std::atomic_uint32_t* _activeCollectorFrameCounter;
-        std::vector<std::string>* _allTechniques;
         std::atomic_uint _invocationLocation = 0;
         std::atomic_uint _descriptorIndex = 0;
         std::atomic_int _toggleGroupIdShaderEditing = -1;
@@ -118,8 +118,7 @@ namespace AddonImGui
 
         std::vector<std::function<void(reshade::api::effect_runtime*, ShaderToggler::ToggleGroup*)>> _removalCallbacks;
     public:
-        AddonUIData(ShaderToggler::ShaderManager* pixelShaderManager, ShaderToggler::ShaderManager* vertexShaderManager, ShaderToggler::ShaderManager* computeShaderManager, Shim::Constants::ConstantHandlerBase* constants, std::atomic_uint32_t* activeCollectorFrameCounter,
-            std::vector<std::string>* techniques);
+        AddonUIData(ShaderToggler::ShaderManager* pixelShaderManager, ShaderToggler::ShaderManager* vertexShaderManager, ShaderToggler::ShaderManager* computeShaderManager, Shim::Constants::ConstantHandlerBase* constants, std::atomic_uint32_t* activeCollectorFrameCounter);
         std::unordered_map<int, ShaderToggler::ToggleGroup>& GetToggleGroups();
         const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForPixelShaderHash(uint32_t hash);
         const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForVertexShaderHash(uint32_t hash);
@@ -145,7 +144,6 @@ namespace AddonImGui
         std::atomic_uint& GetDescriptorIndex() { return _descriptorIndex; }
         void SetCurrentTabType(TabType type) { _currentTab = type; }
         TabType GetCurrentTabType() const { return _currentTab; }
-        const std::vector<std::string>* GetAllTechniques() const;
         int* StartValueFramecountCollectionPhase() { return &_startValueFramecountCollectionPhase; }
         float* OverlayOpacity() { return &_overlayOpacity; }
         std::atomic_uint32_t* ActiveCollectorFrameCounter() { return _activeCollectorFrameCounter; }
@@ -168,5 +166,7 @@ namespace AddonImGui
         void SignalToggleGroupRemoved(reshade::api::effect_runtime*, ShaderToggler::ToggleGroup*);
         bool GetPreventRuntimeReload() const { return _preventRuntimeReload; }
         void SetPreventRuntimeReload(bool reload) { _preventRuntimeReload = reload; }
+
+        void AssignPreferredGroupTechniques(std::unordered_map<std::string, EffectData>& allTechniques);
     };
 }

@@ -140,6 +140,9 @@ void ToggleGroupResourceManager::DisposeGroupResources(device* device, resource&
 
 void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::device* device, std::unordered_map<int, ShaderToggler::ToggleGroup>& groups)
 {
+    if (device == nullptr)
+        return;
+
     for (auto& groupEntry : groups)
     {
         ShaderToggler::ToggleGroup& group = groupEntry.second;
@@ -158,7 +161,8 @@ void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::device* devic
 
 void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime* runtime, std::unordered_map<int, ShaderToggler::ToggleGroup>& groups)
 {
-    runtime->get_command_queue()->wait_idle();
+    if (runtime == nullptr || runtime->get_device() == nullptr)
+        return;
 
     for (auto& groupEntry : groups)
     {
@@ -202,17 +206,17 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
                     reshade::log_message(reshade::log_level::error, "Failed to create group render target!");
                 }
 
-                if (validRT && resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::shader_resource, resource_view_desc(format_to_default_typed(group_desc.texture.format, 0)), &resources.srv))
+                if (validRT && resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::shader_resource, resource_view_desc(format_to_default_typed(resources.view_format, 0)), &resources.srv))
                 {
                     reshade::log_message(reshade::log_level::error, "Failed to create group shader resource view!");
                 }
 
-                if (validRT && resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::render_target, resource_view_desc(format_to_default_typed(group_desc.texture.format, 0)), &resources.rtv))
+                if (validRT && resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::render_target, resource_view_desc(format_to_default_typed(resources.view_format, 0)), &resources.rtv))
                 {
                     reshade::log_message(reshade::log_level::error, "Failed to create group render target view!");
                 }
 
-                if (resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::render_target, resource_view_desc(format_to_default_typed(group_desc.texture.format, 1)), &resources.rtv_srgb))
+                if (resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::render_target, resource_view_desc(format_to_default_typed(resources.view_format, 1)), &resources.rtv_srgb))
                 {
                     reshade::log_message(reshade::log_level::error, "Failed to create group SRGB render target view!");
                 }

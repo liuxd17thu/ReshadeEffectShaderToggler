@@ -202,6 +202,7 @@
     <ClInclude Include="ConstantManager.h" />
     <ClInclude Include="crc32_hash.hpp" />
     <ClInclude Include="DescriptorTracking.h" />
+    <ClInclude Include="EffectData.h" />
     <ClInclude Include="GameHookT.h" />
     <ClInclude Include="KeyMonitor.h" />
     <ClInclude Include="RenderingBindingManager.h" />
@@ -223,6 +224,7 @@
     <ClInclude Include="TechniqueManager.h" />
     <ClInclude Include="ToggleGroup.h" />
     <ClInclude Include="ToggleGroupResourceManager.h" />
+    <ClInclude Include="Util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AddonUIData.cpp" />

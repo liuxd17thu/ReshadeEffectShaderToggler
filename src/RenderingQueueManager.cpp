@@ -56,12 +56,12 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                     {
                         if (!group->getCopyTextureBinding() || group->getExtractResourceViews())
                         {
-                            sData.bindingsToUpdate.emplace(group, std::make_tuple(CALL_DRAW, resource{ 0 }));
+                            sData.bindingsToUpdate.emplace(group, ResourceRenderData{ group, CALL_DRAW, resource{ 0 }, format::unknown });
                             queue_mask |= (match_binding << CALL_DRAW * MATCH_DELIMITER);
                         }
                         else
                         {
-                            sData.bindingsToUpdate.emplace(group, std::make_tuple(group->getBindingInvocationLocation(), resource{ 0 }));
+                            sData.bindingsToUpdate.emplace(group, ResourceRenderData{ group, group->getBindingInvocationLocation(), resource{ 0 }, format::unknown });
                             queue_mask |= (match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
                         }
                     }
@@ -69,34 +69,34 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
 
                 if (group->getAllowAllTechniques())
                 {
-                    for (const auto& [techName, techData] : runtimeData.allEnabledTechniques)
+                    auto& preferred = group->GetPreferredTechniqueData();
+
+                    for (const auto& techData : runtimeData.allEnabledTechniques)
                     {
-                        if (group->getHasTechniqueExceptions() && group->preferredTechniques().contains(techName))
+                        if (group->getHasTechniqueExceptions() && preferred.contains(techData))
                         {
                             continue;
                         }
 
                         if (!techData->rendered)
                         {
-                            if (!sData.techniquesToRender.contains(techName))
+                            if (!sData.techniquesToRender.contains(techData))
                             {
-                                sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource{ 0 }));
+                                sData.techniquesToRender.emplace(techData, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
                                 queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
                             }
                         }
                     }
                 }
                 else if (group->preferredTechniques().size() > 0) {
-                    for (auto& techName : group->preferredTechniques())
+                    auto& preferred = group->GetPreferredTechniqueData();
+
+                    for (auto& eff : preferred)
                     {
-                        const auto& techData = runtimeData.allEnabledTechniques.find(techName);
-                        if (techData != runtimeData.allEnabledTechniques.end() && !techData->second->rendered)
+                        if (!eff->rendered && !sData.techniquesToRender.contains(eff))
                         {
-                            if (!sData.techniquesToRender.contains(techName))
-                            {
-                                sData.techniquesToRender.emplace(techName, std::make_tuple(group, group->getInvocationLocation(), resource{ 0 }));
-                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
-                            }
+                            sData.techniquesToRender.emplace(eff, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
+                            queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
                         }
                     }
                 }
@@ -118,8 +118,9 @@ void RenderingQueueManager::CheckCallForCommandList(reshade::api::command_list* 
     DeviceDataContainer& deviceData = commandList->get_device()->get_private_data<DeviceDataContainer>();
     RuntimeDataContainer& runtimeData = deviceData.current_runtime->get_private_data<RuntimeDataContainer>();
 
-    shared_lock<shared_mutex> r_mutex(runtimeData.render_mutex);
-    shared_lock<shared_mutex> b_mutex(deviceData.binding_mutex);
+    shared_lock<shared_mutex> t_mutex(runtimeData.technique_mutex);
+    unique_lock<shared_mutex> b_mutex(deviceData.binding_mutex);
+    unique_lock<shared_mutex> r_mutex(deviceData.render_mutex);
 
     _CheckCallForCommandList(commandListData.ps, commandListData, deviceData, runtimeData);
     _CheckCallForCommandList(commandListData.vs, commandListData, deviceData, runtimeData);
@@ -140,8 +141,8 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
 
     for (const auto& tech : sData.techniquesToRender)
     {
-        const ToggleGroup* group = std::get<0>(tech.second);
-        const resource res = std::get<2>(tech.second);
+        const ToggleGroup* group = tech.second.group;
+        const resource res = tech.second.resource;
 
         if (res == 0 && group->getRequeueAfterRTMatchingFailure())
         {
@@ -162,9 +163,8 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
     for (const auto& tech : sData.bindingsToUpdate)
     {
         const ToggleGroup* group = tech.first;
-        const resource res = std::get<1>(tech.second);
 
-        if (res == 0 && group->getRequeueAfterRTMatchingFailure())
+        if (tech.second.resource == 0 && group->getRequeueAfterRTMatchingFailure())
         {
             queue_mask |= (match_binding << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
 
@@ -208,7 +208,7 @@ static void clearStage(CommandListDataContainer& commandListData, effect_queue& 
     {
         for (auto it = queuedTasks.begin(); it != queuedTasks.end();)
         {
-            uint64_t callLocation = std::get<1>(it->second);
+            uint64_t callLocation = it->second.invocationLocation;
             if (callLocation == location)
             {
                 it = queuedTasks.erase(it);
@@ -225,7 +225,7 @@ static void clearStage(CommandListDataContainer& commandListData, binding_queue&
     {
         for (auto it = queuedTasks.begin(); it != queuedTasks.end();)
         {
-            uint64_t callLocation = std::get<0>(it->second);
+            uint64_t callLocation = it->second.invocationLocation;
             if (callLocation == location)
             {
                 it = queuedTasks.erase(it);

@@ -302,9 +302,9 @@ static void onReshadeOverlay(reshade::api::effect_runtime *runtime)
 	if(g_toggleGroupIdShaderEditing>=0)
 	{
 		ImGui::SetNextWindowBgAlpha(g_overlayOpacity);
-		ImGui::SetNextWindowPos(ImVec2(10, 10));
+		//ImGui::SetNextWindowPos(ImVec2(10, 10));
 		if (!ImGui::Begin("ShaderTogglerInfo", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | 
-														ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
+														ImGuiWindowFlags_NoSavedSettings))
 		{
 			ImGui::End();
 			return;

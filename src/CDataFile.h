@@ -17,6 +17,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <format>
 
 // Globally defined structures, defines, & types
 //////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +142,8 @@ void	Report(e_DebugLevel DebugLevel, const char* fmt, ...);
 t_Str	GetNextWord(t_Str& CommandLine);
 int		CompareNoCase(t_Str str1, t_Str str2);
 void	Trim(t_Str& szStr);
-int		WriteLn(std::fstream& stream, const char* fmt, ...);
+template <typename... Args>
+int     WriteLn(std::fstream& stream, std::format_string<Args...> fmt, Args &&... args);
 
 
 /// Class Definitions ///////////////////////////////////////////////////////////

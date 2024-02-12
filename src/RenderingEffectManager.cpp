@@ -40,12 +40,13 @@ bool RenderingEffectManager::RenderRemainingEffects(effect_runtime* runtime)
         return false;
     }
 
-    RenderingManager::EnumerateTechniques(runtime, [&runtimeData, &cmd_list, &active_rtv, &active_rtv_srgb, &rendered](effect_runtime* runtime, effect_technique technique, string& name) {
-        if (runtimeData.allEnabledTechniques.contains(name) && !runtimeData.allEnabledTechniques[name]->rendered)
+    RenderingManager::EnumerateTechniques(runtime, [&runtimeData, &cmd_list, &active_rtv, &active_rtv_srgb, &rendered](effect_runtime* runtime, effect_technique technique, string& name, string & eff_name) {
+        auto effKey = name + " [" + eff_name + "]";
+        if (runtimeData.allEnabledTechniques.contains(effKey) && !runtimeData.allEnabledTechniques[effKey]->rendered)
         {
             runtime->render_technique(technique, cmd_list, active_rtv, active_rtv_srgb);
 
-            runtimeData.allEnabledTechniques[name]->rendered = true;
+            runtimeData.allEnabledTechniques[effKey]->rendered = true;
             rendered = true;
         }
         });

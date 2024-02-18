@@ -38,6 +38,7 @@
 #include "CDataFile.h"
 #include "ToggleGroup.h"
 #include "ConstantHandlerBase.h"
+#include "EffectData.h"
 
 constexpr auto FRAMECOUNT_COLLECTION_PHASE_DEFAULT = 10;
 constexpr auto HASH_FILE_NAME = "ReshadeEffectShaderToggler.ini";

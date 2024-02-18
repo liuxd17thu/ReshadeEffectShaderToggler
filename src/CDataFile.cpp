@@ -12,6 +12,9 @@
 // If you use this class in your application, credit would be appreciated.
 //
 
+// Modified by BarricadeMKXX to unlock the length limit of WriteLn().
+// Report() keeps unchanged.
+
 //
 // CDataFile
 // The purpose of this class is to provide the means to easily store key/value
@@ -129,7 +132,6 @@ bool CDataFile::Load(t_Str szFileName)
 
         t_Str szLine;
         t_Str szComment;
-        char buffer[MAX_BUFFER_LEN];
         t_Section* pSection = GetSection("");
 
         // These need to be set, we'll restore the original values later.
@@ -138,10 +140,8 @@ bool CDataFile::Load(t_Str szFileName)
 
         while (!bDone)
         {
-            memset(buffer, 0, MAX_BUFFER_LEN);
-            File.getline(buffer, MAX_BUFFER_LEN);
+            std::getline(File, szLine);
 
-            szLine = buffer;
             Trim(szLine);
 
             bDone = (File.eof() || File.bad() || File.fail());
@@ -227,17 +227,16 @@ bool CDataFile::Save()
             Section = (*s_pos);
             bool bWroteComment = false;
 
+            t_Str szBuffer;
             if (Section.szComment.size() > 0)
             {
                 bWroteComment = true;
-                WriteLn(File, "\n%s", CommentStr(Section.szComment).c_str());
+                WriteLn(File, "\n{}", CommentStr(Section.szComment));
             }
 
             if (Section.szName.size() > 0)
             {
-                WriteLn(File, "%s[%s]",
-                    bWroteComment ? "" : "\n",
-                    Section.szName.c_str());
+                WriteLn(File, "{}[{}]", bWroteComment ? "" : "\n", Section.szName);
             }
 
             for (k_pos = Section.Keys.begin(); k_pos != Section.Keys.end(); k_pos++)
@@ -246,13 +245,14 @@ bool CDataFile::Save()
 
                 if (Key.szKey.size() > 0 && Key.szValue.size() > 0)
                 {
-                    WriteLn(File, "%s%s%s%s%c%s",
+                    WriteLn(File, "{0}{1}{2}{3}{4}{5}",
                         Key.szComment.size() > 0 ? "\n" : "",
-                        CommentStr(Key.szComment).c_str(),
+                        CommentStr(Key.szComment),
                         Key.szComment.size() > 0 ? "\n" : "",
-                        Key.szKey.c_str(),
+                        Key.szKey,
                         EqualIndicators[0],
-                        Key.szValue.c_str());
+                        Key.szValue
+                    );
                 }
             }
         }
@@ -790,27 +790,14 @@ void Trim(t_Str& szStr)
 // WriteLn
 // Writes the formatted output to the file stream, returning the number of
 // bytes written.
-int WriteLn(std::fstream& stream, const char* fmt, ...)
+template <typename... Args>
+int WriteLn(std::fstream& stream, std::format_string<Args...> fmt, Args &&... args)
 {
-    char buf[MAX_BUFFER_LEN];
-    int nLength;
-    t_Str szMsg;
-
-    memset(buf, 0, MAX_BUFFER_LEN);
-    va_list args;
-
-    va_start(args, fmt);
-    nLength = _vsnprintf_s(buf, MAX_BUFFER_LEN, fmt, args);
-    va_end(args);
-
-
-    if (buf[nLength] != '\n' && buf[nLength] != '\r')
-        buf[nLength++] = '\n';
-
-
-    stream.write(buf, nLength);
-
-    return nLength;
+    t_Str szBuffer = std::format(fmt, std::forward<Args>(args)...);
+    if(szBuffer.back() != '\r' && szBuffer.back() != '\n')
+        szBuffer += "\n";
+    stream << szBuffer;
+    return szBuffer.length();
 }
 
 // Report

@@ -46,8 +46,8 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
     data.allTechniques.clear();
     allTechniques.clear();
 
-    Rendering::RenderingManager::EnumerateTechniques(runtime, [&data, this](effect_runtime* runtime, effect_technique technique, string& name) {
-        allTechniques.push_back(name);
+    Rendering::RenderingManager::EnumerateTechniques(runtime, [&data, this](effect_runtime* runtime, effect_technique technique, string& name, string& eff_name) {
+        allTechniques.push_back(name + " [" + eff_name + "]");
         bool enabled = runtime->get_technique_state(technique);
 
         // Assign technique handles to REST effects
@@ -67,12 +67,12 @@ void TechniqueManager::OnReshadeReloadedEffects(reshade::api::effect_runtime* ru
             return;
         }
 
-        const auto& it = data.allTechniques.emplace(name, EffectData{ technique, runtime, enabled });
-        data.allSortedTechniques.push_back(make_pair(name, &it.first->second));
+        const auto& it = data.allTechniques.emplace(name + " [" + eff_name + "]", EffectData{technique, runtime, enabled});
+        data.allSortedTechniques.push_back(make_pair(name + " [" + eff_name + "]", &it.first->second));
     
         if (enabled)
         {
-            data.allEnabledTechniques.emplace(name, &it.first->second);
+            data.allEnabledTechniques.emplace(name + " [" + eff_name + "]", &it.first->second);
         }
         });
 
@@ -98,6 +98,12 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
     runtime->get_technique_name(technique, charBuffer, &charBufferSize);
     string techName(charBuffer);
 
+    charBufferSize = CHAR_BUFFER_SIZE;
+    runtime->get_technique_effect_name(technique, charBuffer, &charBufferSize);
+    string eff_name(charBuffer);
+
+    std::string effKey = techName + " [" + eff_name + "]";
+
     // Prevent REST techniques from being manually enabled
     for (uint32_t j = 0; j < REST_EFFECTS_COUNT; j++)
     {
@@ -107,7 +113,7 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
         }
     }
 
-    const auto& it = data.allTechniques.find(techName);
+    const auto& it = data.allTechniques.find(effKey);
 
     if (it == data.allTechniques.end())
     {
@@ -116,18 +122,18 @@ bool TechniqueManager::OnReshadeSetTechniqueState(reshade::api::effect_runtime* 
 
     it->second.enabled = enabled;
 
-    if (!enabled)
+    if(!enabled)
     {
-        if (data.allEnabledTechniques.contains(techName))
+        if(data.allEnabledTechniques.contains(effKey))
         {
-            data.allEnabledTechniques.erase(techName);
+            data.allEnabledTechniques.erase(effKey);
         }
     }
     else
     {
-        if (data.allEnabledTechniques.find(techName) == data.allEnabledTechniques.end())
+        if(data.allEnabledTechniques.find(effKey) == data.allEnabledTechniques.end())
         {
-            data.allEnabledTechniques.emplace(techName, &it->second);
+            data.allEnabledTechniques.emplace(effKey, &it->second);
         }
     }
 
@@ -149,6 +155,12 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
         runtime->get_technique_name(technique, charBuffer, &charBufferSize);
         string name(charBuffer);
 
+        charBufferSize = CHAR_BUFFER_SIZE;
+        runtime->get_technique_effect_name(technique, charBuffer, &charBufferSize);
+        string eff_name(charBuffer);
+
+        std::string effKey = name + " [" + eff_name + "]";
+
         bool enabled = runtime->get_technique_state(technique);
 
         // Assign technique handles to REST effects
@@ -168,12 +180,12 @@ bool TechniqueManager::OnReshadeReorderTechniques(reshade::api::effect_runtime* 
             continue;
         }
 
-        const auto& it = data.allTechniques.emplace(name, EffectData{ technique, runtime, enabled });
-        data.allSortedTechniques.push_back(make_pair(name, &it.first->second));
+        const auto& it = data.allTechniques.emplace(effKey, EffectData{ technique, runtime, enabled });
+        data.allSortedTechniques.push_back(make_pair(effKey, &it.first->second));
 
         if (enabled)
         {
-            data.allEnabledTechniques.emplace(name, &it.first->second);
+            data.allEnabledTechniques.emplace(effKey, &it.first->second);
         }
     }
 

@@ -8,41 +8,10 @@
 #include "reshade.hpp"
 #include "CDataFile.h"
 #include "ToggleGroup.h"
+#include "EffectData.h"
 
 using effect_queue = std::unordered_map<std::string, std::tuple<ShaderToggler::ToggleGroup*, uint64_t, reshade::api::resource>>;
 using binding_queue = std::unordered_map<ShaderToggler::ToggleGroup*, std::tuple<uint64_t, reshade::api::resource>>;
-
-struct __declspec(novtable) EffectData final {
-    constexpr EffectData() : rendered(false), enabled_in_screenshot(true), technique({}), timeout(-1) {}
-    constexpr EffectData(reshade::api::effect_technique tech, reshade::api::effect_runtime* runtime) : EffectData(tech, runtime, false) {}
-    constexpr EffectData(reshade::api::effect_technique tech, reshade::api::effect_runtime* runtime, bool active)
-    {
-        if (!runtime->get_annotation_bool_from_technique(tech, "enabled_in_screenshot", &enabled_in_screenshot, 1))
-        {
-            enabled_in_screenshot = true;
-        }
-
-        if (!runtime->get_annotation_int_from_technique(tech, "timeout", &timeout, 1))
-        {
-            timeout = -1;
-        }
-        else
-        {
-            timeout_start = std::chrono::steady_clock::now();
-        }
-
-        rendered = false;
-        technique = tech;
-        enabled = active;
-    }
-
-    bool rendered = false;
-    bool enabled_in_screenshot = true;
-    bool enabled = false;
-    reshade::api::effect_technique technique = {};
-    int32_t timeout = -1;
-    std::chrono::steady_clock::time_point timeout_start;
-};
 
 struct __declspec(novtable) ShaderData final {
     uint32_t activeShaderHash = -1;

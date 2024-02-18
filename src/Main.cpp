@@ -65,8 +65,8 @@ using namespace AddonImGui;
 using namespace Shim::Constants;
 using namespace std;
 
-extern "C" __declspec(dllexport) const char* NAME = "Reshade Effect Shader Toggler";
-extern "C" __declspec(dllexport) const char* DESCRIPTION = "一个ReShade插件，允许你定义在哪些游戏着色器分组上渲染ReShade滤镜效果。";
+extern "C" __declspec(dllexport) const char* NAME = "REST for AuroraShade";
+extern "C" __declspec(dllexport) const char* DESCRIPTION = "一个ReShade插件，允许你定义在哪些游戏着色器分组上渲染ReShade滤镜效果。由路障MKXX修改以适配AuroraShade。";
 
 constexpr auto MAX_EFFECT_HANDLES = 128;
 constexpr auto REST_VAR_ANNOTATION = "source";

@@ -79,10 +79,12 @@ namespace ShaderToggler
     struct __declspec(novtable) GroupResource final
     {
         reshade::api::resource res;
+        reshade::api::resource ext_res;
         reshade::api::format view_format;
         reshade::api::resource_view rtv;
         reshade::api::resource_view rtv_srgb;
         reshade::api::resource_view srv;
+        reshade::api::resource_view ext_srv;
         reshade::api::resource_desc target_description;
         std::function<bool()> enabled;
         std::function<bool()> clear_on_miss;

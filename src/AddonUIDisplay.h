@@ -277,7 +277,9 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         ShaderToggler::GroupResource& groupResource = group->GetGroupResource(ShaderToggler::GroupResourceType::RESOURCE_BINDING);
 
-        if (groupResource.srv != 0)
+        reshade::api::resource_view res_view = groupResource.owning ? groupResource.srv : groupResource.ext_srv;
+
+        if (res_view != 0)
         {
             ImGui::Text(std::format("Format: {} ", static_cast<uint32_t>(groupResource.target_description.texture.format)).c_str());
             ImGui::SameLine();
@@ -288,7 +290,7 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
 
             if (ImGui::BeginChild("BindingPreview##preview", { 0, 0 }, false, ImGuiWindowFlags_None))
             {
-                DrawPreview(groupResource.srv.handle, groupResource.target_description.texture.width, groupResource.target_description.texture.height);
+                DrawPreview(res_view.handle, groupResource.target_description.texture.width, groupResource.target_description.texture.height);
             }
             ImGui::EndChild();
         }

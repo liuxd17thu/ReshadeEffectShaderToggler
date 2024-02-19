@@ -254,6 +254,8 @@ GlobalResourceView& ResourceManager::GetResourceView(device* device, uint64_t ha
         return emptyView;
     }
 
+    std::unique_lock<shared_mutex> lock_view(view_mutex);
+
     auto& res = global_resources[handle];
     res.resource_handle = handle;
 

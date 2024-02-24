@@ -277,7 +277,15 @@ static void DisplayBindingPreview(AddonImGui::AddonUIData& instance, Rendering::
         DeviceDataContainer& deviceData = runtime->get_device()->get_private_data<DeviceDataContainer>();
         ShaderToggler::GroupResource& groupResource = group->GetGroupResource(ShaderToggler::GroupResourceType::RESOURCE_BINDING);
 
-        reshade::api::resource_view res_view = groupResource.owning ? groupResource.srv : groupResource.ext_srv;
+        reshade::api::resource_view res_view = { 0 }; 
+        if (groupResource.owning)
+        {
+            res_view = groupResource.srv;
+        }
+        else if (groupResource.g_res != nullptr)
+        {
+            res_view = groupResource.g_res->srv;
+        }
 
         if (res_view != 0)
         {

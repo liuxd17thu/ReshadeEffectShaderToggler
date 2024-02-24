@@ -110,8 +110,7 @@ uint32_t RenderingBindingManager::UpdateTextureBinding(effect_runtime* runtime, 
     {
         groupResource.target_description = desc;
         groupResource.view_format = viewformat;
-        groupResource.ext_res = { 0 };
-        groupResource.ext_srv = { 0 };
+        groupResource.g_res = { 0 };
         groupResource.owning = true;
     }
 
@@ -207,27 +206,24 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
 
             if (!group->getCopyTextureBinding())
             {
-                GlobalResourceView& view = resourceManager.GetResourceView(runtime->get_device(), bindingData);
-                resource_view view_non_srgb = view.srv;
-                resource_view view_srgb = view.rtv_srgb;
+                const std::shared_ptr<GlobalResourceView>& view = resourceManager.GetResourceView(runtime->get_device(), bindingData);
 
-                if (view_non_srgb == 0)
+                if (view == nullptr || view->srv == 0)
                 {
                     return;
                 }
 
                 resource_desc resDesc = runtime->get_device()->get_resource_desc(bindingData.resource);
 
-                resource target_res = bindingResource.ext_res;
+                resource target_res = bindingResource.g_res == nullptr ? resource{ 0 } : resource{ bindingResource.g_res->resource_handle };
 
                 if (target_res != bindingData.resource || bindingResource.state == ShaderToggler::GroupResourceState::RESOURCE_CLEARED)
                 {
-                    runtime->update_texture_bindings(group->getTextureBindingName().c_str(), view_non_srgb, view_srgb);
+                    runtime->update_texture_bindings(group->getTextureBindingName().c_str(), view->srv, view->srv_srgb);
 
-                    bindingResource.ext_res = bindingData.resource;
+                    bindingResource.g_res = view;
                     bindingResource.view_format = bindingData.format;
                     bindingResource.target_description = resDesc;
-                    bindingResource.ext_srv = view_non_srgb;
                     bindingResource.owning = false;
                     bindingResource.state = ShaderToggler::GroupResourceState::RESOURCE_VALID;
                 }
@@ -356,14 +352,8 @@ void RenderingBindingManager::ClearUnmatchedTextureBindings(reshade::api::comman
 
             if (!resources.owning)
             {
-                resources.ext_srv = { 0 };
-                resources.ext_res = { 0 };
+                resources.g_res = { 0 };
             }
-        }
-        else if (!data.bindingsUpdated.contains(&group) && !resources.clear_on_miss() && resources.state != ShaderToggler::GroupResourceState::RESOURCE_CLEARED && !resources.owning)
-        {
-            // Prevent view on external resource from being disposed by requesting it in case it was missed this frame
-            resourceManager.GetResourceView(cmd_list->get_device(), resources.ext_res.handle, resources.view_format);
         }
     }
 

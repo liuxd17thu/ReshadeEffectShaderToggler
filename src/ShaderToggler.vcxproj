@@ -203,6 +203,7 @@
     <ClInclude Include="EffectData.h" />
     <ClInclude Include="GameHookT.h" />
     <ClInclude Include="KeyMonitor.h" />
+    <ClInclude Include="GlobalResourceView.h" />
     <ClInclude Include="RenderingBindingManager.h" />
     <ClInclude Include="RenderingEffectManager.h" />
     <ClInclude Include="RenderingPreviewManager.h" />
@@ -238,6 +239,7 @@
     <ClCompile Include="ConstantManager.cpp" />
     <ClCompile Include="DescriptorTracking.cpp" />
     <ClCompile Include="GameHookT.cpp" />
+    <ClCompile Include="GlobalResourceView.cpp" />
     <ClCompile Include="RenderingBindingManager.cpp" />
     <ClCompile Include="RenderingEffectManager.cpp" />
     <ClCompile Include="RenderingPreviewManager.cpp" />

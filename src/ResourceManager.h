@@ -9,6 +9,7 @@
 #include "ResourceShim.h"
 #include "ResourceShimSRGB.h"
 #include "ResourceShimFFXIV.h"
+#include "GlobalResourceView.h"
 
 namespace Rendering
 {
@@ -29,27 +30,6 @@ namespace Rendering
     {
         const void* data;
         size_t size;
-    };
-
-    enum class GlobalResourceState : uint32_t
-    {
-        RESOURCE_UNINITIALIZED = 0,
-        RESOURCE_VALID = 1,
-        RESOURCE_USED = 2,
-        RESOURCE_INVALID = 3,
-    };
-
-    struct __declspec(novtable) GlobalResourceView final
-    {
-        constexpr GlobalResourceView() : resource_handle { 0 }, rtv { 0 }, rtv_srgb { 0 }, srv { 0 }, srv_srgb { 0 }, state(GlobalResourceState::RESOURCE_UNINITIALIZED) { }
-        constexpr GlobalResourceView(uint64_t handle) : resource_handle{ handle }, rtv{ 0 }, rtv_srgb{ 0 }, srv{ 0 }, srv_srgb{ 0 }, state(GlobalResourceState::RESOURCE_UNINITIALIZED) { }
-
-        uint64_t resource_handle;
-        reshade::api::resource_view rtv;
-        reshade::api::resource_view rtv_srgb;
-        reshade::api::resource_view srv;
-        reshade::api::resource_view srv_srgb;
-        GlobalResourceState state;
     };
 
     class __declspec(novtable) ResourceManager final
@@ -81,8 +61,8 @@ namespace Rendering
         void OnEffectsReloading(reshade::api::effect_runtime* runtime);
         void OnEffectsReloaded(reshade::api::effect_runtime* runtime);
 
-        GlobalResourceView& GetResourceView(reshade::api::device* device, const ResourceRenderData& data);
-        GlobalResourceView& GetResourceView(reshade::api::device* device, uint64_t handle, reshade::api::format format = reshade::api::format::unknown);
+        const std::shared_ptr<GlobalResourceView>& GetResourceView(reshade::api::device* device, const ResourceRenderData& data);
+        const std::shared_ptr<GlobalResourceView>& GetResourceView(reshade::api::device* device, uint64_t handle, reshade::api::format format = reshade::api::format::unknown);
         void CheckResourceViews(reshade::api::effect_runtime* runtime);
 
         static EmbeddedResourceData GetResourceData(uint16_t id);
@@ -90,8 +70,6 @@ namespace Rendering
         reshade::api::resource dummy_res;
         reshade::api::resource_view dummy_rtv;
     private:
-        void DisposeView(reshade::api::device* device, const GlobalResourceView& views);
-        void CreateViews(reshade::api::device* device, GlobalResourceView& gview, reshade::api::format format = reshade::api::format::unknown);
         static ResourceShimType ResolveResourceShimType(const std::string&);
 
         ResourceShimType _shimType = ResourceShimType::Resource_Shim_None;
@@ -100,12 +78,6 @@ namespace Rendering
 
         bool effects_reloading = false;
 
-        //std::unordered_map<uint64_t, std::pair<reshade::api::resource_view, reshade::api::resource_view>> s_sRGBResourceViews;
-        //std::unordered_map<uint64_t, std::pair<reshade::api::resource_view, reshade::api::resource_view>> s_SRVs;
-        //
-        //std::unordered_map<uint64_t, uint32_t> _resourceViewRefCount;
-        //std::unordered_map<uint64_t, uint64_t> _resourceViewToResource;
-
         std::shared_mutex resource_mutex;
         std::shared_mutex view_mutex;
 
@@ -113,7 +85,7 @@ namespace Rendering
         reshade::api::resource_view preview_rtv[2];
         reshade::api::resource_view preview_srv[2];
 
-        std::unordered_map<uint64_t, GlobalResourceView> global_resources;
+        std::unordered_map<uint64_t, std::shared_ptr<GlobalResourceView>> global_resources;
         std::unordered_set<uint64_t> resources;
     };
 }

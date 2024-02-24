@@ -91,54 +91,6 @@ void ResourceManager::ClearBackbuffer(reshade::api::swapchain* runtime)
     }
 }
 
-static inline bool isValidShaderResource(reshade::api::format format)
-{
-    return format != reshade::api::format::intz;
-}
-
-void ResourceManager::CreateViews(reshade::api::device* device, GlobalResourceView& gview, reshade::api::format format)
-{
-    resource resource{ gview.resource_handle };
-    resource_desc desc = device->get_resource_desc(resource);
-
-    if ((static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::render_target) || static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::shader_resource)) && desc.type == resource_type::texture_2d)
-    {
-        reshade::api::format f = format == reshade::api::format::unknown ? desc.texture.format : format;
-
-        reshade::api::format format_non_srgb = format_to_default_typed(f, 0);
-        reshade::api::format format_srgb = format_to_default_typed(f, 1);
-
-        if (static_cast<uint32_t>(desc.usage & resource_usage::render_target))
-        {
-            device->create_resource_view(resource, resource_usage::render_target,
-                resource_view_desc(format_non_srgb), &gview.rtv);
-            device->create_resource_view(resource, resource_usage::render_target,
-                resource_view_desc(format_srgb), &gview.rtv_srgb);
-        }
-
-        if (static_cast<uint32_t>(desc.usage & resource_usage::shader_resource) && isValidShaderResource(desc.texture.format))
-        {
-            device->create_resource_view(resource, resource_usage::shader_resource,
-                resource_view_desc(format_non_srgb), &gview.srv);
-            device->create_resource_view(resource, resource_usage::shader_resource,
-                resource_view_desc(format_srgb), &gview.srv_srgb);
-        }
-    }
-}
-
-void ResourceManager::DisposeView(device* device, const GlobalResourceView& views)
-{
-    if (views.rtv != 0)
-        device->destroy_resource_view(views.rtv);
-    if (views.rtv_srgb != 0)
-        device->destroy_resource_view(views.rtv_srgb);
-
-    if (views.srv != 0)
-        device->destroy_resource_view(views.srv);
-    if (views.srv_srgb != 0)
-        device->destroy_resource_view(views.srv_srgb);
-}
-
 bool ResourceManager::OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd)
 {
     return false;
@@ -200,7 +152,7 @@ void ResourceManager::OnDestroyResource(device* device, resource res)
 
         if (views != global_resources.end())
         {
-            views->second.state = GlobalResourceState::RESOURCE_INVALID;
+            views->second->state = GlobalResourceState::RESOURCE_INVALID;
         }
     }
 }
@@ -210,11 +162,6 @@ void ResourceManager::OnDestroyDevice(device* device)
     in_destroy_device = true;
 
     std::unique_lock<shared_mutex> lock_view(view_mutex);
-    for (auto view = global_resources.begin(); view != global_resources.end();)
-    {
-        DisposeView(device, view->second);
-        view = global_resources.erase(view);
-    }
     global_resources.clear();
 
     DisposePreview(device);
@@ -241,14 +188,14 @@ void ResourceManager::OnDestroyResourceView(device* device, resource_view view)
 {
 }
 
-GlobalResourceView& ResourceManager::GetResourceView(device* device, const ResourceRenderData& data)
+const std::shared_ptr<GlobalResourceView>& ResourceManager::GetResourceView(device* device, const ResourceRenderData& data)
 {
     return GetResourceView(device, data.resource.handle, data.format);
 }
 
-GlobalResourceView& ResourceManager::GetResourceView(device* device, uint64_t handle, reshade::api::format format)
+const std::shared_ptr<GlobalResourceView>& ResourceManager::GetResourceView(device* device, uint64_t handle, reshade::api::format format)
 {
-    static GlobalResourceView emptyView{ 0 };
+    static std::shared_ptr<GlobalResourceView> emptyView{ nullptr };
     if (handle == 0)
     {
         return emptyView;
@@ -257,23 +204,19 @@ GlobalResourceView& ResourceManager::GetResourceView(device* device, uint64_t ha
     std::unique_lock<shared_mutex> lock_view(view_mutex);
 
     auto& res = global_resources[handle];
-    res.resource_handle = handle;
 
-    if (res.state == GlobalResourceState::RESOURCE_INVALID)
+    if (res == nullptr)
+    {
+        res = std::make_shared<GlobalResourceView>(device, resource{ handle }, format);
+    }
+
+    if (res->state == GlobalResourceState::RESOURCE_INVALID)
     {
         return emptyView;
     }
 
-    // unitialized
-    if (res.state == GlobalResourceState::RESOURCE_UNINITIALIZED)
-    {
-        CreateViews(device, res, format);
-        res.state = GlobalResourceState::RESOURCE_VALID;
-    }
-
-    if (res.state == GlobalResourceState::RESOURCE_VALID)
-        res.state = GlobalResourceState::RESOURCE_USED;
-
+    if (res->state == GlobalResourceState::RESOURCE_VALID)
+        res->state = GlobalResourceState::RESOURCE_USED;
 
     return res;
 }
@@ -323,17 +266,19 @@ void ResourceManager::CheckResourceViews(reshade::api::effect_runtime* runtime)
         std::unique_lock<shared_mutex> lock_view(view_mutex);
         for (auto view = global_resources.begin(); view != global_resources.end();)
         {
+            bool referenced = view->second.use_count() > 1;
+
             // valid but not used or just invalid, dispose
-            if (view->second.state != GlobalResourceState::RESOURCE_USED)
+            if (view->second->state != GlobalResourceState::RESOURCE_USED && !referenced)
             {
-                DisposeView(runtime->get_device(), view->second);
+                view->second->Dispose();
                 view = global_resources.erase(view);
                 continue;
             }
 
-            if (view->second.state == GlobalResourceState::RESOURCE_USED)
+            if (view->second->state == GlobalResourceState::RESOURCE_USED)
             {
-                view->second.state = GlobalResourceState::RESOURCE_VALID;
+                view->second->state = GlobalResourceState::RESOURCE_VALID;
             }
 
             view++;

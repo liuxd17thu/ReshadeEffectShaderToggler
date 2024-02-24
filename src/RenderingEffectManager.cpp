@@ -32,13 +32,14 @@ bool RenderingEffectManager::RenderRemainingEffects(effect_runtime* runtime)
 
     resource res = runtime->get_current_back_buffer();
 
-    GlobalResourceView& view = resourceManager.GetResourceView(device, res.handle);
-    resource_view active_rtv = view.rtv;
-    resource_view active_rtv_srgb = view.rtv_srgb;
+    const std::shared_ptr<GlobalResourceView>& view = resourceManager.GetResourceView(device, res.handle);
 
-    if (active_rtv == 0 || !deviceData.rendered_effects) {
+    if (view == nullptr || view->rtv == 0 || !deviceData.rendered_effects) {
         return false;
     }
+
+    resource_view active_rtv = view->rtv;
+    resource_view active_rtv_srgb = view->rtv_srgb;
 
     for (auto& eff : runtimeData.allSortedTechniques)
     {
@@ -103,8 +104,13 @@ bool RenderingEffectManager::_RenderEffects(
         resource_view group_view = {};
         resource_desc desc = cmd_list->get_device()->get_resource_desc(active_resource.resource);
         GroupResource& groupResource = group->GetGroupResource(GroupResourceType::RESOURCE_ALPHA);
-        GlobalResourceView& view = resourceManager.GetResourceView(runtime->get_device(), active_resource);
+        const shared_ptr<GlobalResourceView>& view = resourceManager.GetResourceView(runtime->get_device(), active_resource);
         bool copyPreserveAlpha = false;
+
+        if (view == nullptr)
+        {
+            continue;
+        }
 
         if (group->getPreserveAlpha())
         {
@@ -117,8 +123,8 @@ bool RenderingEffectManager::_RenderEffects(
             }
             else
             {
-                view_non_srgb = view.rtv;
-                view_srgb = view.rtv_srgb;
+                view_non_srgb = view->rtv;
+                view_srgb = view->rtv_srgb;
 
                 groupResource.state = GroupResourceState::RESOURCE_INVALID;
                 groupResource.target_description = desc;
@@ -127,8 +133,8 @@ bool RenderingEffectManager::_RenderEffects(
         }
         else
         {
-            view_non_srgb = view.rtv;
-            view_srgb = view.rtv_srgb;
+            view_non_srgb = view->rtv;
+            view_srgb = view->rtv_srgb;
         }
 
         if (view_non_srgb == 0)
@@ -169,8 +175,8 @@ bool RenderingEffectManager::_RenderEffects(
 
         if (copyPreserveAlpha)
         {
-            resource_view target_view_non_srgb = view.rtv;
-            resource_view target_view_srgb = view.rtv_srgb;
+            resource_view target_view_non_srgb = view->rtv;
+            resource_view target_view_srgb = view->rtv_srgb;
 
             if (target_view_non_srgb != 0)
                 shaderManager.CopyResourceMaskAlpha(cmd_list, group_view, target_view_non_srgb, desc.texture.width, desc.texture.height);
@@ -276,9 +282,13 @@ void RenderingEffectManager::PreventRuntimeReload(reshade::api::effect_runtime* 
     if (runtimeData.specialEffects[REST_NOOP].technique != 0)
     {
         resource res = runtime->get_current_back_buffer();
-        GlobalResourceView& view = resourceManager.GetResourceView(runtime->get_device(), res.handle);
-        resource_view active_rtv = view.rtv;
-        resource_view active_rtv_srgb = view.rtv_srgb;
+        const std::shared_ptr<GlobalResourceView>& view = resourceManager.GetResourceView(runtime->get_device(), res.handle);
+
+        if (view == nullptr)
+            return;
+
+        resource_view active_rtv = view->rtv;
+        resource_view active_rtv_srgb = view->rtv_srgb;
 
         if (resourceManager.dummy_rtv != 0)
             runtime->render_technique(runtimeData.specialEffects[REST_NOOP].technique, cmd_list, resourceManager.dummy_rtv, resourceManager.dummy_rtv);

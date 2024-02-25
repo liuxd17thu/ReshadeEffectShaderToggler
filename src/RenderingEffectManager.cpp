@@ -144,17 +144,17 @@ bool RenderingEffectManager::_RenderEffects(
 
         if (group->getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
         {
-            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         if (group->getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique != 0)
         {
-            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_SDR].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         for (const auto& effectTech : effectList)
         {
-            Util::Rendering::render_technique(deviceData, effectTech->technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(effectTech->technique, cmd_list, view_non_srgb, view_srgb);
 
             effectTech->rendered = true;
 
@@ -165,12 +165,12 @@ bool RenderingEffectManager::_RenderEffects(
 
         if (group->getToneMap() && runtimeData.specialEffects[REST_TONEMAP_TO_HDR].technique != 0)
         {
-            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_TONEMAP_TO_HDR].technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(runtimeData.specialEffects[REST_TONEMAP_TO_HDR].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         if (group->getFlipBuffer() && runtimeData.specialEffects[REST_FLIP].technique != 0)
         {
-            Util::Rendering::render_technique(deviceData, runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
+            runtime->render_technique(runtimeData.specialEffects[REST_FLIP].technique, cmd_list, view_non_srgb, view_srgb);
         }
 
         if (copyPreserveAlpha)
@@ -240,6 +240,7 @@ void RenderingEffectManager::RenderEffects(command_list* cmd_list, uint64_t call
     if (!deviceData.rendered_effects)
     {
         deviceData.current_runtime->render_effects(cmd_list, resource_view{ 0 }, resource_view{ 0 });
+        deviceData.rendered_effects = true;
     }
 
     shared_lock<shared_mutex> techLock(runtimeData.technique_mutex);

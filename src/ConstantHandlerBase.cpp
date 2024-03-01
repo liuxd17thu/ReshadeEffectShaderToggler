@@ -194,7 +194,7 @@ bool ConstantHandlerBase::UpdateConstantBufferEntries(command_list* cmd_list, Co
 
     if (buf != nullptr && buf->constant.buffer != 0)
     {
-        unique_lock<shared_mutex>(groupBufferMutex);
+        unique_lock<shared_mutex> lock(groupBufferMutex);
 
         SetBufferRange(group, buf->constant, cmd_list->get_device(), cmd_list);
         ApplyConstantValues(devData.current_runtime, group, restVariables);
@@ -228,7 +228,7 @@ bool ConstantHandlerBase::UpdateConstantEntries(command_list* cmd_list, CommandL
 
     if (buf != nullptr)
     {
-        unique_lock<shared_mutex>(groupBufferMutex);
+        unique_lock<shared_mutex> lock(groupBufferMutex);
 
         SetConstants(group, *buf, cmd_list->get_device(), cmd_list);
         ApplyConstantValues(devData.current_runtime, group, restVariables);

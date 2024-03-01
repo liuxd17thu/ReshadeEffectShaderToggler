@@ -274,7 +274,8 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
                         }
 
                         ImGui::TableNextColumn();
-                        ImGui::Text(sContent.str().c_str());
+                        const auto& txt = sContent.str();
+                        ImGui::Text(txt.c_str());
                     }
                 }
             }

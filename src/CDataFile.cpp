@@ -791,7 +791,7 @@ void Trim(t_Str& szStr)
 // Writes the formatted output to the file stream, returning the number of
 // bytes written.
 template <typename... Args>
-int WriteLn(std::fstream& stream, std::format_string<Args...> fmt, Args &&... args)
+size_t WriteLn(std::fstream& stream, std::format_string<Args...> fmt, Args &&... args)
 {
     t_Str szBuffer = std::format(fmt, std::forward<Args>(args)...);
     if(szBuffer.back() != '\r' && szBuffer.back() != '\n')

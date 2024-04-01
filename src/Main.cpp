@@ -282,8 +282,8 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 {
 	if(toDisplay.isInHuntingMode())
 	{
-		ImGui::Text("当前%s着色器：%d。分组中已有%s着色器数量：%d。", shaderType, toDisplay.getAmountShaderHashesCollected(), shaderType, toDisplay.getMarkedShaderCount());
-		ImGui::Text("当前已选择的%s着色器：%d / %d。", shaderType, toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected());
+		ImGui::Text("当前%s着色器数量：%d，分组中已有%s着色器数量：%d。", shaderType, toDisplay.getAmountShaderHashesCollected(), shaderType, toDisplay.getMarkedShaderCount());
+		ImGui::Text("当前选择的%s着色器：%d / %d [0x%08x]。", shaderType, toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected(), toDisplay.getActiveHuntedShaderHash());
 		if(toDisplay.isHuntedShaderMarked())
 		{
 			displayIsPartOfToggleGroup();

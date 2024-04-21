@@ -116,6 +116,7 @@ static ShaderToggler::ShaderManager g_pixelShaderManager;
 static ShaderToggler::ShaderManager g_vertexShaderManager;
 static ShaderToggler::ShaderManager g_computeShaderManager;
 static KeyData g_keyCollector;
+static bool g_isSettingAddonKeybind = false;
 static atomic_uint32_t g_activeCollectorFrameCounter = 0;
 static std::vector<ToggleGroup> g_toggleGroups;
 static atomic_int g_toggleGroupIdKeyBindingEditing = -1;
@@ -490,6 +491,8 @@ static void onReshadePresent(effect_runtime* runtime)
 	{
 		--g_activeCollectorFrameCounter;
 	}
+	if(g_isSettingAddonKeybind)
+		return;
 
 	for(auto& group: g_toggleGroups)
 	{
@@ -591,7 +594,8 @@ void endKeyBindingEditing(bool acceptCollectedBinding, ToggleGroup& groupEditing
 {
 	if (acceptCollectedBinding && g_toggleGroupIdKeyBindingEditing == groupEditing.getId() && g_keyCollector.isValid())
 	{
-		groupEditing.setToggleKey(g_keyCollector);
+		if(g_keyCollector.getKeyForIniFile() != KeyData(VK_BACK).getKeyForIniFile())
+			groupEditing.setToggleKey(g_keyCollector);
 	}
 	g_toggleGroupIdKeyBindingEditing = -1;
 	g_keyCollector.clear();
@@ -714,6 +718,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
     }
 	ImGui::Separator();
 
+	g_isSettingAddonKeybind = false;
 	if(ImGui::CollapsingHeader("键盘快捷键", ImGuiTreeNodeFlags_None))
 	{
 		for(uint32_t i = 0; i < IM_ARRAYSIZE(AddonKeybindNames); i++)
@@ -728,6 +733,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 			ImGui::InputTextWithHint(AddonKeybindNames[i], "点击设定键盘快捷键", buf, sizeof(buf), ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_ReadOnly);
 			if(ImGui::IsItemActive())
 			{
+				g_isSettingAddonKeybind = true;
 				g_keyCollector.collectKeysPressed(runtime);
 				if(g_keyCollector.getKeyForIniFile() == KeyData(VK_BACK).getKeyForIniFile())
 				{
@@ -824,6 +830,8 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("快捷键");
 				ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
+				if(g_keyCollector.getKeyAsString() == KeyData(VK_BACK).getKeyAsString())
+					g_keyCollector.clear();
 				string textBoxContents = (g_toggleGroupIdKeyBindingEditing == group.getId()) ? g_keyCollector.getKeyAsString() : group.getToggleKeyAsString();	// The 'press a key' is inside keycollector
 				string toggleKeyName = group.getToggleKeyAsString();
 				ImGui::InputText("##Key shortcut", (char*)textBoxContents.c_str(), textBoxContents.size(), ImGuiInputTextFlags_ReadOnly);

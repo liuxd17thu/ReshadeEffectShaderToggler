@@ -283,12 +283,48 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 {
 	if(toDisplay.isInHuntingMode())
 	{
-		ImGui::Text("当前%s着色器数量：%d，分组中已有%s着色器数量：%d。", shaderType, toDisplay.getAmountShaderHashesCollected(), shaderType, toDisplay.getMarkedShaderCount());
-		ImGui::Text("当前选择的%s着色器：%d / %d [0x%08x]。", shaderType, toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected(), toDisplay.getActiveHuntedShaderHash());
-		if(toDisplay.isHuntedShaderMarked())
+		//ImGui::Text("当前%s着色器数量：%d，分组中已有%s着色器数量：%d。", shaderType, toDisplay.getAmountShaderHashesCollected(), shaderType, toDisplay.getMarkedShaderCount());
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("%s着色器：", shaderType);
+		ImGui::SameLine();
+		const auto font_size = ImGui::GetFontSize();
+		if(ImGui::Button("<<##PrevMarkedShader", ImVec2(1.5f * font_size, 0.0f)))
 		{
-			displayIsPartOfToggleGroup();
+			toDisplay.huntPreviousShader(true);
 		}
+		ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
+		if(ImGui::Button("<##PrevShader", ImVec2(1.5f * font_size, 0.0f)))
+		{
+			toDisplay.huntPreviousShader(false);
+		}
+		ImGui::SameLine();
+		bool shader_marked = toDisplay.isHuntedShaderMarked();
+		char shader_label[40] = {};
+		sprintf_s(shader_label, "%d / %d [0x%08x]", toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected(), toDisplay.getActiveHuntedShaderHash());
+		if(shader_marked)
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(1.0f, 0.5f));
+		if(ImGui::Button(shader_label, ImVec2(12.0f * font_size, 0.0f)))
+		{
+			toDisplay.toggleMarkOnHuntedShader();
+		}
+		if(shader_marked)
+			ImGui::PopStyleColor(1);
+		ImGui::PopStyleVar(1);
+		ImGui::SameLine();
+		if(ImGui::Button(">##NextShader", ImVec2(1.5f * font_size, 0.0f)))
+		{
+			toDisplay.huntNextShader(false);
+		}
+		ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
+		if(ImGui::Button(">>##NextMarkedShader", ImVec2(1.5f * font_size, 0.0f)))
+		{
+			toDisplay.huntNextShader(true);
+		}
+		//if(shader_marked)
+		//{
+		//	displayIsPartOfToggleGroup();
+		//}
 	}
 }
 

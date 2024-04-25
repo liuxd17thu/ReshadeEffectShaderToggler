@@ -804,6 +804,12 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 				toRemove.push_back(group);
 			}
 			ImGui::SameLine();
+			bool active = group.isActive();
+			if(ImGui::Checkbox("##Toggle", &active))
+			{
+				group.toggleActive();
+			}
+			ImGui::SameLine();
 			ImGui::Text(" %d ", group.getId());
 			ImGui::SameLine();
 			if(ImGui::Button("编辑"))

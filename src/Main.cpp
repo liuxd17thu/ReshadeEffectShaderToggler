@@ -281,6 +281,10 @@ static void displayIsPartOfToggleGroup()
 
 static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shaderType)
 {
+	auto make_label = [&shaderType](const std::string& base) -> const std::string {
+		return (base + shaderType);
+		};
+
 	if(toDisplay.isInHuntingMode())
 	{
 		//ImGui::Text("当前%s着色器数量：%d，分组中已有%s着色器数量：%d。", shaderType, toDisplay.getAmountShaderHashesCollected(), shaderType, toDisplay.getMarkedShaderCount());
@@ -288,19 +292,19 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 		ImGui::Text("%s着色器：", shaderType);
 		ImGui::SameLine();
 		const auto font_size = ImGui::GetFontSize();
-		if(ImGui::Button("<<##PrevMarkedShader", ImVec2(1.5f * font_size, 0.0f)))
+		if(ImGui::Button(make_label("<<##PrevMarkedShader").c_str(), ImVec2(1.5f * font_size, 0.0f)))
 		{
 			toDisplay.huntPreviousShader(true);
 		}
 		ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
-		if(ImGui::Button("<##PrevShader", ImVec2(1.5f * font_size, 0.0f)))
+		if(ImGui::Button(make_label("<##PrevShader").c_str(), ImVec2(1.5f * font_size, 0.0f)))
 		{
 			toDisplay.huntPreviousShader(false);
 		}
 		ImGui::SameLine();
 		bool shader_marked = toDisplay.isHuntedShaderMarked();
 		char shader_label[40] = {};
-		sprintf_s(shader_label, "%d / %d [0x%08x]", toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected(), toDisplay.getActiveHuntedShaderHash());
+		sprintf_s(shader_label, make_label("%d / %d [0x%08x]##").c_str(), toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected(), toDisplay.getActiveHuntedShaderHash());
 		if(shader_marked)
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(1.0f, 0.5f));
@@ -312,12 +316,12 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 			ImGui::PopStyleColor(1);
 		ImGui::PopStyleVar(1);
 		ImGui::SameLine();
-		if(ImGui::Button(">##NextShader", ImVec2(1.5f * font_size, 0.0f)))
+		if(ImGui::Button(make_label(">##NextShader").c_str(), ImVec2(1.5f * font_size, 0.0f)))
 		{
 			toDisplay.huntNextShader(false);
 		}
 		ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
-		if(ImGui::Button(">>##NextMarkedShader", ImVec2(1.5f * font_size, 0.0f)))
+		if(ImGui::Button(make_label(">>##NextMarkedShader").c_str(), ImVec2(1.5f * font_size, 0.0f)))
 		{
 			toDisplay.huntNextShader(true);
 		}

@@ -117,6 +117,7 @@ static ShaderToggler::ShaderManager g_vertexShaderManager;
 static ShaderToggler::ShaderManager g_computeShaderManager;
 static KeyData g_keyCollector;
 static bool g_isSettingAddonKeybind = false;
+static bool g_isSettingGroupKeybind = false;
 static atomic_uint32_t g_activeCollectorFrameCounter = 0;
 static std::vector<ToggleGroup> g_toggleGroups;
 static atomic_int g_toggleGroupIdKeyBindingEditing = -1;
@@ -531,7 +532,7 @@ static void onReshadePresent(effect_runtime* runtime)
 	{
 		--g_activeCollectorFrameCounter;
 	}
-	if(g_isSettingAddonKeybind)
+	if(g_isSettingAddonKeybind || g_isSettingGroupKeybind)
 		return;
 
 	for(auto& group: g_toggleGroups)
@@ -790,6 +791,8 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 		}
 	}
 
+	g_isSettingGroupKeybind = false;
+
 	if(ImGui::CollapsingHeader("切换分组列表", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		if(ImGui::Button(" 新 "))
@@ -855,6 +858,7 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 			}
 			if(group.isEditing())
 			{
+				g_isSettingGroupKeybind = true;
 				ImGui::Separator();
 				ImGui::Text("编辑分组 %d", group.getId());
 
@@ -874,29 +878,27 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 				bool isKeyEditing = false;
 				ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 				ImGui::AlignTextToFramePadding();
+
+				KeyData keys = group.getToggleKeyData();
+				char buf[48]{'\0'};
+				if(keys.isValid())
+					buf[keys.getKeyAsString().copy(buf, sizeof(buf) - 1)] = '\0';
+				ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.7f);
 				ImGui::Text("快捷键");
 				ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
-				if(g_keyCollector.getKeyAsString() == KeyData(VK_BACK).getKeyAsString())
-					g_keyCollector.clear();
-				string textBoxContents = (g_toggleGroupIdKeyBindingEditing == group.getId()) ? g_keyCollector.getKeyAsString() : group.getToggleKeyAsString();	// The 'press a key' is inside keycollector
-				string toggleKeyName = group.getToggleKeyAsString();
-				ImGui::InputText("##Key shortcut", (char*)textBoxContents.c_str(), textBoxContents.size(), ImGuiInputTextFlags_ReadOnly);
-				if(ImGui::IsItemClicked())
+				ImGui::InputTextWithHint("", "点击设定键盘快捷键", buf, sizeof(buf), ImGuiInputTextFlags_NoUndoRedo | ImGuiInputTextFlags_ReadOnly);
+				if(ImGui::IsItemActive())
 				{
-					startKeyBindingEditing(group);
-				}
-				if(g_toggleGroupIdKeyBindingEditing == group.getId())
-				{
-					isKeyEditing = true;
-					ImGui::SameLine();
-					if(ImGui::Button("OK"))
+					g_keyCollector.collectKeysPressed(runtime);
+					if(g_keyCollector.isValid())
 					{
-						endKeyBindingEditing(true, group);
-					}
-					ImGui::SameLine();
-					if(ImGui::Button("取消"))
-					{
-						endKeyBindingEditing(false, group);
+						if(g_keyCollector.getKeyForIniFile() == KeyData(VK_BACK).getKeyForIniFile())
+							keys.clear();
+						else
+							keys = std::move(g_keyCollector);
+
+						group.setToggleKey(keys);
+						g_keyCollector.clear();
 					}
 				}
 				ImGui::PopItemWidth();

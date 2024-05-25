@@ -71,6 +71,7 @@ namespace ShaderToggler
 		void setIsActiveAtStartup(bool newValue) { _isActiveAtStartup = newValue; }
 		void setEditing(bool isEditing) { _isEditing = isEditing;}
 
+		KeyData getToggleKeyData() { return _keyData; }
 		std::string getToggleKeyAsString() { return _keyData.getKeyAsString();}
 		uint8_t getToggleKey() { return _keyData.getKeyCode();}
 		std::string getName() { return _name;}

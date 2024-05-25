@@ -152,7 +152,7 @@ namespace ShaderToggler
 		if (!_altRequired && !_ctrlRequired && !_shiftRequired && (_keyCode <= 0))
 		{
 			// empty
-			_keyAsString = "Press a key";
+			_keyAsString = "---";
 			return;
 		}
 		_keyAsString.clear();

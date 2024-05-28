@@ -115,6 +115,7 @@ static KeyData g_addonKeyBindings[ARRAYSIZE(AddonKeybindNames)] = {
 static ShaderToggler::ShaderManager g_pixelShaderManager;
 static ShaderToggler::ShaderManager g_vertexShaderManager;
 static ShaderToggler::ShaderManager g_computeShaderManager;
+static bool g_inHideMarkedShaders = false;
 static KeyData g_keyCollector;
 static bool g_isSettingAddonKeybind = false;
 static bool g_isSettingGroupKeybind = false;
@@ -326,6 +327,11 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 		{
 			toDisplay.huntNextShader(true);
 		}
+		ImGui::SameLine();
+		if(ImGui::Button(make_label("X##Reset").c_str(), ImVec2(1.5f * font_size, 0.0f)))
+		{
+			toDisplay.EraseHuntStatus();
+		}
 		//if(shader_marked)
 		//{
 		//	displayIsPartOfToggleGroup();
@@ -379,6 +385,20 @@ static void onReshadeOverlay(reshade::api::effect_runtime *runtime)
 			displayShaderManagerInfo(g_vertexShaderManager, "顶点");
 			displayShaderManagerInfo(g_pixelShaderManager, "像素");
 			displayShaderManagerInfo(g_computeShaderManager, "计算");
+			
+			bool mode = g_inHideMarkedShaders;
+			if(ImGui::RadioButton("分组整体预览", g_inHideMarkedShaders))
+				mode = true;
+			ImGui::SameLine();
+			if(ImGui::RadioButton("隔离预览", !g_inHideMarkedShaders))
+				mode = false;
+			if(mode != g_inHideMarkedShaders)
+			{
+				g_inHideMarkedShaders = mode;
+				g_vertexShaderManager.toggleHideMarkedShaders();
+				g_pixelShaderManager.toggleHideMarkedShaders();
+				g_computeShaderManager.toggleHideMarkedShaders();
+			}
 		}
 		ImGui::End();
 	}
@@ -537,16 +557,17 @@ static void onReshadePresent(effect_runtime* runtime)
 
 	for(auto& group: g_toggleGroups)
 	{
-		if(group.isToggleKeyPressed(runtime))
+		if(group.isToggleKeyPressed(runtime) && group.getId() != g_toggleGroupIdShaderEditing)
 		{
 			group.toggleActive();
 			// if the group's shaders are being edited, it should toggle the ones currently marked.
-			if(group.getId() == g_toggleGroupIdShaderEditing)
-			{
-				g_vertexShaderManager.toggleHideMarkedShaders();
-				g_pixelShaderManager.toggleHideMarkedShaders();
-				g_computeShaderManager.toggleHideMarkedShaders();
-			}
+			// ^^^ It will be hard to check & add more shaders for an existing group. -- BarricadeMKXX
+			//if(group.getId() == g_toggleGroupIdShaderEditing)
+			//{
+			//	g_vertexShaderManager.toggleHideMarkedShaders();
+			//	g_pixelShaderManager.toggleHideMarkedShaders();
+			//	g_computeShaderManager.toggleHideMarkedShaders();
+			//}
 		}
 	}
 
@@ -812,10 +833,14 @@ static void displaySettings(reshade::api::effect_runtime* runtime)
 			}
 			ImGui::SameLine();
 			bool active = group.isActive();
+			
+			ImGui::BeginDisabled(group.getId() == g_toggleGroupIdShaderEditing);
 			if(ImGui::Checkbox("##Toggle", &active))
 			{
 				group.toggleActive();
 			}
+			ImGui::EndDisabled();
+
 			ImGui::SameLine();
 			ImGui::Text(" %d ", group.getId());
 			ImGui::SameLine();

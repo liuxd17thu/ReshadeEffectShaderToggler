@@ -199,7 +199,7 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
                 }
 
                 resource_desc desc = resources.target_description;
-                resource_desc group_desc = resource_desc(desc.texture.width, desc.texture.height, 1, 1, desc.texture.format, 1, memory_heap::gpu_only, res_usage);
+                resource_desc group_desc = resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_typeless(desc.texture.format), 1, memory_heap::gpu_only, res_usage);
 
                 if (!runtime->get_device()->create_resource(group_desc, nullptr, resource_usage::copy_dest, &resources.res))
                 {
@@ -260,7 +260,7 @@ bool ToggleGroupResourceManager::IsCompatibleWithGroupFormat(reshade::api::devic
     
     if (type == GroupResourceType::RESOURCE_ALPHA || type == GroupResourceType::RESOURCE_BINDING)
     {
-        if (tdesc.texture.format == preview_desc.texture.format &&
+        if (format_to_typeless(tdesc.texture.format) == format_to_typeless(preview_desc.texture.format) &&
             tdesc.texture.width == preview_desc.texture.width &&
             tdesc.texture.height == preview_desc.texture.height &&
             tdesc.texture.levels == preview_desc.texture.levels)

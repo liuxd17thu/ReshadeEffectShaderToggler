@@ -9,6 +9,7 @@
 #include "PipelinePrivateData.h"
 #include "AddonUIData.h"
 #include "ResourceManager.h"
+#include "StateTracking.h"
 
 namespace Rendering
 {
@@ -79,7 +80,24 @@ namespace Rendering
             uint64_t callLocation,
             uint32_t layoutIndex,
             uint64_t action);
+        static bool IsColorBuffer(reshade::api::format value);
     private:
+        static void CycleDescriptors(
+            ShaderToggler::ToggleGroup* group,
+            state_tracking& state,
+            const descriptor_tracking::descriptor_data* buf,
+            uint32_t stageIndex,
+            int32_t slot,
+            int32_t& desc,
+            int32_t& desc_size,
+            std::function<void(uint32_t)> descSetter);
+
+        static bool ValidFormat(
+            reshade::api::effect_runtime* runtime,
+            const reshade::api::resource_desc& desc,
+            uint32_t swapChainMatchType,
+            bool checkColorFormat = true);
+
         static constexpr size_t CHAR_BUFFER_SIZE = 256;
         static size_t g_charBufferSize;
         static char g_charBuffer[CHAR_BUFFER_SIZE];

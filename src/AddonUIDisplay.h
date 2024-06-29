@@ -316,6 +316,14 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     const char* typeSelectedItem = invocationDescription[group->getInvocationLocation()];
     uint32_t selectedIndex = group->getInvocationLocation();
 
+    const char* typeDestItems[] = { "Render target", "Shader Resource View" };
+    uint32_t selectedDestIndex = group->getRenderToResourceViews() ? 1 : 0;
+    const char* typeSelectedDestItem = typeDestItems[selectedDestIndex];
+
+    static const char* stageItems[] = { "PIXEL", "VERTEX", "COMPUTE" };
+    uint32_t selectedStageIndex = group->getRenderSRVShaderStage();
+    const char* selectedStage = stageItems[selectedStageIndex];
+
     bool retry = group->getRequeueAfterRTMatchingFailure();
     bool tonemap = group->getToneMap();
     bool preserveAlpha = group->getPreserveAlpha();
@@ -323,6 +331,8 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     static const char* swapchainMatchOptions[] = { "RESOLUTION", "ASPECT RATIO", "EXTENDED ASPECT RATIO", "NONE"};
     uint32_t selectedSwapchainMatchMode = group->getMatchSwapchainResolution();
     const char* typesSelectedSwapchainMatchMode = swapchainMatchOptions[selectedSwapchainMatchMode];
+
+    bool supportsSRVwrite = runtime->get_device()->get_api() < reshade::api::device_api::d3d12;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     if (ImGui::BeginChild("RenderTargets", { 0, height / 1.5f }, true, ImGuiWindowFlags_AlwaysAutoResize))
@@ -333,46 +343,162 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
         {
             ImGui::TableSetupColumn("##RTcolumnsetup", ImGuiTableColumnFlags_WidthFixed, ImGui::GetWindowWidth() / 3);
 
-            ImGui::TableNextColumn();
-            ImGui::Text("Render target index");
-            ImGui::TableNextColumn();
-            ImGui::Text("%u", group->getRenderTargetIndex());
-            ImGui::SameLine();
-
-            if (ImGui::SmallButton("+"))
+            if (supportsSRVwrite)
             {
-                group->setRenderTargetIndex(group->getRenderTargetIndex() + 1);
+                ImGui::TableNextColumn();
+                ImGui::Text("Render destination");
+                ImGui::TableNextColumn();
+                if (ImGui::BeginCombo("##Renderdestination", typeSelectedDestItem, ImGuiComboFlags_None))
+                {
+                    for (int n = 0; n < IM_ARRAYSIZE(typeDestItems); n++)
+                    {
+                        bool is_selected = (typeSelectedDestItem == typeDestItems[n]);
+                        if (ImGui::Selectable(typeDestItems[n], is_selected))
+                        {
+                            typeSelectedDestItem = typeDestItems[n];
+                            selectedDestIndex = n;
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+
+                ImGui::Separator();
             }
 
-            if (group->getRenderTargetIndex() != 0)
+            if (supportsSRVwrite && selectedDestIndex == 1)
             {
+                if (!instance.GetTrackDescriptors())
+                {
+                    ImGui::BeginDisabled();
+                    group->setRenderToResourceViews(false);
+                }
+                else
+                {
+                    group->setRenderToResourceViews(true);
+                }
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Shader Stage");
+                ImGui::TableNextColumn();
+                if (ImGui::BeginCombo("##RenderShaderStage", selectedStage, ImGuiComboFlags_None))
+                {
+                    for (int n = 0; n < IM_ARRAYSIZE(stageItems); n++)
+                    {
+                        bool is_selected = (selectedStage == stageItems[n]);
+                        if (ImGui::Selectable(stageItems[n], is_selected))
+                        {
+                            selectedStageIndex = n;
+                            selectedStage = stageItems[n];
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+                group->setRenderSRVShaderStage(selectedStageIndex);
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Slot");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", group->getRenderSRVSlotIndex());
+                ImGui::SameLine();
+                ImGui::PushID(0);
+                if (ImGui::SmallButton("+"))
+                {
+                    group->setRenderSRVSlotIndex(group->getRenderSRVSlotIndex() + 1);
+                }
+                ImGui::PopID();
+
+                if (group->getRenderSRVSlotIndex() != 0)
+                {
+                    ImGui::SameLine();
+
+                    if (ImGui::SmallButton("-"))
+                    {
+                        group->setRenderSRVSlotIndex(group->getRenderSRVSlotIndex() - 1);
+                    }
+                }
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Binding");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", group->getRenderSRVDescriptorIndex());
+                ImGui::SameLine();
+                ImGui::PushID(2);
+                if (ImGui::SmallButton("+"))
+                {
+                    group->setRenderSRVDescriptorIndex(group->getRenderSRVDescriptorIndex() + 1);
+                }
+                ImGui::PopID();
+
+                if (group->getRenderSRVDescriptorIndex() != 0)
+                {
+                    ImGui::SameLine();
+
+                    ImGui::PushID(1);
+                    if (ImGui::SmallButton("-"))
+                    {
+                        group->setRenderSRVDescriptorIndex(group->getRenderSRVDescriptorIndex() - 1);
+                    }
+                    ImGui::PopID();
+                }
+
+                if (!instance.GetTrackDescriptors())
+                {
+                    ImGui::EndDisabled();
+                }
+            }
+            else
+            {
+                group->setRenderToResourceViews(false);
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Render target index");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", group->getRenderTargetIndex());
                 ImGui::SameLine();
 
-                if (ImGui::SmallButton("-"))
+                if (ImGui::SmallButton("+"))
                 {
-                    group->setRenderTargetIndex(group->getRenderTargetIndex() - 1);
+                    group->setRenderTargetIndex(group->getRenderTargetIndex() + 1);
                 }
-            }
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-
-            ImGui::Text("Invocation location");
-            ImGui::TableNextColumn();
-            if (ImGui::BeginCombo("##Invocationlocation", typeSelectedItem, ImGuiComboFlags_None))
-            {
-                for (int n = 0; n < IM_ARRAYSIZE(invocationDescription); n++)
+                if (group->getRenderTargetIndex() != 0)
                 {
-                    bool is_selected = (typeSelectedItem == invocationDescription[n]);
-                    if (ImGui::Selectable(invocationDescription[n], is_selected))
+                    ImGui::SameLine();
+
+                    if (ImGui::SmallButton("-"))
                     {
-                        typeSelectedItem = invocationDescription[n];
-                        selectedIndex = n;
+                        group->setRenderTargetIndex(group->getRenderTargetIndex() - 1);
                     }
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
                 }
-                ImGui::EndCombo();
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+
+                ImGui::Text("Invocation location");
+                ImGui::TableNextColumn();
+                if (ImGui::BeginCombo("##Invocationlocation", typeSelectedItem, ImGuiComboFlags_None))
+                {
+                    for (int n = 0; n < IM_ARRAYSIZE(invocationDescription); n++)
+                    {
+                        bool is_selected = (typeSelectedItem == invocationDescription[n]);
+                        if (ImGui::Selectable(invocationDescription[n], is_selected))
+                        {
+                            typeSelectedItem = invocationDescription[n];
+                            selectedIndex = n;
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
             }
 
             ImGui::TableNextRow();

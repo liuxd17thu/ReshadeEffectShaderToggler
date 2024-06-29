@@ -45,8 +45,16 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                 {
                     if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
                     {
-                        queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
-                        deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
+                        if (group->getRenderToResourceViews())
+                        {
+                            queue_mask |= match_preview << (CALL_DRAW * MATCH_DELIMITER);
+                            deviceData.huntPreview.target_invocation_location = CALL_DRAW;
+                        }
+                        else
+                        {
+                            queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
+                            deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
+                        }
                     }
                 }
 
@@ -82,8 +90,16 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                         {
                             if (!sData.techniquesToRender.contains(techData))
                             {
-                                sData.techniquesToRender.emplace(techData, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
-                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                                if (group->getRenderToResourceViews())
+                                {
+                                    sData.techniquesToRender.emplace(techData, ResourceRenderData{ group, CALL_DRAW, resource{ 0 }, format::unknown });
+                                    queue_mask |= (match_effect << CALL_DRAW * MATCH_DELIMITER);
+                                }
+                                else
+                                {
+                                    sData.techniquesToRender.emplace(techData, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
+                                    queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                                }
                             }
                         }
                     }
@@ -95,8 +111,16 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
                     {
                         if (!eff->rendered && !sData.techniquesToRender.contains(eff))
                         {
-                            sData.techniquesToRender.emplace(eff, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
-                            queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                            if (group->getRenderToResourceViews())
+                            {
+                                sData.techniquesToRender.emplace(eff, ResourceRenderData{ group, CALL_DRAW, resource{ 0 }, format::unknown });
+                                queue_mask |= (match_effect << CALL_DRAW * MATCH_DELIMITER);
+                            }
+                            else
+                            {
+                                sData.techniquesToRender.emplace(eff, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
+                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                            }
                         }
                     }
                 }

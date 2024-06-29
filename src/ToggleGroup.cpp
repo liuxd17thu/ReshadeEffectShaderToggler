@@ -55,6 +55,7 @@ namespace ShaderToggler
         _previewClearAlpha = true;
         _tonemapHDRtoSDRtoHDR = false;
         _preserveAlpha = false;
+        _renderToResourceViews = false;
         _cbCycle = CYCLE_NONE;
         _srvCycle = CYCLE_NONE;
         _rtCycle = CYCLE_NONE;
@@ -114,6 +115,10 @@ namespace ShaderToggler
         _cbCycle = other._cbCycle;
         _srvCycle = other._srvCycle;
         _rtCycle = other._rtCycle;
+        _renderToResourceViews = other._renderToResourceViews;
+        _renderSrvDescIndex = other._renderSrvDescIndex;
+        _renderSrvShaderStage = other._renderSrvShaderStage;
+        _renderSrvSlotIndex = other._renderSrvSlotIndex;
     }
 
 
@@ -286,6 +291,10 @@ namespace ShaderToggler
 
             firstElement = false;
         }
+        iniFile.SetBool("RenderToSRVs", _renderToResourceViews, "", sectionRoot);
+        iniFile.SetUInt("RenderSRVPipelineSlot", _renderSrvSlotIndex, "", sectionRoot);
+        iniFile.SetUInt("RenderSRVDescriptorIndex", _renderSrvDescIndex, "", sectionRoot);
+        iniFile.SetUInt("RenderSRVShaderStage", _renderSrvShaderStage, "", sectionRoot);
         iniFile.SetUInt("RenderTargetIndex", _rtIndex, "", sectionRoot);
         iniFile.SetUInt("InvocationLocation", _invocationLocation, "", sectionRoot);
         iniFile.SetUInt("MatchSwapchainResolutionOnly", _matchSwapchainResolution, "", sectionRoot);
@@ -542,6 +551,38 @@ namespace ShaderToggler
         else
         {
             _bindingSrvShaderStage = 0;
+        }
+
+        _renderToResourceViews = iniFile.GetBoolOrDefault("RenderToSRVs", sectionRoot, false);
+
+        uint32_t renderSrvSlotIndex = iniFile.GetUInt("RenderSRVPipelineSlot", sectionRoot);
+        if (renderSrvSlotIndex != UINT_MAX)
+        {
+            _renderSrvSlotIndex = renderSrvSlotIndex;
+        }
+        else
+        {
+            _renderSrvSlotIndex = 1;
+        }
+
+        uint32_t renderSrvDescIndex = iniFile.GetUInt("RenderSRVDescriptorIndex", sectionRoot);
+        if (renderSrvDescIndex != UINT_MAX)
+        {
+            _renderSrvDescIndex = renderSrvDescIndex;
+        }
+        else
+        {
+            _renderSrvDescIndex = 0;
+        }
+
+        uint32_t renderSrvShaderStage = iniFile.GetUInt("RenderSRVShaderStage", sectionRoot);
+        if (renderSrvShaderStage != UINT_MAX && renderSrvShaderStage < 3)
+        {
+            _renderSrvShaderStage = renderSrvShaderStage;
+        }
+        else
+        {
+            _renderSrvShaderStage = 0;
         }
 
         uint32_t rtvIndex = iniFile.GetUInt("RenderTargetIndex", sectionRoot);

@@ -1,5 +1,6 @@
 #include <d3d12.h>
 #include "RenderingPreviewManager.h"
+#include "RenderingManager.h"
 #include "StateTracking.h"
 #include "resource.h"
 #include "Util.h"
@@ -15,58 +16,6 @@ RenderingPreviewManager::RenderingPreviewManager(AddonImGui::AddonUIData& data, 
 
 RenderingPreviewManager::~RenderingPreviewManager()
 {
-}
-
-const ResourceViewData RenderingPreviewManager::GetCurrentPreviewResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, const ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
-{
-    ResourceViewData active_data;
-
-    if (deviceData.current_runtime == nullptr)
-    {
-        return active_data;
-    }
-
-    device* device = deviceData.current_runtime->get_device();
-
-    state_tracking& state = cmd_list->get_private_data<state_tracking>();
-    const vector<resource_view>& rtvs = state.render_targets;
-
-    size_t index = group->getRenderTargetIndex();
-    index = std::min(index, rtvs.size() - 1);
-
-    if (rtvs.size() > 0 && rtvs[index] != 0)
-    {
-        resource rs = device->get_resource_from_view(rtvs[index]);
-
-        if (rs == 0)
-        {
-            // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
-            return active_data;
-        }
-
-        // Don't apply effects to non-RGB buffers
-        resource_desc desc = device->get_resource_desc(rs);
-        resource_view_desc view_desc = device->get_resource_view_desc(rtvs[index]);
-
-        // Make sure our target matches swap buffer dimensions when applying effects or it's explicitly requested
-        if (group->getMatchSwapchainResolution() < ShaderToggler::SWAPCHAIN_MATCH_MODE_NONE)
-        {
-            uint32_t width, height;
-            deviceData.current_runtime->get_screenshot_width_and_height(&width, &height);
-
-            if ((group->getMatchSwapchainResolution() >= ShaderToggler::SWAPCHAIN_MATCH_MODE_ASPECT_RATIO &&
-                !RenderingManager::check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, group->getMatchSwapchainResolution())) ||
-                (group->getMatchSwapchainResolution() == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION && (width != desc.texture.width || height != desc.texture.height)))
-            {
-                return active_data;
-            }
-        }
-
-        active_data.resource = rs;
-        active_data.format = view_desc.format;
-    }
-
-    return active_data;
 }
 
 void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t callLocation, uint64_t invocation)
@@ -89,7 +38,7 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
 
     RuntimeDataContainer& runtimeData = deviceData.current_runtime->get_private_data<RuntimeDataContainer>();
 
-    const ToggleGroup& group = uiData.GetToggleGroups().at(uiData.GetToggleGroupIdShaderEditing());
+    ToggleGroup& group = uiData.GetToggleGroups().at(uiData.GetToggleGroupIdShaderEditing());
 
     // Set views during draw call since we can be sure the correct ones are bound at that point
     if (!callLocation && deviceData.huntPreview.target == 0)
@@ -98,15 +47,15 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
 
         if (invocation & MATCH_PREVIEW_PS)
         {
-            active_target = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
+            active_target = RenderingManager::GetCurrentResourceView(cmd_list, deviceData, &group, commandListData, 0, invocation & MATCH_PREVIEW_PS);
         }
         else if (invocation & MATCH_PREVIEW_VS)
         {
-            active_target = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
+            active_target = RenderingManager::GetCurrentResourceView(cmd_list, deviceData, &group, commandListData, 1, invocation & MATCH_PREVIEW_VS);
         }
         else if (invocation & MATCH_PREVIEW_CS)
         {
-            active_target = GetCurrentPreviewResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
+            active_target = RenderingManager::GetCurrentResourceView(cmd_list, deviceData, &group, commandListData, 2, invocation & MATCH_PREVIEW_CS);
         }
 
         if (active_target.resource != 0)

@@ -161,12 +161,20 @@ namespace ShaderToggler
         void setCBShaderStage(uint32_t shaderStage) { _cbShaderStage = shaderStage; }
         bool getExtractResourceViews() const { return _extractResourceViews; }
         void setExtractResourceViews(bool extract) { _extractResourceViews = extract; }
+        bool getRenderToResourceViews() const { return _renderToResourceViews; }
+        void setRenderToResourceViews(bool render) { _renderToResourceViews = render; }
         void setBindingSRVSlotIndex(uint32_t index) { _bindingSrvSlotIndex = index; }
         uint32_t getBindingSRVSlotIndex() const { return _bindingSrvSlotIndex; }
+        void setRenderSRVSlotIndex(uint32_t index) { _renderSrvSlotIndex = index; }
+        uint32_t getRenderSRVSlotIndex() const { return _renderSrvSlotIndex; }
         void setBindingSRVDescriptorIndex(uint32_t index) { _bindingSrvDescIndex = index; }
         uint32_t getBindingSRVDescriptorIndex() const { return _bindingSrvDescIndex; }
+        void setRenderSRVDescriptorIndex(uint32_t index) { _renderSrvDescIndex = index; }
+        uint32_t getRenderSRVDescriptorIndex() const { return _renderSrvDescIndex; }
         uint32_t getSRVShaderStage() const { return _bindingSrvShaderStage; }
         void setSRVShaderStage(uint32_t shaderStage) { _bindingSrvShaderStage = shaderStage; }
+        uint32_t getRenderSRVShaderStage() const { return _renderSrvShaderStage; }
+        void setRenderSRVShaderStage(uint32_t shaderStage) { _renderSrvShaderStage = shaderStage; }
         void setBindingRenderTargetIndex(uint32_t index) { _bindingRTIndex = index; }
         uint32_t getBindingRenderTargetIndex() const { return _bindingRTIndex; }
         bool getHasTechniqueExceptions() const { return _hasTechniqueExceptions; }
@@ -243,13 +251,17 @@ namespace ShaderToggler
         uint32_t _bindingInvocationLocation = 0;
         uint32_t _bindingRTIndex = 0;
         uint32_t _bindingSrvSlotIndex = 1;
+        uint32_t _renderSrvSlotIndex = 1;
         uint32_t _bindingSrvDescIndex = 0;
+        uint32_t _renderSrvDescIndex = 0;
         uint32_t _bindingSrvShaderStage = 0;
+        uint32_t _renderSrvShaderStage = 0;
         bool _isActive;				// true means the group is actively toggled (so the hashes have to be hidden.
         bool _isEditing;			// true means the group is actively edited (name, key)
         bool _allowAllTechniques;	// true means all techniques are allowed, regardless of preferred techniques.
         volatile bool _isProvidingTextureBinding;
         volatile bool _copyTextureBinding;
+        bool _renderToResourceViews;
         bool _extractConstants;
         bool _extractResourceViews;
         volatile bool _clearBindings;

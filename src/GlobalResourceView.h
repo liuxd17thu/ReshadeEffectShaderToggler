@@ -20,7 +20,7 @@ namespace Rendering
 
         ~GlobalResourceView();
 
-        void Dispose();
+        void Dispose(bool deviceDestroyed = false);
 
         uint64_t resource_handle;
         reshade::api::resource_view rtv;

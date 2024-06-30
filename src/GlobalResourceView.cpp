@@ -46,34 +46,38 @@ inline bool GlobalResourceView::IsValidShaderResource(reshade::api::format forma
     return format != reshade::api::format::intz;
 }
 
-void GlobalResourceView::Dispose()
+void GlobalResourceView::Dispose(bool deviceDestroyed)
 {
     if (device == nullptr)
     {
         return;
     }
 
-    if (rtv != 0)
+    if (!deviceDestroyed)
     {
-        device->destroy_resource_view(rtv);
-        rtv = { 0 };
+        if (rtv != 0)
+        {
+            device->destroy_resource_view(rtv);
+        }
+
+        if (rtv_srgb != 0)
+        {
+            device->destroy_resource_view(rtv_srgb);
+        }
+
+        if (srv != 0)
+        {
+            device->destroy_resource_view(srv);
+        }
+
+        if (srv_srgb != 0)
+        {
+            device->destroy_resource_view(srv_srgb);
+        }
     }
 
-    if (rtv_srgb != 0)
-    {
-        device->destroy_resource_view(rtv_srgb);
-        rtv_srgb = { 0 };
-    }
-
-    if (srv != 0)
-    {
-        device->destroy_resource_view(srv);
-        srv = { 0 };
-    }
-
-    if (srv_srgb != 0)
-    {
-        device->destroy_resource_view(srv_srgb);
-        srv_srgb = { 0 };
-    }
+    rtv = { 0 };
+    rtv_srgb = { 0 };
+    srv = { 0 };
+    srv_srgb = { 0 };
 }

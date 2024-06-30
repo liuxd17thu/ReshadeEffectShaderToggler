@@ -162,9 +162,15 @@ void ResourceManager::OnDestroyDevice(device* device)
     in_destroy_device = true;
 
     std::unique_lock<shared_mutex> lock_view(view_mutex);
+
+    for (const auto& view : global_resources)
+    {
+        view.second->Dispose(true);
+    }
+
     global_resources.clear();
 
-    DisposePreview(device);
+    DisposePreview(nullptr);
 
     in_destroy_device = false;
 }
@@ -228,19 +234,22 @@ void ResourceManager::DisposePreview(reshade::api::device* device)
 
     for (uint32_t i = 0; i < 2; i++)
     {
-        if (preview_srv[i] != 0)
+        if (device != nullptr)
         {
-            device->destroy_resource_view(preview_srv[i]);
-        }
+            if (preview_srv[i] != 0)
+            {
+                device->destroy_resource_view(preview_srv[i]);
+            }
 
-        if (preview_rtv[i] != 0)
-        {
-            device->destroy_resource_view(preview_rtv[i]);
-        }
+            if (preview_rtv[i] != 0)
+            {
+                device->destroy_resource_view(preview_rtv[i]);
+            }
 
-        if (preview_res[i] != 0)
-        {
-            device->destroy_resource(preview_res[i]);
+            if (preview_res[i] != 0)
+            {
+                device->destroy_resource(preview_res[i]);
+            }
         }
 
         preview_res[i] = resource{ 0 };

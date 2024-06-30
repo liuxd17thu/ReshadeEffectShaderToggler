@@ -11,30 +11,47 @@
 
 using namespace sigmatch_literals;
 
-static const sigmatch::signature ffxiv_texture_create = "40 55 53 57 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? B8 ?? ?? ?? ??"_sig;
-static const sigmatch::signature ffxiv_textures_create = "40 55 53 56 57 41 55 48 8B EC 48 83 EC 60 48 8B 35 ?? ?? ?? ??"_sig;
-static const sigmatch::signature ffxiv_textures_recreate = "40 55 53 41 55 48 8B EC 48 83 EC 50"_sig;
+static const sigmatch::signature ffxiv_texture_create = "48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? B8 00 21 00 00"_sig;
+static const sigmatch::signature ffxiv_textures_create = "40 55 53 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 48"_sig;
+static const sigmatch::signature ffxiv_textures_recreate = "40 55 53 48 8B EC 48 83 EC 68"_sig;
 
 namespace Shim
 {
     namespace Resources
     {
+        // Texture offsets in order of initialization
         static const std::vector<uintptr_t> RT_OFFSET_LIST = {
-            0x20,  // normals
-            0x70,  // decal normals
-            0x28,  // lambert?
-            0x30,  // actually lambert
-            0x38,  // white thing
-            0x40,  // yellow thing
-            0x90,  // dunno
-            0x250, // UI
+            0x20,  // Normals
+            0x98,  // Normals Decal
+            0x28,
+            0xa0,
+            0x30,
+            0xa8,
+            0x38,
+            0x40,
+            0xb8,
+            0x48,
+            0xc0,
+            0x50,
+            0xc8,
+            0x58,
+            0xd0,
+            0x60,
+            0xd8,
+            0x68,
+            0xe0,
+            0x110,
+            0x118,
+            0x378  // UI
+            // ...
+            // There are more, but these are the ones we care about
         };
 
         enum RT_OFFSET : uint32_t
         {
             RT_NORMALS = 0x20,
-            RT_NORMALS_DECAL = 0x70,
-            RT_UI = 0x250
+            RT_NORMALS_DECAL = 0x98,
+            RT_UI = 0x378
         };
 
         class ResourceShimFFXIV final : public virtual ResourceShim {
@@ -48,7 +65,7 @@ namespace Shim
             virtual bool OnCreateResourceView(reshade::api::device* device, reshade::api::resource resource, reshade::api::resource_usage usage_type, reshade::api::resource_view_desc& desc) override final;
 
         private:
-            static uintptr_t* ffxiv_texture;
+            static uintptr_t* ffxiv_texture_data;
 
             static uintptr_t ffxiv_recreation_struct;
 

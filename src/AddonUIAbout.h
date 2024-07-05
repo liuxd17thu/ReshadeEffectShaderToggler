@@ -33,7 +33,7 @@ static void DisplayAbout()
     static bool wndOpen = false;
 
     ImGui::PushItemWidth(ImGui::GetWindowWidth());
-    if (ImGui::Button("About", ImVec2(ImGui::GetWindowWidth(), 0.0f)))
+    if (ImGui::Button("关于", ImVec2(ImGui::GetWindowWidth(), 0.0f)))
     {
         wndOpen = !wndOpen;
     }

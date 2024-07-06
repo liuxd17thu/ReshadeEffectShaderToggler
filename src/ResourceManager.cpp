@@ -368,7 +368,7 @@ bool ResourceManager::IsCompatibleWithPreviewFormat(reshade::api::effect_runtime
     resource_desc preview_desc = runtime->get_device()->get_resource_desc(preview_res[0]);
     resource_view_desc preview_view_desc = runtime->get_device()->get_resource_view_desc(preview_srv[0]);
 
-    if ((view_format == preview_view_desc.format) &&
+    if ((format_to_typeless(view_format) == format_to_typeless(preview_view_desc.format)) &&
         res_desc.texture.width == preview_desc.texture.width &&
         res_desc.texture.height == preview_desc.texture.height)
     {

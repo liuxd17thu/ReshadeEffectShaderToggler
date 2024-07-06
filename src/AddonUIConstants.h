@@ -115,7 +115,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
     bool extractionEnabled = group->getExtractConstants();
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-    if (ImGui::BeginChild("Constant Buffer Viewer##child", { 0, height / 1.5f }, true, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginChild("Constant Buffer Viewer##child", { 0, height / 1.5f }, true, ImGuiChildFlags_AlwaysAutoResize))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
@@ -304,7 +304,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
     if (ImGui::IsItemActive())
         height += ImGui::GetIO().MouseDelta.y;
 
-    if (ImGui::BeginChild("Constant Buffer Viewer##vars", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginChild("Constant Buffer Viewer##vars", { 0, 0 }, true, ImGuiChildFlags_AlwaysAutoResize))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 

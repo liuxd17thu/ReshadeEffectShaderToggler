@@ -44,7 +44,7 @@ static void DisplayAbout()
         ImGui::SetNextWindowSize({ 500, 800 }, ImGuiCond_Once);
         if (ImGui::Begin("About##Wnd", &wndOpen))
         {
-            if (ImGui::BeginChild("About##Licenses", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
+            if (ImGui::BeginChild("About##Licenses", { 0, 0 }, true, ImGuiChildFlags_AlwaysAutoResize))
             {
                 auto lic_REST = GetResourceData(LICENSE_REST);
                 ImGui::TextWrapped("%s", lic_REST.c_str());

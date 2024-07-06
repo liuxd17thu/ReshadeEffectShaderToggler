@@ -103,7 +103,7 @@ void ResourceManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
 
 void ResourceManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
 {
-    OnDestroyDevice(swapchain->get_device());
+    OnDestroyDevice(swapchain->get_device(), true);
     ClearBackbuffer(swapchain);
 }
 
@@ -157,7 +157,7 @@ void ResourceManager::OnDestroyResource(device* device, resource res)
     }
 }
 
-void ResourceManager::OnDestroyDevice(device* device)
+void ResourceManager::OnDestroyDevice(device* device, bool validDevice)
 {
     in_destroy_device = true;
 
@@ -165,7 +165,7 @@ void ResourceManager::OnDestroyDevice(device* device)
 
     for (const auto& view : global_resources)
     {
-        view.second->Dispose(true);
+        view.second->Dispose(validDevice);
     }
 
     global_resources.clear();

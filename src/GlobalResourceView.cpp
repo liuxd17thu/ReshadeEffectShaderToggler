@@ -46,14 +46,14 @@ inline bool GlobalResourceView::IsValidShaderResource(reshade::api::format forma
     return format != reshade::api::format::intz;
 }
 
-void GlobalResourceView::Dispose(bool deviceDestroyed)
+void GlobalResourceView::Dispose(bool deviceValid)
 {
     if (device == nullptr)
     {
         return;
     }
 
-    if (!deviceDestroyed)
+    if (deviceValid)
     {
         if (rtv != 0)
         {

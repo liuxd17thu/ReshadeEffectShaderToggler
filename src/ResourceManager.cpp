@@ -103,7 +103,7 @@ void ResourceManager::OnInitSwapchain(reshade::api::swapchain* swapchain)
 
 void ResourceManager::OnDestroySwapchain(reshade::api::swapchain* swapchain)
 {
-    OnDestroyDevice(swapchain->get_device());
+    OnDestroyDevice(swapchain->get_device(), true);
     ClearBackbuffer(swapchain);
 }
 
@@ -157,7 +157,7 @@ void ResourceManager::OnDestroyResource(device* device, resource res)
     }
 }
 
-void ResourceManager::OnDestroyDevice(device* device)
+void ResourceManager::OnDestroyDevice(device* device, bool validDevice)
 {
     in_destroy_device = true;
 
@@ -165,7 +165,7 @@ void ResourceManager::OnDestroyDevice(device* device)
 
     for (const auto& view : global_resources)
     {
-        view.second->Dispose(true);
+        view.second->Dispose(validDevice);
     }
 
     global_resources.clear();
@@ -368,7 +368,7 @@ bool ResourceManager::IsCompatibleWithPreviewFormat(reshade::api::effect_runtime
     resource_desc preview_desc = runtime->get_device()->get_resource_desc(preview_res[0]);
     resource_view_desc preview_view_desc = runtime->get_device()->get_resource_view_desc(preview_srv[0]);
 
-    if ((view_format == preview_view_desc.format) &&
+    if ((format_to_typeless(view_format) == format_to_typeless(preview_view_desc.format)) &&
         res_desc.texture.width == preview_desc.texture.width &&
         res_desc.texture.height == preview_desc.texture.height)
     {

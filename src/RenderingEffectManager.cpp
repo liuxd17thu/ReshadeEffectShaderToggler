@@ -285,7 +285,7 @@ void RenderingEffectManager::PreventRuntimeReload(reshade::api::effect_runtime* 
         resource res = runtime->get_current_back_buffer();
         const std::shared_ptr<GlobalResourceView>& view = resourceManager.GetResourceView(runtime->get_device(), res.handle);
 
-        if (view == nullptr)
+        if (view == nullptr || view->rtv == 0)
             return;
 
         resource_view active_rtv = view->rtv;

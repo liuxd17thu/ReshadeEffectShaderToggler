@@ -247,7 +247,9 @@ static void DisplayPreview(AddonImGui::AddonUIData& instance, Rendering::Resourc
         if (srv != 0)
         {
             ImGui::SameLine();
-            ImGui::Text(std::format(" 格式: {} ", static_cast<uint32_t>(deviceData.huntPreview.format)).c_str());
+            ImGui::Text(std::format(" 地址: 0x{:x} ", deviceData.huntPreview.target.handle).c_str());
+            ImGui::SameLine();
+            ImGui::Text(std::format("格式: {} ", static_cast<uint32_t>(deviceData.huntPreview.format)).c_str());
             ImGui::SameLine();
             ImGui::Text(std::format("宽度: {} ", deviceData.huntPreview.width).c_str());
             ImGui::SameLine();
@@ -335,7 +337,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     bool supportsSRVwrite = runtime->get_device()->get_api() < reshade::api::device_api::d3d12;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-    if (ImGui::BeginChild("RenderTargets", { 0, height / 1.5f }, true, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginChild("RenderTargets", { 0, height / 1.5f }, true, ImGuiChildFlags_AlwaysAutoResize))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
@@ -650,7 +652,7 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
     const char* selectedStage = stageItems[selectedStageIndex];
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-    if (ImGui::BeginChild("Texture bindings viewer", { 0, height / 2.0f }, true, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginChild("Texture bindings viewer", { 0, height / 2.0f }, true, ImGuiChildFlags_AlwaysAutoResize))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
@@ -1049,7 +1051,7 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
 
             ImGui::SameLine();
 
-            if (ImGui::BeginChild("GroupSettings", { 0, 0 }, true, ImGuiWindowFlags_AlwaysAutoResize))
+            if (ImGui::BeginChild("GroupSettings", { 0, 0 }, true, ImGuiChildFlags_AlwaysAutoResize))
             {
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 

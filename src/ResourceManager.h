@@ -47,7 +47,7 @@ namespace Rendering
         bool OnCreateSwapchain(reshade::api::swapchain_desc& desc, void* hwnd);
         void OnInitSwapchain(reshade::api::swapchain* swapchain);
         void OnDestroySwapchain(reshade::api::swapchain* swapchain);
-        void OnDestroyDevice(reshade::api::device*);
+        void OnDestroyDevice(reshade::api::device*, bool validDevice = false);
 
         void SetResourceShim(const std::string& shim) { _shimType = ResolveResourceShimType(shim); }
         void Init();

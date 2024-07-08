@@ -26,7 +26,7 @@ void RenderingBindingManager::InitTextureBingings(effect_runtime* runtime)
     CreateTextureBinding(runtime, &empty_res, &empty_srv, &empty_rtv, reshade::api::format::r8g8b8a8_unorm);
 }
 
-void RenderingBindingManager::DisposeTextureBindings(device* device)
+void RenderingBindingManager::DisposeTextureBindings(device* device, std::unordered_map<int, ShaderToggler::ToggleGroup>& groups)
 {
     DeviceDataContainer& data = device->get_private_data<DeviceDataContainer>();
 
@@ -48,6 +48,18 @@ void RenderingBindingManager::DisposeTextureBindings(device* device)
     {
         device->destroy_resource_view(empty_srv);
         empty_srv = { 0 };
+    }
+
+    effect_runtime* runtime = data.current_runtime;
+    if (runtime != nullptr)
+    {
+        for (auto& groupEntry : groups)
+        {
+            if (groupEntry.second.getTextureBindingName().size() > 0)
+            {
+                runtime->update_texture_bindings(groupEntry.second.getTextureBindingName().c_str(), { 0 }, { 0 });
+            }
+        }
     }
 }
 

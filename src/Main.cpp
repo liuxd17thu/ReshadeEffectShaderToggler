@@ -126,7 +126,7 @@ static void onDestroyDevice(device* device)
     DeviceDataContainer& data = device->get_private_data<DeviceDataContainer>();
 
     groupResourceManager.DisposeGroupBuffers(device, g_addonUIData.GetToggleGroups());
-    renderingBindingManager.DisposeTextureBindings(device);
+    renderingBindingManager.DisposeTextureBindings(device, g_addonUIData.GetToggleGroups());
     resourceManager.OnDestroyDevice(device);
     renderingShaderManager.DestroyShaders(device);
 
@@ -276,6 +276,8 @@ static void onInitEffectRuntime(effect_runtime* runtime)
 static void onDestroyEffectRuntime(effect_runtime* runtime)
 {
     DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+
+    renderingBindingManager.DisposeTextureBindings(runtime->get_device(), g_addonUIData.GetToggleGroups());
 
     // Remove runtime from stack
     for (auto it = runtimes.begin(); it != runtimes.end();)

@@ -161,8 +161,11 @@ void state_block::apply_default(reshade::api::command_list* cmd_list, bool force
         cmd_list->bind_pipeline_state(dynamic_state::sample_mask, sample_mask);
     if (front_stencil_reference_value != 0)
         cmd_list->bind_pipeline_state(dynamic_state::front_stencil_reference_value, front_stencil_reference_value);
-    if (back_stencil_reference_value != 0)
-        cmd_list->bind_pipeline_state(dynamic_state::back_stencil_reference_value, back_stencil_reference_value);
+    if (cmd_list->get_device()->get_api() >= device_api::d3d12)
+    {
+        if (back_stencil_reference_value != 0)
+            cmd_list->bind_pipeline_state(dynamic_state::back_stencil_reference_value, back_stencil_reference_value);
+    }
 
     if (!viewports.empty())
         cmd_list->bind_viewports(0, static_cast<uint32_t>(viewports.size()), viewports.data());
@@ -607,7 +610,7 @@ const size_t state_block::get_root_table_entry_size_at(uint32_t stageIndex, uint
 
         if ((root_entry.type == root_entry_type::push_descriptors || root_entry.type == root_entry_type::descriptor_table) && root_entry.buffer_index >= 0)
         {
-            return descriptor_buffer[root_entry.buffer_index].size();
+            return descriptor_buffer[stageIndex][root_entry.buffer_index].size();
         }
         else if (root_entry.type == root_entry_type::push_constants && root_entry.buffer_index >= 0)
         {

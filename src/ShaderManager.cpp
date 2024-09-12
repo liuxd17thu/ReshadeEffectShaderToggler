@@ -201,6 +201,8 @@ namespace ShaderToggler
 			// we have marked shaders, find the next one in collected active shader hashes that's part of this set.
 			auto it = _collectedActiveShaderHashes.begin();
 			int index = _activeHuntedShaderIndex - 1;
+			if (index <= 0)
+				index = _collectedActiveShaderHashes.size() - 1;
 			std::advance(it, index);
 			bool foundHash = false;
 			uint32_t hash = 0;

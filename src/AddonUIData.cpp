@@ -204,12 +204,12 @@ void AddonUIData::LoadShaderTogglerIniFile(const string& fileName)
 {
     // Will assume it's started at the start of the application and therefore no groups are present.
 
-    reshade::log_message(reshade::log_level::info, std::format("Loading config file from \"{}\"", (_basePath / fileName).string()).c_str());
+    reshade::log::message(reshade::log::level::info, std::format("Loading config file from \"{}\"", (_basePath / fileName).string()).c_str());
 
     CDataFile iniFile;
     if (!iniFile.Load((_basePath / fileName).string()))
     {
-        reshade::log_message(reshade::log_level::info, std::format("Could not find config file at \"{}\"", (_basePath / fileName).string()).c_str());
+        reshade::log::message(reshade::log::level::info, std::format("Could not find config file at \"{}\"", (_basePath / fileName).string()).c_str());
         // not there
         return;
     }
@@ -313,7 +313,7 @@ void AddonUIData::SaveShaderTogglerIniFile(const string& fileName)
         group.saveState(iniFile, groupCounter);
         groupCounter++;
     }
-    reshade::log_message(reshade::log_level::info, std::format("Creating config file at \"{}\"", (_basePath / fileName).string()).c_str());
+    reshade::log::message(reshade::log::level::info, std::format("Creating config file at \"{}\"", (_basePath / fileName).string()).c_str());
 
     iniFile.SetFileName((_basePath / fileName).string());
     iniFile.Save();

@@ -80,19 +80,19 @@ bool RenderingBindingManager::_CreateTextureBinding(reshade::api::effect_runtime
         resource_desc(width, height, 1, levels, format, 1, memory_heap::gpu_only, res_usage),
         nullptr, resource_usage::shader_resource, res))
     {
-        reshade::log_message(reshade::log_level::error, "Failed to create texture binding resource!");
+        reshade::log::message(reshade::log::level::error, "Failed to create texture binding resource!");
         return false;
     }
 
     if (*srv == 0 && !runtime->get_device()->create_resource_view(*res, resource_usage::shader_resource, resource_view_desc(format_to_default_typed(format, 0)), srv))
     {
-        reshade::log_message(reshade::log_level::error, "Failed to create texture binding resource view!");
+        reshade::log::message(reshade::log::level::error, "Failed to create texture binding resource view!");
         return false;
     }
 
     if (*rtv == 0 && !runtime->get_device()->create_resource_view(*res, resource_usage::render_target, resource_view_desc(format_to_default_typed(format, 0)), rtv))
     {
-        reshade::log_message(reshade::log_level::error, "Failed to create texture binding resource view!");
+        reshade::log::message(reshade::log::level::error, "Failed to create texture binding resource view!");
         return false;
     }
 

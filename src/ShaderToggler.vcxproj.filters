@@ -36,6 +36,9 @@
     <ClInclude Include="KeyData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="forkawesome.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">

@@ -39,6 +39,7 @@
 #include "ShaderManager.h"
 #include "CDataFile.h"
 #include "ToggleGroup.h"
+#include "forkawesome.h"
 #include <vector>
 #include <filesystem>
 
@@ -328,10 +329,19 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 			toDisplay.huntNextShader(true);
 		}
 		ImGui::SameLine();
-		if(ImGui::Button(make_label("X##Reset").c_str(), ImVec2(1.5f * font_size, 0.0f)))
+		const auto icon_height = ImGui::GetFrameHeight();
+		if(ImGui::Button(make_label(ICON_FK_UNDO"##Reset").c_str(), ImVec2(icon_height, 0.0f)))
 		{
 			toDisplay.EraseHuntStatus();
 		}
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+		if (ImGui::Button(make_label(ICON_FK_CANCEL"##Reset").c_str(), ImVec2(icon_height, 0.0f)))
+		{
+			toDisplay.ClearHuntedShaders();
+		}
+		ImGui::PopStyleColor(2);
 		//if(shader_marked)
 		//{
 		//	displayIsPartOfToggleGroup();

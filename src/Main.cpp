@@ -146,12 +146,12 @@ static uint32_t calculateShaderHash(void* shaderData)
 
 
 /// <summary>
-/// Adds a default group with VK_CAPITAL as toggle key. Only used if there aren't any groups defined in the ini file.
+/// Adds a default group with empty toggle key. Only used if there aren't any groups defined in the ini file.
 /// </summary>
 void addDefaultGroup()
 {
 	ToggleGroup toAdd("Default", ToggleGroup::getNewGroupId());
-	toAdd.setToggleKey(VK_CAPITAL, false, false, false);
+	toAdd.setToggleKey(0, false, false, false);
 	g_toggleGroups.push_back(toAdd);
 }
 

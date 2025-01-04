@@ -138,11 +138,12 @@ namespace ShaderToggler
 
 			// we have marked shaders, find the next one in collected active shader hashes that's part of this set.
 			auto it = _collectedActiveShaderHashes.begin();
-			int index = _activeHuntedShaderIndex + 1;
-			std::advance(it, index);
+			int index_start = _activeHuntedShaderIndex + 1;
+			int index = index_start;
+			std::advance(it, index_start);
 			bool foundHash = false;
 			uint32_t hash = 0;
-			while(index!=_activeHuntedShaderIndex)
+			do
 			{
 				if(it == _collectedActiveShaderHashes.end())
 				{
@@ -158,7 +159,7 @@ namespace ShaderToggler
 				}
 				++it;
 				index++;
-			}
+			} while (index != index_start);
 			if(foundHash)
 			{
 				_activeHuntedShaderIndex = index;
@@ -200,20 +201,13 @@ namespace ShaderToggler
 			}
 			// we have marked shaders, find the next one in collected active shader hashes that's part of this set.
 			auto it = _collectedActiveShaderHashes.begin();
-			int index = _activeHuntedShaderIndex - 1;
-			if (index <= 0)
-				index = _collectedActiveShaderHashes.size() - 1;
-			std::advance(it, index);
+			int index_start = _activeHuntedShaderIndex <= 0 ? (_collectedActiveShaderHashes.size() - 1) : (_activeHuntedShaderIndex - 1);
+			int index = index_start;
+			std::advance(it, index_start);
 			bool foundHash = false;
 			uint32_t hash = 0;
-			while(index != _activeHuntedShaderIndex)
+			do
 			{
-				if(it == _collectedActiveShaderHashes.begin())
-				{
-					it = _collectedActiveShaderHashes.end();
-					--it;
-					index = _collectedActiveShaderHashes.size() - 1;
-				}
 				hash = *it;
 				if(_markedShaderHashes.count(hash) == 1)
 				{
@@ -221,9 +215,17 @@ namespace ShaderToggler
 					foundHash = true;
 					break;
 				}
-				--it;
-				index--;
-			}
+				if(it == _collectedActiveShaderHashes.begin())
+				{
+					index = _collectedActiveShaderHashes.size() - 1;
+					it = --_collectedActiveShaderHashes.end();
+				}
+				else
+				{
+					index--;
+					--it;
+				}
+			} while(index != index_start);
 			if(foundHash)
 			{
 				_activeHuntedShaderIndex = index;

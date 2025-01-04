@@ -82,6 +82,8 @@ void ConstantHandlerBase::ReloadConstantVariables(effect_runtime* runtime)
                     type = constant_type::type_float4x3;
                 else if (rows == 3 && columns == 3)
                     type = constant_type::type_float3x3;
+                else if (rows == 4 && columns == 1)
+                    type = constant_type::type_float4;
                 else if (rows == 3 && columns == 1)
                     type = constant_type::type_float3;
                 else if (rows == 2 && columns == 1)

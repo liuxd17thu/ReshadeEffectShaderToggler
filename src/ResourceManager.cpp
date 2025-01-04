@@ -45,11 +45,11 @@ void ResourceManager::Init()
 
     if (rShim != nullptr && rShim->Init())
     {
-        reshade::log_message(reshade::log_level::info, std::format("Resource shim initialized").c_str());
+        reshade::log::message(reshade::log::level::info, std::format("Resource shim initialized").c_str());
     }
     else
     {
-        reshade::log_message(reshade::log_level::info, std::format("No resource shim initialized").c_str());
+        reshade::log::message(reshade::log::level::info, std::format("No resource shim initialized").c_str());
     }
 }
 
@@ -317,17 +317,17 @@ void ResourceManager::CheckPreview(reshade::api::command_list* cmd_list, reshade
         {
             if (!device->create_resource(preview_desc[i], nullptr, resource_usage::shader_resource, &preview_res[i]))
             {
-                reshade::log_message(reshade::log_level::error, "Failed to create preview render target!");
+                reshade::log::message(reshade::log::level::error, "Failed to create preview render target!");
             }
 
             if (preview_res[i] != 0 && !device->create_resource_view(preview_res[i], resource_usage::shader_resource, resource_view_desc(format_to_default_typed(deviceData.huntPreview.view_format, 0)), &preview_srv[i]))
             {
-                reshade::log_message(reshade::log_level::error, "Failed to create preview shader resource view!");
+                reshade::log::message(reshade::log::level::error, "Failed to create preview shader resource view!");
             }
 
             if (preview_res[i] != 0 && !device->create_resource_view(preview_res[i], resource_usage::render_target, resource_view_desc(format_to_default_typed(deviceData.huntPreview.view_format, 0)), &preview_rtv[i]))
             {
-                reshade::log_message(reshade::log_level::error, "Failed to create preview render target view!");
+                reshade::log::message(reshade::log::level::error, "Failed to create preview render target view!");
             }
         }
     }

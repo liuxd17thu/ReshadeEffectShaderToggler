@@ -203,29 +203,29 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
 
                 if (!runtime->get_device()->create_resource(group_desc, nullptr, resource_usage::copy_dest, &resources.res))
                 {
-                    reshade::log_message(reshade::log_level::error, "Failed to create group render target!");
+                    reshade::log::message(reshade::log::level::error, "Failed to create group render target!");
                 }
 
                 if (validRT && resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::shader_resource, resource_view_desc(format_to_default_typed(resources.view_format, 0)), &resources.srv))
                 {
-                    reshade::log_message(reshade::log_level::error, "Failed to create group shader resource view!");
+                    reshade::log::message(reshade::log::level::error, "Failed to create group shader resource view!");
                 }
 
                 if (validRT && resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::render_target, resource_view_desc(format_to_default_typed(resources.view_format, 0)), &resources.rtv))
                 {
-                    reshade::log_message(reshade::log_level::error, "Failed to create group render target view!");
+                    reshade::log::message(reshade::log::level::error, "Failed to create group render target view!");
                 }
 
                 if (resources.res != 0 && !runtime->get_device()->create_resource_view(resources.res, resource_usage::render_target, resource_view_desc(format_to_default_typed(resources.view_format, 1)), &resources.rtv_srgb))
                 {
-                    reshade::log_message(reshade::log_level::error, "Failed to create group SRGB render target view!");
+                    reshade::log::message(reshade::log::level::error, "Failed to create group SRGB render target view!");
                 }
             }
             else if (static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_CONSTANTS_COPY)
             {
                 if (!runtime->get_device()->create_resource(resource_desc(resources.target_description.buffer.size, memory_heap::gpu_to_cpu, resource_usage::copy_dest | resource_usage::copy_source), nullptr, resource_usage::copy_dest, &resources.res))
                 {
-                    reshade::log_message(reshade::log_level::error, "Failed to create group constant copy buffer!");
+                    reshade::log::message(reshade::log::level::error, "Failed to create group constant copy buffer!");
                 }
             }
 

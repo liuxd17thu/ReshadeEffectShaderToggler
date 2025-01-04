@@ -60,7 +60,7 @@ bool RenderingShaderManager::CreatePipeline(reshade::api::device* device, reshad
         if (!device->create_pipeline(layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &sh_pipeline))
         {
             sh_pipeline = {};
-            reshade::log_message(reshade::log_level::warning, "Unable to create pipeline");
+            reshade::log::message(reshade::log::level::warning, "Unable to create pipeline");
 
             return false;
         }
@@ -92,7 +92,7 @@ void RenderingShaderManager::InitShader(reshade::api::device* device, uint16_t p
             sh_pipeline = {};
             sh_layout = {};
             sh_sampler = {};
-            reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline");
+            reshade::log::message(reshade::log::level::warning, "Unable to create preview copy pipeline");
         }
 
         if (fullscreenQuadVertexBuffer == 0 && device->get_api() == device_api::d3d9)
@@ -101,7 +101,7 @@ void RenderingShaderManager::InitShader(reshade::api::device* device, uint16_t p
 
             if (!device->create_resource(resource_desc(num_vertices * sizeof(vert_input), memory_heap::cpu_to_gpu, resource_usage::vertex_buffer), nullptr, resource_usage::cpu_access, &fullscreenQuadVertexBuffer))
             {
-                reshade::log_message(reshade::log_level::warning, "Unable to create preview copy pipeline vertex buffer");
+                reshade::log::message(reshade::log::level::warning, "Unable to create preview copy pipeline vertex buffer");
             }
             else
             {

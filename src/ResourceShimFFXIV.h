@@ -13,7 +13,7 @@ using namespace sigmatch_literals;
 
 static const sigmatch::signature ffxiv_texture_create = "48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? B8 00 21 00 00"_sig;
 static const sigmatch::signature ffxiv_textures_create = "40 55 53 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 48"_sig;
-static const sigmatch::signature ffxiv_textures_recreate = "40 55 53 48 8B EC 48 83 EC 68"_sig;
+static const sigmatch::signature ffxiv_textures_recreate = "40 55 57 41 55 48 8D 6C 24 ?? 48 81 EC A0 00 00 00 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 ?? 4C 8B 2D ?? ?? ?? ??"_sig;
 
 namespace Shim
 {
@@ -23,26 +23,7 @@ namespace Shim
         static const std::vector<uintptr_t> RT_OFFSET_LIST = {
             0x20,  // Normals
             0x98,  // Normals Decal
-            0x28,
-            0xa0,
-            0x30,
-            0xa8,
-            0x38,
-            0x40,
-            0xb8,
-            0x48,
-            0xc0,
-            0x50,
-            0xc8,
-            0x58,
-            0xd0,
-            0x60,
-            0xd8,
-            0x68,
-            0xe0,
-            0x110,
-            0x118,
-            0x378  // UI
+            0x370  // UI
             // ...
             // There are more, but these are the ones we care about
         };
@@ -51,7 +32,7 @@ namespace Shim
         {
             RT_NORMALS = 0x20,
             RT_NORMALS_DECAL = 0x98,
-            RT_UI = 0x378
+            RT_UI = 0x370
         };
 
         class ResourceShimFFXIV final : public virtual ResourceShim {

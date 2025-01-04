@@ -55,7 +55,7 @@ struct __declspec(uuid("038B03AA-4C75-443B-A695-752D80797037")) CommandListDataC
 	uint64_t activeComputeShaderPipeline;
 };
 
-#define FRAMECOUNT_COLLECTION_PHASE_DEFAULT 250;
+#define FRAMECOUNT_COLLECTION_PHASE_DEFAULT 30;
 #define HASH_FILE_NAME	"ShaderToggler.ini"
 
 enum AddonKeybind: uint32_t
@@ -295,23 +295,32 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 		ImGui::Text("%s着色器：", shaderType);
 		ImGui::SameLine();
 		const auto font_size = ImGui::GetFontSize();
+		ImGui::BeginDisabled(toDisplay.getMarkedShaderCount() == 0);
 		if(ImGui::Button(make_label("<<##PrevMarkedShader").c_str(), ImVec2(1.5f * font_size, 0.0f)))
 		{
 			toDisplay.huntPreviousShader(true);
 		}
+		ImGui::EndDisabled();
 		ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
 		if(ImGui::Button(make_label("<##PrevShader").c_str(), ImVec2(1.5f * font_size, 0.0f)))
 		{
 			toDisplay.huntPreviousShader(false);
 		}
 		ImGui::SameLine();
+
+		const auto icon_height = ImGui::GetFrameHeight();
+		if (ImGui::Button(make_label(ICON_FK_UNDO"##Reset").c_str(), ImVec2(icon_height, 0.0f)))
+		{
+			toDisplay.EraseHuntStatus();
+		}
+		ImGui::SameLine(0.0f, 0.0f);
 		bool shader_marked = toDisplay.isHuntedShaderMarked();
 		char shader_label[40] = {};
 		sprintf_s(shader_label, make_label("%d / %d [0x%08x]##").c_str(), toDisplay.getActiveHuntedShaderIndex(), toDisplay.getAmountShaderHashesCollected(), toDisplay.getActiveHuntedShaderHash());
 		if(shader_marked)
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(1.0f, 0.5f));
-		if(ImGui::Button(shader_label, ImVec2(12.0f * font_size, 0.0f)))
+		if(ImGui::Button(shader_label, ImVec2(12.0f * font_size - icon_height, 0.0f)))
 		{
 			toDisplay.toggleMarkOnHuntedShader();
 		}
@@ -324,17 +333,14 @@ static void displayShaderManagerInfo(ShaderManager& toDisplay, const char* shade
 			toDisplay.huntNextShader(false);
 		}
 		ImGui::SameLine(0, 0.5f * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::BeginDisabled(toDisplay.getMarkedShaderCount() == 0);
 		if(ImGui::Button(make_label(">>##NextMarkedShader").c_str(), ImVec2(1.5f * font_size, 0.0f)))
 		{
 			toDisplay.huntNextShader(true);
 		}
+		ImGui::EndDisabled();
 		ImGui::SameLine();
-		const auto icon_height = ImGui::GetFrameHeight();
-		if(ImGui::Button(make_label(ICON_FK_UNDO"##Reset").c_str(), ImVec2(icon_height, 0.0f)))
-		{
-			toDisplay.EraseHuntStatus();
-		}
-		ImGui::SameLine();
+
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
 		if (ImGui::Button(make_label(ICON_FK_CANCEL"##Reset").c_str(), ImVec2(icon_height, 0.0f)))

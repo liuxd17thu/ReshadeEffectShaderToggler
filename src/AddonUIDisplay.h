@@ -581,7 +581,7 @@ static void DisplayRenderTargets(AddonImGui::AddonUIData& instance, Rendering::R
     ImGui::PopStyleVar();
 }
 
-static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, ShaderToggler::ToggleGroup* group, ShaderToggler::ShaderManager* shaderManager)
+static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime, ShaderToggler::ToggleGroup* group, ShaderToggler::ShaderManager* shaderManager, const char* hash_filter = "")
 {
     float height = ImGui::GetWindowHeight();
     float width = ImGui::GetWindowWidth();
@@ -596,10 +596,17 @@ static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::Resou
     uint32_t index = 0;
     ImGuiStyle style = ImGui::GetStyle();
 
-    if (ImGui::BeginTable("ShaderHashView", 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody | ImGuiTableColumnFlags_NoHeaderLabel, ImVec2(0, height - 47)))
+    if (ImGui::BeginTable("ShaderHashView", 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody | ImGuiTableColumnFlags_NoHeaderLabel, ImVec2(0, height - 77)))
     {
         for (auto h : hashes)
         {
+            const std::string h_str = std::format("{:08X}", h);
+            if (hash_filter[0] != '\0' && h_str.find(hash_filter) == std::string::npos)
+            {
+                index++;
+                continue;
+            }
+
             ImGui::TableNextColumn();
 
             bool marked = false;
@@ -609,7 +616,7 @@ static void DisplayGroupView(AddonImGui::AddonUIData& instance, Rendering::Resou
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
             }
 
-            if (ImGui::Selectable(std::format("{:#08x}", h).c_str(), selected == index, ImGuiSelectableFlags_AllowDoubleClick) && (ImGui::IsMouseDoubleClicked(0) || ImGui::IsKeyPressed(ImGuiKey_Enter, false)))
+            if (ImGui::Selectable(h_str.c_str(), selected == index, ImGuiSelectableFlags_AllowDoubleClick) && (ImGui::IsMouseDoubleClicked(0) || ImGui::IsKeyPressed(ImGuiKey_Enter, false)))
             {
                 shaderManager->toggleMarkOnHuntedShader();
             }
@@ -953,6 +960,8 @@ static void DisplayTextureBindings(AddonImGui::AddonUIData& instance, ShaderTogg
 
 static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::ResourceManager& resManager, reshade::api::effect_runtime* runtime)
 {
+    static char hash_filter[16] = "";
+
     if (instance.GetToggleGroupIdShaderEditing() >= 0)
     {
         std::string editingGroupName = "";
@@ -987,9 +996,11 @@ static void DisplayOverlay(AddonImGui::AddonUIData& instance, Rendering::Resourc
             {
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
-                DisplayGroupView(instance, resManager, runtime, group, selectedShaderManager);
+                DisplayGroupView(instance, resManager, runtime, group, selectedShaderManager, hash_filter);
 
                 ImGui::PushItemWidth(ImGui::GetWindowWidth() - ImGui::GetStyle().FramePadding.x * 2 - ImGui::GetStyle().ItemSpacing.x * 2);
+                
+                ImGui::InputTextWithHint("##filter", "查找", hash_filter, 16, ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_CharsUppercase);
                 if (ImGui::BeginCombo("##shaderType", typeSelectedItem, ImGuiComboFlags_None))
                 {
                     for (int n = 0; n < IM_ARRAYSIZE(typeItems); n++)

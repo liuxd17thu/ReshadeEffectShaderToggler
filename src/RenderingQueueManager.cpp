@@ -5,17 +5,16 @@ using namespace ShaderToggler;
 using namespace reshade::api;
 using namespace std;
 
-RenderingQueueManager::RenderingQueueManager(AddonImGui::AddonUIData& data, ResourceManager& rManager) : uiData(data), resourceManager(rManager)
-{
-}
+RenderingQueueManager::RenderingQueueManager(AddonImGui::AddonUIData& data, ResourceManager& rManager)
+  : uiData(data)
+  , resourceManager(rManager) {}
 
-RenderingQueueManager::~RenderingQueueManager()
-{
+RenderingQueueManager::~RenderingQueueManager() {}
 
-}
-
-void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData, RuntimeDataContainer& runtimeData) const
-{
+void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData,
+                                                     CommandListDataContainer& commandListData,
+                                                     DeviceDataContainer& deviceData,
+                                                     RuntimeDataContainer& runtimeData) const {
     // Masks which checks to perform. Note that we will always schedule a draw call check for binding and effect updates,
     // this serves the purpose of assigning the resource_view to perform the update later on if needed.
     uint64_t queue_mask = MATCH_NONE;
@@ -26,100 +25,78 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
     const uint64_t match_const = MATCH_CONST_PS << sData.id;
     const uint64_t match_preview = MATCH_PREVIEW_PS << sData.id;
 
-    if (sData.blockedShaderGroups != nullptr)
-    {
-        for (auto group : *sData.blockedShaderGroups)
-        {
-            if (group->isActive())
-            {
-                if (group->getExtractConstants() && !deviceData.constantsUpdated.contains(group))
-                {
-                    if (!sData.constantBuffersToUpdate.contains(group))
-                    {
+    if (sData.blockedShaderGroups != nullptr) {
+        for (auto group : *sData.blockedShaderGroups) {
+            if (group->isActive()) {
+                if (group->getExtractConstants() && !deviceData.constantsUpdated.contains(group)) {
+                    if (!sData.constantBuffersToUpdate.contains(group)) {
                         sData.constantBuffersToUpdate.emplace(group);
                         queue_mask |= match_const;
                     }
                 }
 
-                if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched)
-                {
-                    if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
-                    {
-                        if (group->getRenderToResourceViews())
-                        {
+                if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched) {
+                    if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET) {
+                        if (group->getRenderToResourceViews()) {
                             queue_mask |= match_preview << (CALL_DRAW * MATCH_DELIMITER);
                             deviceData.huntPreview.target_invocation_location = CALL_DRAW;
-                        }
-                        else
-                        {
-                            queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
+                        } else {
+                            queue_mask |=
+                              (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
                             deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
                         }
                     }
                 }
 
-                if (group->isProvidingTextureBinding() && !deviceData.bindingsUpdated.contains(group))
-                {
-                    if (!sData.bindingsToUpdate.contains(group))
-                    {
-                        if (!group->getCopyTextureBinding() || group->getExtractResourceViews())
-                        {
+                if (group->isProvidingTextureBinding() && !deviceData.bindingsUpdated.contains(group)) {
+                    if (!sData.bindingsToUpdate.contains(group)) {
+                        if (!group->getCopyTextureBinding() || group->getExtractResourceViews()) {
                             sData.bindingsToUpdate.emplace(group, ResourceRenderData{ group, CALL_DRAW, resource{ 0 }, format::unknown });
                             queue_mask |= (match_binding << CALL_DRAW * MATCH_DELIMITER);
-                        }
-                        else
-                        {
-                            sData.bindingsToUpdate.emplace(group, ResourceRenderData{ group, group->getBindingInvocationLocation(), resource{ 0 }, format::unknown });
-                            queue_mask |= (match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
+                        } else {
+                            sData.bindingsToUpdate.emplace(group,
+                                                           ResourceRenderData{ group, group->getBindingInvocationLocation(), resource{ 0 }, format::unknown });
+                            queue_mask |=
+                              (match_binding << (group->getBindingInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
                         }
                     }
                 }
 
-                if (group->getAllowAllTechniques())
-                {
+                if (group->getAllowAllTechniques()) {
                     auto& preferred = group->GetPreferredTechniqueData();
 
-                    for (const auto& techData : runtimeData.allEnabledTechniques)
-                    {
-                        if (group->getHasTechniqueExceptions() && preferred.contains(techData))
-                        {
+                    for (const auto& techData : runtimeData.allEnabledTechniques) {
+                        if (group->getHasTechniqueExceptions() && preferred.contains(techData)) {
                             continue;
                         }
 
-                        if (!techData->rendered)
-                        {
-                            if (!sData.techniquesToRender.contains(techData))
-                            {
-                                if (group->getRenderToResourceViews())
-                                {
+                        if (!techData->rendered) {
+                            if (!sData.techniquesToRender.contains(techData)) {
+                                if (group->getRenderToResourceViews()) {
                                     sData.techniquesToRender.emplace(techData, ResourceRenderData{ group, CALL_DRAW, resource{ 0 }, format::unknown });
                                     queue_mask |= (match_effect << CALL_DRAW * MATCH_DELIMITER);
-                                }
-                                else
-                                {
-                                    sData.techniquesToRender.emplace(techData, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
-                                    queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                                } else {
+                                    sData.techniquesToRender.emplace(
+                                      techData, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
+                                    queue_mask |=
+                                      (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
                                 }
                             }
                         }
                     }
-                }
-                else if (group->preferredTechniques().size() > 0) {
+                } else if (group->preferredTechniques().size() > 0) {
                     auto& preferred = group->GetPreferredTechniqueData();
 
-                    for (auto& eff : preferred)
-                    {
-                        if (!eff->rendered && !sData.techniquesToRender.contains(eff))
-                        {
-                            if (group->getRenderToResourceViews())
-                            {
+                    for (auto& eff : preferred) {
+                        if (!eff->rendered && !sData.techniquesToRender.contains(eff)) {
+                            if (group->getRenderToResourceViews()) {
                                 sData.techniquesToRender.emplace(eff, ResourceRenderData{ group, CALL_DRAW, resource{ 0 }, format::unknown });
                                 queue_mask |= (match_effect << CALL_DRAW * MATCH_DELIMITER);
-                            }
-                            else
-                            {
-                                sData.techniquesToRender.emplace(eff, ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
-                                queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
+                            } else {
+                                sData.techniquesToRender.emplace(eff,
+                                                                 ResourceRenderData{ group, group->getInvocationLocation(), resource{ 0 }, format::unknown });
+                                queue_mask |=
+                                  (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
                             }
                         }
                     }
@@ -131,10 +108,8 @@ void RenderingQueueManager::_CheckCallForCommandList(ShaderData& sData, CommandL
     commandListData.commandQueue |= queue_mask;
 }
 
-void RenderingQueueManager::CheckCallForCommandList(reshade::api::command_list* commandList)
-{
-    if (nullptr == commandList)
-    {
+void RenderingQueueManager::CheckCallForCommandList(reshade::api::command_list* commandList) {
+    if (nullptr == commandList) {
         return;
     }
 
@@ -154,8 +129,7 @@ void RenderingQueueManager::CheckCallForCommandList(reshade::api::command_list* 
     r_mutex.unlock();
 }
 
-void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData)
-{
+void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListDataContainer& commandListData, DeviceDataContainer& deviceData) {
     const uint32_t match_effect = MATCH_EFFECT_PS << sData.id;
     const uint32_t match_binding = MATCH_BINDING_PS << sData.id;
     const uint32_t match_const = MATCH_CONST_PS << sData.id;
@@ -163,19 +137,15 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
 
     uint32_t queue_mask = MATCH_NONE;
 
-    for (const auto& tech : sData.techniquesToRender)
-    {
+    for (const auto& tech : sData.techniquesToRender) {
         const ToggleGroup* group = tech.second.group;
         const resource res = tech.second.resource;
 
-        if (res == 0 && group->getRequeueAfterRTMatchingFailure())
-        {
+        if (res == 0 && group->getRequeueAfterRTMatchingFailure()) {
             queue_mask |= (match_effect << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_effect << (CALL_DRAW * MATCH_DELIMITER));
 
-            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target == 0)
-            {
-                if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
-                {
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target == 0) {
+                if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET) {
                     queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
 
                     deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
@@ -184,18 +154,14 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
         }
     }
 
-    for (const auto& tech : sData.bindingsToUpdate)
-    {
+    for (const auto& tech : sData.bindingsToUpdate) {
         const ToggleGroup* group = tech.first;
 
-        if (tech.second.resource == 0 && group->getRequeueAfterRTMatchingFailure())
-        {
+        if (tech.second.resource == 0 && group->getRequeueAfterRTMatchingFailure()) {
             queue_mask |= (match_binding << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_binding << (CALL_DRAW * MATCH_DELIMITER));
 
-            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target == 0)
-            {
-                if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET)
-                {
+            if (group->getId() == uiData.GetToggleGroupIdShaderEditing() && !deviceData.huntPreview.matched && deviceData.huntPreview.target == 0) {
+                if (uiData.GetCurrentTabType() == AddonImGui::TAB_RENDER_TARGET) {
                     queue_mask |= (match_preview << (group->getInvocationLocation() * MATCH_DELIMITER)) | (match_preview << (CALL_DRAW * MATCH_DELIMITER));
 
                     deviceData.huntPreview.target_invocation_location = group->getInvocationLocation();
@@ -207,34 +173,25 @@ void RenderingQueueManager::_RescheduleGroups(ShaderData& sData, CommandListData
     commandListData.commandQueue |= queue_mask;
 }
 
-void RenderingQueueManager::RescheduleGroups(CommandListDataContainer& commandListData, DeviceDataContainer& deviceData)
-{
-    if (commandListData.ps.techniquesToRender.size() > 0 || commandListData.ps.bindingsToUpdate.size() > 0)
-    {
+void RenderingQueueManager::RescheduleGroups(CommandListDataContainer& commandListData, DeviceDataContainer& deviceData) {
+    if (commandListData.ps.techniquesToRender.size() > 0 || commandListData.ps.bindingsToUpdate.size() > 0) {
         _RescheduleGroups(commandListData.ps, commandListData, deviceData);
     }
 
-    if (commandListData.vs.techniquesToRender.size() > 0 || commandListData.vs.bindingsToUpdate.size() > 0)
-    {
+    if (commandListData.vs.techniquesToRender.size() > 0 || commandListData.vs.bindingsToUpdate.size() > 0) {
         _RescheduleGroups(commandListData.vs, commandListData, deviceData);
     }
 
-    if (commandListData.cs.techniquesToRender.size() > 0 || commandListData.cs.bindingsToUpdate.size() > 0)
-    {
+    if (commandListData.cs.techniquesToRender.size() > 0 || commandListData.cs.bindingsToUpdate.size() > 0) {
         _RescheduleGroups(commandListData.cs, commandListData, deviceData);
     }
 }
 
-
-static void clearStage(CommandListDataContainer& commandListData, effect_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag, uint64_t location)
-{
-    if (queuedTasks.size() > 0 && (pipelineChange & clearFlag))
-    {
-        for (auto it = queuedTasks.begin(); it != queuedTasks.end();)
-        {
+static void clearStage(CommandListDataContainer& commandListData, effect_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag, uint64_t location) {
+    if (queuedTasks.size() > 0 && (pipelineChange & clearFlag)) {
+        for (auto it = queuedTasks.begin(); it != queuedTasks.end();) {
             uint64_t callLocation = it->second.invocationLocation;
-            if (callLocation == location)
-            {
+            if (callLocation == location) {
                 it = queuedTasks.erase(it);
                 continue;
             }
@@ -243,15 +200,11 @@ static void clearStage(CommandListDataContainer& commandListData, effect_queue& 
     }
 }
 
-static void clearStage(CommandListDataContainer& commandListData, binding_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag, uint64_t location)
-{
-    if (queuedTasks.size() > 0 && (pipelineChange & clearFlag))
-    {
-        for (auto it = queuedTasks.begin(); it != queuedTasks.end();)
-        {
+static void clearStage(CommandListDataContainer& commandListData, binding_queue& queuedTasks, uint64_t pipelineChange, uint64_t clearFlag, uint64_t location) {
+    if (queuedTasks.size() > 0 && (pipelineChange & clearFlag)) {
+        for (auto it = queuedTasks.begin(); it != queuedTasks.end();) {
             uint64_t callLocation = it->second.invocationLocation;
-            if (callLocation == location)
-            {
+            if (callLocation == location) {
                 it = queuedTasks.erase(it);
                 continue;
             }
@@ -260,12 +213,10 @@ static void clearStage(CommandListDataContainer& commandListData, binding_queue&
     }
 }
 
-void RenderingQueueManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange, const uint64_t location) const
-{
+void RenderingQueueManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange, const uint64_t location) const {
     const uint64_t qloc = pipelineChange << (location * Rendering::MATCH_DELIMITER);
 
-    if (commandListData.commandQueue & qloc)
-    {
+    if (commandListData.commandQueue & qloc) {
         commandListData.commandQueue &= ~qloc;
 
         clearStage(commandListData, commandListData.ps.techniquesToRender, pipelineChange, MATCH_EFFECT_PS, location);
@@ -278,12 +229,12 @@ void RenderingQueueManager::ClearQueue(CommandListDataContainer& commandListData
     }
 }
 
-void RenderingQueueManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange) const
-{
+void RenderingQueueManager::ClearQueue(CommandListDataContainer& commandListData, const uint64_t pipelineChange) const {
     // Make sure we dequeue whatever is left over scheduled for CALL_DRAW/CALL_BIND_PIPELINE in case re-queueing was enabled for some group
-    if (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING))
-    {
-        uint64_t drawflagmask = (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING)) >> (Rendering::CALL_BIND_RENDER_TARGET * Rendering::MATCH_DELIMITER);
+    if (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING)) {
+        uint64_t drawflagmask =
+          (commandListData.commandQueue & (Rendering::CHECK_MATCH_BIND_RENDERTARGET_EFFECT | Rendering::CHECK_MATCH_BIND_RENDERTARGET_BINDING)) >>
+          (Rendering::CALL_BIND_RENDER_TARGET * Rendering::MATCH_DELIMITER);
         drawflagmask &= commandListData.commandQueue;
         drawflagmask &= pipelineChange;
 

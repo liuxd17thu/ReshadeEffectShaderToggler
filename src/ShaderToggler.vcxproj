@@ -91,6 +91,20 @@
     <LinkIncremental>false</LinkIncremental>
     <TargetExt>.addon64</TargetExt>
   </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(GITHUB_REF_NAME)'==''">
+    <PreBuildEvent>
+      <Command>
+	    powershell.exe -File "$(ProjectDir)set_release_version.ps1" "99.0.0.0"
+	  </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(GITHUB_REF_NAME)'!=''">
+	<PreBuildEvent>
+      <Command>
+	    powershell.exe -File "$(ProjectDir)set_release_version.ps1" "$(GITHUB_REF_NAME)"
+	  </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -226,6 +240,7 @@
     <ClInclude Include="ToggleGroup.h" />
     <ClInclude Include="ToggleGroupResourceManager.h" />
     <ClInclude Include="Util.h" />
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AddonUIData.cpp" />

@@ -9,8 +9,7 @@ using namespace std;
 size_t RenderingManager::g_charBufferSize = CHAR_BUFFER_SIZE;
 char RenderingManager::g_charBuffer[CHAR_BUFFER_SIZE];
 
-void RenderingManager::EnumerateTechniques(effect_runtime* runtime, function<void(effect_runtime*, effect_technique, string&, string&)> func)
-{
+void RenderingManager::EnumerateTechniques(effect_runtime* runtime, function<void(effect_runtime*, effect_technique, string&, string&)> func) {
     runtime->enumerate_techniques(nullptr, [func](effect_runtime* rt, effect_technique technique) {
         g_charBufferSize = CHAR_BUFFER_SIZE;
         rt->get_technique_name(technique, g_charBuffer, &g_charBufferSize);
@@ -21,49 +20,46 @@ void RenderingManager::EnumerateTechniques(effect_runtime* runtime, function<voi
         string eff_name(g_charBuffer);
 
         func(rt, technique, name, eff_name);
-        });
+    });
 }
 
-bool RenderingManager::IsColorBuffer(reshade::api::format value)
-{
-    switch (value)
-    {
-    default:
-        return false;
-    case reshade::api::format::b5g6r5_unorm:
-    case reshade::api::format::b5g5r5a1_unorm:
-    case reshade::api::format::b5g5r5x1_unorm:
-    case reshade::api::format::r8g8b8a8_typeless:
-    case reshade::api::format::r8g8b8a8_unorm:
-    case reshade::api::format::r8g8b8a8_unorm_srgb:
-    case reshade::api::format::r8g8b8x8_unorm:
-    case reshade::api::format::r8g8b8x8_unorm_srgb:
-    case reshade::api::format::b8g8r8a8_typeless:
-    case reshade::api::format::b8g8r8a8_unorm:
-    case reshade::api::format::b8g8r8a8_unorm_srgb:
-    case reshade::api::format::b8g8r8x8_typeless:
-    case reshade::api::format::b8g8r8x8_unorm:
-    case reshade::api::format::b8g8r8x8_unorm_srgb:
-    case reshade::api::format::r10g10b10a2_typeless:
-    case reshade::api::format::r10g10b10a2_unorm:
-    case reshade::api::format::r10g10b10a2_xr_bias:
-    case reshade::api::format::b10g10r10a2_typeless:
-    case reshade::api::format::b10g10r10a2_unorm:
-    case reshade::api::format::r11g11b10_float:
-    case reshade::api::format::r16g16b16a16_typeless:
-    case reshade::api::format::r16g16b16a16_float:
-    case reshade::api::format::r16g16b16a16_unorm:
-    case reshade::api::format::r32g32b32_typeless:
-    case reshade::api::format::r32g32b32_float:
-    case reshade::api::format::r32g32b32a32_typeless:
-    case reshade::api::format::r32g32b32a32_float:
-        return true;
+bool RenderingManager::IsColorBuffer(reshade::api::format value) {
+    switch (value) {
+        default:
+            return false;
+        case reshade::api::format::b5g6r5_unorm:
+        case reshade::api::format::b5g5r5a1_unorm:
+        case reshade::api::format::b5g5r5x1_unorm:
+        case reshade::api::format::r8g8b8a8_typeless:
+        case reshade::api::format::r8g8b8a8_unorm:
+        case reshade::api::format::r8g8b8a8_unorm_srgb:
+        case reshade::api::format::r8g8b8x8_unorm:
+        case reshade::api::format::r8g8b8x8_unorm_srgb:
+        case reshade::api::format::b8g8r8a8_typeless:
+        case reshade::api::format::b8g8r8a8_unorm:
+        case reshade::api::format::b8g8r8a8_unorm_srgb:
+        case reshade::api::format::b8g8r8x8_typeless:
+        case reshade::api::format::b8g8r8x8_unorm:
+        case reshade::api::format::b8g8r8x8_unorm_srgb:
+        case reshade::api::format::r10g10b10a2_typeless:
+        case reshade::api::format::r10g10b10a2_unorm:
+        case reshade::api::format::r10g10b10a2_xr_bias:
+        case reshade::api::format::b10g10r10a2_typeless:
+        case reshade::api::format::b10g10r10a2_unorm:
+        case reshade::api::format::r11g11b10_float:
+        case reshade::api::format::r16g16b16a16_typeless:
+        case reshade::api::format::r16g16b16a16_float:
+        case reshade::api::format::r16g16b16a16_unorm:
+        case reshade::api::format::r32g32b32_typeless:
+        case reshade::api::format::r32g32b32_float:
+        case reshade::api::format::r32g32b32a32_typeless:
+        case reshade::api::format::r32g32b32a32_float:
+            return true;
     }
 }
 
 // Checks whether the aspect ratio of the two sets of dimensions is similar or not, stolen from ReShade's generic_depth addon
-bool RenderingManager::check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height, uint32_t matchingMode)
-{
+bool RenderingManager::check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height, uint32_t matchingMode) {
     if (width_to_check == 0.0f || height_to_check == 0.0f)
         return true;
 
@@ -74,73 +70,56 @@ bool RenderingManager::check_aspect_ratio(float width_to_check, float height_to_
     const float aspect_ratio = (w / h) - (width_to_check / height_to_check);
 
     // Accept if dimensions are similar in value or almost exact multiples
-    return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (matchingMode == ShaderToggler::SWAPCHAIN_MATCH_MODE_EXTENDED_ASPECT_RATIO && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
+    return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) ||
+                                               (matchingMode == ShaderToggler::SWAPCHAIN_MATCH_MODE_EXTENDED_ASPECT_RATIO &&
+                                                std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
-
-void RenderingManager::CycleDescriptors(
-    ShaderToggler::ToggleGroup* group,
-    state_tracking& state,
-    const descriptor_tracking::descriptor_data* buf,
-    uint32_t stageIndex,
-    int32_t slot,
-    int32_t& desc,
-    int32_t& desc_size,
-    std::function<void(uint32_t)> descSetter)
-{
+void RenderingManager::CycleDescriptors(ShaderToggler::ToggleGroup* group,
+                                        state_tracking& state,
+                                        const descriptor_tracking::descriptor_data* buf,
+                                        uint32_t stageIndex,
+                                        int32_t slot,
+                                        int32_t& desc,
+                                        int32_t& desc_size,
+                                        std::function<void(uint32_t)> descSetter) {
     DescriptorCycle cycle = group->consumeSRVCycle();
-    if (cycle != CYCLE_NONE)
-    {
-        if (cycle == CYCLE_UP)
-        {
+    if (cycle != CYCLE_NONE) {
+        if (cycle == CYCLE_UP) {
             desc = std::min(++desc, desc_size - 1);
             buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-            while ((buf == nullptr || buf->view == 0) && desc < desc_size - 2)
-            {
+            while ((buf == nullptr || buf->view == 0) && desc < desc_size - 2) {
                 buf = state.get_descriptor_at(stageIndex, slot, ++desc);
             }
-        }
-        else
-        {
+        } else {
             desc = desc > 0 ? --desc : 0;
             buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-            while ((buf == nullptr || buf->view == 0) && desc > 0)
-            {
+            while ((buf == nullptr || buf->view == 0) && desc > 0) {
                 buf = state.get_descriptor_at(stageIndex, slot, --desc);
             }
         }
 
-        if (buf != nullptr && buf->view != 0)
-        {
+        if (buf != nullptr && buf->view != 0) {
             group->setBindingSRVDescriptorIndex(desc);
         }
     }
 }
 
-bool RenderingManager::ValidFormat(
-    effect_runtime* runtime,
-    const resource_desc& desc,
-    uint32_t swapChainMatchType,
-    bool checkColorFormat)
-{
-    if (checkColorFormat && !IsColorBuffer(desc.texture.format))
-    {
+bool RenderingManager::ValidFormat(effect_runtime* runtime, const resource_desc& desc, uint32_t swapChainMatchType, bool checkColorFormat) {
+    if (checkColorFormat && !IsColorBuffer(desc.texture.format)) {
         return false;
     }
 
     // Make sure our target matches swap buffer dimensions when applying effects or it's explicitly requested
-    if (swapChainMatchType < ShaderToggler::SWAPCHAIN_MATCH_MODE_NONE)
-    {
+    if (swapChainMatchType < ShaderToggler::SWAPCHAIN_MATCH_MODE_NONE) {
         uint32_t width, height;
         runtime->get_screenshot_width_and_height(&width, &height);
 
         if ((swapChainMatchType >= ShaderToggler::SWAPCHAIN_MATCH_MODE_ASPECT_RATIO &&
-            !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, swapChainMatchType)) ||
-            (swapChainMatchType == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION &&
-                (width != desc.texture.width || height != desc.texture.height)))
-        {
+             !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), width, height, swapChainMatchType)) ||
+            (swapChainMatchType == ShaderToggler::SWAPCHAIN_MATCH_MODE_RESOLUTION && (width != desc.texture.width || height != desc.texture.height))) {
             return false;
         }
     }
@@ -148,12 +127,15 @@ bool RenderingManager::ValidFormat(
     return true;
 }
 
-const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cmd_list, DeviceDataContainer& deviceData, ToggleGroup* group, CommandListDataContainer& commandListData, uint32_t descIndex, uint64_t action)
-{
+const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cmd_list,
+                                                                DeviceDataContainer& deviceData,
+                                                                ToggleGroup* group,
+                                                                CommandListDataContainer& commandListData,
+                                                                uint32_t descIndex,
+                                                                uint64_t action) {
     ResourceViewData active_data;
 
-    if (deviceData.current_runtime == nullptr)
-    {
+    if (deviceData.current_runtime == nullptr) {
         return active_data;
     }
 
@@ -169,8 +151,7 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
     bindingRTindex = std::min(bindingRTindex, rtvs.size() - 1);
 
     // Only return SRVs in case of bindings
-    if(action & MATCH_BINDING && group->getExtractResourceViews())
-    {
+    if (action & MATCH_BINDING && group->getExtractResourceViews()) {
         uint32_t stageIndex = std::min(static_cast<uint32_t>(2), group->getSRVShaderStage());
 
         int32_t slot_size = static_cast<int32_t>(state.get_root_table_size_at(stageIndex));
@@ -189,18 +170,14 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
 
         CycleDescriptors(group, state, buf, stageIndex, slot, desc, desc_size, [group](uint32_t idx) { group->setBindingSRVDescriptorIndex(idx); });
 
-        if (buf != nullptr && buf->view != 0)
-        {
+        if (buf != nullptr && buf->view != 0) {
             active_data.resource = device->get_resource_from_view(buf->view);
             active_data.format = device->get_resource_view_desc(buf->view).format;
         }
-    }
-    else if(action & MATCH_BINDING && !group->getExtractResourceViews() && rtvs.size() > 0 && rtvs[bindingRTindex] != 0)
-    {
+    } else if (action & MATCH_BINDING && !group->getExtractResourceViews() && rtvs.size() > 0 && rtvs[bindingRTindex] != 0) {
         resource rs = device->get_resource_from_view(rtvs[bindingRTindex]);
 
-        if (rs == 0)
-        {
+        if (rs == 0) {
             // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
             return active_data;
         }
@@ -208,20 +185,16 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
         resource_desc desc = device->get_resource_desc(rs);
         resource_view_desc v_desc = device->get_resource_view_desc(rtvs[bindingRTindex]);
 
-        if (!ValidFormat(deviceData.current_runtime, desc, group->getBindingMatchSwapchainResolution()))
-        {
+        if (!ValidFormat(deviceData.current_runtime, desc, group->getBindingMatchSwapchainResolution())) {
             return active_data;
         }
 
         active_data.resource = rs;
         active_data.format = v_desc.format;
-    }
-    else if (action & (MATCH_EFFECT | MATCH_PREVIEW) && !group->getRenderToResourceViews() && rtvs.size() > 0 && rtvs[index] != 0)
-    {
+    } else if (action & (MATCH_EFFECT | MATCH_PREVIEW) && !group->getRenderToResourceViews() && rtvs.size() > 0 && rtvs[index] != 0) {
         resource rs = device->get_resource_from_view(rtvs[index]);
 
-        if (rs == 0)
-        {
+        if (rs == 0) {
             // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
             return active_data;
         }
@@ -230,16 +203,13 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
         resource_desc desc = device->get_resource_desc(rs);
         resource_view_desc v_desc = device->get_resource_view_desc(rtvs[index]);
 
-        if (!ValidFormat(deviceData.current_runtime, desc, group->getMatchSwapchainResolution()))
-        {
+        if (!ValidFormat(deviceData.current_runtime, desc, group->getMatchSwapchainResolution())) {
             return active_data;
         }
 
         active_data.resource = rs;
         active_data.format = v_desc.format;
-    }
-    else if (action & (MATCH_EFFECT | MATCH_PREVIEW) && group->getRenderToResourceViews())
-    {
+    } else if (action & (MATCH_EFFECT | MATCH_PREVIEW) && group->getRenderToResourceViews()) {
         uint32_t stageIndex = std::min(static_cast<uint32_t>(2), group->getRenderSRVShaderStage());
 
         int32_t slot_size = static_cast<int32_t>(state.get_root_table_size_at(stageIndex));
@@ -256,15 +226,12 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
 
         const descriptor_tracking::descriptor_data* buf = state.get_descriptor_at(stageIndex, slot, desc);
 
-
         CycleDescriptors(group, state, buf, stageIndex, slot, desc, desc_size, [group](uint32_t idx) { group->setRenderSRVDescriptorIndex(idx); });
 
-        if (buf != nullptr && buf->view != 0)
-        {
+        if (buf != nullptr && buf->view != 0) {
             resource rs = device->get_resource_from_view(buf->view);
 
-            if (rs == 0)
-            {
+            if (rs == 0) {
                 // Render targets may not have a resource bound in D3D12, in which case writes to them are discarded
                 return active_data;
             }
@@ -273,8 +240,7 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
             resource_desc desc = device->get_resource_desc(rs);
             resource_view_desc v_desc = device->get_resource_view_desc(buf->view);
 
-            if (!ValidFormat(deviceData.current_runtime, desc, group->getMatchSwapchainResolution()))
-            {
+            if (!ValidFormat(deviceData.current_runtime, desc, group->getMatchSwapchainResolution())) {
                 return active_data;
             }
 
@@ -286,45 +252,35 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
     return active_data;
 }
 
-void RenderingManager::QueueOrDequeue(
-    command_list* cmd_list,
-    DeviceDataContainer& deviceData,
-    CommandListDataContainer& commandListData,
-    effect_queue& queue,
-    unordered_set<EffectData*>& immediateQueue,
-    uint64_t callLocation,
-    uint32_t layoutIndex,
-    uint64_t action)
-{
-    for (auto it = queue.begin(); it != queue.end();)
-    {
+void RenderingManager::QueueOrDequeue(command_list* cmd_list,
+                                      DeviceDataContainer& deviceData,
+                                      CommandListDataContainer& commandListData,
+                                      effect_queue& queue,
+                                      unordered_set<EffectData*>& immediateQueue,
+                                      uint64_t callLocation,
+                                      uint32_t layoutIndex,
+                                      uint64_t action) {
+    for (auto it = queue.begin(); it != queue.end();) {
         auto& [name, data] = *it;
         // Set views during draw call since we can be sure the correct ones are bound at that point
-        if (!callLocation && data.resource == 0)
-        {
+        if (!callLocation && data.resource == 0) {
             ResourceViewData active_data = GetCurrentResourceView(cmd_list, deviceData, data.group, commandListData, layoutIndex, action);
 
-            if (active_data.resource != 0)
-            {
+            if (active_data.resource != 0) {
                 data.resource = active_data.resource;
                 data.format = active_data.format;
-            }
-            else if(data.group->getRequeueAfterRTMatchingFailure())
-            {
+            } else if (data.group->getRequeueAfterRTMatchingFailure()) {
                 // Leave loaded up in the effect/bind list and re-issue command on RT change
                 it++;
                 continue;
-            }
-            else
-            {
+            } else {
                 it = queue.erase(it);
                 continue;
             }
         }
 
         // Queue updates depending on the place their supposed to be called at
-        if (data.resource != 0 && (!callLocation && !data.invocationLocation || callLocation & data.invocationLocation))
-        {
+        if (data.resource != 0 && (!callLocation && !data.invocationLocation || callLocation & data.invocationLocation)) {
             immediateQueue.insert(name);
         }
 

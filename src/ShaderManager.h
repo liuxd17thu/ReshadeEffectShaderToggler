@@ -2,7 +2,7 @@
 //
 // Part of ShaderToggler, a shader toggler add on for Reshade 5+ which allows you
 // to define groups of shaders to toggle them on/off with one key press
-// 
+//
 // (c) Frans 'Otis_Inf' Bouma.
 //
 // All rights reserved.
@@ -32,142 +32,132 @@
 
 #pragma once
 
+#include "CDataFile.h"
+#include "ToggleGroup.h"
 #include <map>
 #include <reshade_api_device.hpp>
 #include <reshade_api_pipeline.hpp>
 #include <shared_mutex>
-#include <unordered_set>
 #include <tsl/robin_map.h>
-#include "CDataFile.h"
-#include "ToggleGroup.h"
+#include <unordered_set>
 
+namespace ShaderToggler {
+/// <summary>
+/// Class which manages a set of shaders for a given type (pixel, vertex...)
+/// </summary>
+class ShaderManager {
+  public:
+    ShaderManager();
 
-namespace ShaderToggler
-{
+    void addHashHandlePair(uint32_t shaderHash, uint64_t pipelineHandle);
+    void removeHandle(uint64_t handle);
     /// <summary>
-    /// Class which manages a set of shaders for a given type (pixel, vertex...)
+    /// Switches on the hunting mode for the shader manager. It will copy the passed in hashes to the set of marked hashes. Hunting mode is the mode
+    ///	where the user can step through collected active shaders to mark them for assignment to the current edited group.
     /// </summary>
-    class ShaderManager
-    {
-    public:
-        ShaderManager();
+    /// <param name="currentMarkedHashes"></param>
+    void startHuntingMode(const std::unordered_set<uint32_t> currentMarkedHashes);
+    void stopHuntingMode();
+    /// <summary>
+    /// Moves to the next shader. If control is pressed as well, it'll step to the next marked shader (if any). If there aren't any shaders in that
+    ///	situation, it'll stay on the current shader.
+    /// </summary>
+    /// <param name="ctrlPressed">If control is pressed as well, it'll step to the next marked shader (if any). If there aren't any shaders in that
+    ///	situation, it'll stay on the current shader.</param>
+    void huntNextShader(bool ctrlPressed);
+    /// <summary>
+    /// Moves to the previous shader. If control is pressed as well, it'll step to the previous marked shader (if any). If there aren't any shaders in that
+    ///	situation, it'll stay on the current shader.
+    /// </summary>
+    /// <param name="ctrlPressed">If control is pressed as well, it'll step to the previous marked shader (if any). If there aren't any shaders in that
+    ///	situation, it'll stay on the current shader.</param>
+    void huntPreviousShader(bool ctrlPressed);
+    /// <summary>
+    /// Returns true if the shader hash passed in is the currently hunted shader or it's part of the marked shader hashes
+    /// </summary>
+    /// <param name="shaderHash"></param>
+    /// <returns></returns>
+    bool isBlockedShader(uint32_t shaderHash);
+    /// <summary>
+    /// Returns the shader hash for the passed in pipeline handle, if found. 0 otherwise.
+    /// </summary>
+    /// <param name="handle"></param>
+    /// <returns></returns>
+    uint32_t getShaderHash(uint64_t handle);
+    void addActivePipelineHandle(uint64_t handle);
+    void toggleMarkOnHuntedShader();
+    void resetActiveHuntedShader();
 
-        void addHashHandlePair(uint32_t shaderHash, uint64_t pipelineHandle);
-        void removeHandle(uint64_t handle);
-        /// <summary>
-        /// Switches on the hunting mode for the shader manager. It will copy the passed in hashes to the set of marked hashes. Hunting mode is the mode
-        ///	where the user can step through collected active shaders to mark them for assignment to the current edited group.
-        /// </summary>
-        /// <param name="currentMarkedHashes"></param>
-        void startHuntingMode(const std::unordered_set<uint32_t> currentMarkedHashes);
-        void stopHuntingMode();
-        /// <summary>
-        /// Moves to the next shader. If control is pressed as well, it'll step to the next marked shader (if any). If there aren't any shaders in that
-        ///	situation, it'll stay on the current shader.
-        /// </summary>
-        /// <param name="ctrlPressed">If control is pressed as well, it'll step to the next marked shader (if any). If there aren't any shaders in that
-        ///	situation, it'll stay on the current shader.</param>
-        void huntNextShader(bool ctrlPressed);
-        /// <summary>
-        /// Moves to the previous shader. If control is pressed as well, it'll step to the previous marked shader (if any). If there aren't any shaders in that
-        ///	situation, it'll stay on the current shader.
-        /// </summary>
-        /// <param name="ctrlPressed">If control is pressed as well, it'll step to the previous marked shader (if any). If there aren't any shaders in that
-        ///	situation, it'll stay on the current shader.</param>
-        void huntPreviousShader(bool ctrlPressed);
-        /// <summary>
-        /// Returns true if the shader hash passed in is the currently hunted shader or it's part of the marked shader hashes
-        /// </summary>
-        /// <param name="shaderHash"></param>
-        /// <returns></returns>
-        bool isBlockedShader(uint32_t shaderHash);
-        /// <summary>
-        /// Returns the shader hash for the passed in pipeline handle, if found. 0 otherwise.
-        /// </summary>
-        /// <param name="handle"></param>
-        /// <returns></returns>
-        uint32_t getShaderHash(uint64_t handle);
-        void addActivePipelineHandle(uint64_t handle);
-        void toggleMarkOnHuntedShader();
-        void resetActiveHuntedShader();
+    size_t getPipelineCount() { return _handleToShaderHash.size(); }
+    size_t getShaderCount() { return _shaderHashes.size(); }
+    const std::unordered_set<uint32_t>& getCollectedShaderHashes() const { return _collectedActiveShaderHashes; }
+    void setActivedHuntedShaderIndex(uint32_t index);
+    size_t getAmountShaderHashesCollected() { return _collectedActiveShaderHashes.size(); }
+    bool isInHuntingMode() const { return _isInHuntingMode; }
+    uint32_t getActiveHuntedShaderHash() const { return _activeHuntedShaderHash; }
+    int getActiveHuntedShaderIndex() const { return _activeHuntedShaderIndex; }
+    void toggleHideMarkedShaders() { _hideMarkedShaders = !_hideMarkedShaders; }
 
-        size_t getPipelineCount() { return _handleToShaderHash.size(); }
-        size_t getShaderCount() { return _shaderHashes.size(); }
-        const std::unordered_set<uint32_t>& getCollectedShaderHashes() const { return _collectedActiveShaderHashes; }
-        void setActivedHuntedShaderIndex(uint32_t index);
-        size_t getAmountShaderHashesCollected() { return _collectedActiveShaderHashes.size(); }
-        bool isInHuntingMode() const { return _isInHuntingMode; }
-        uint32_t getActiveHuntedShaderHash() const { return _activeHuntedShaderHash; }
-        int getActiveHuntedShaderIndex() const { return _activeHuntedShaderIndex; }
-        void toggleHideMarkedShaders() { _hideMarkedShaders = !_hideMarkedShaders; }
+    bool isHuntedShaderMarked() {
+        std::shared_lock lock(_markedShaderHashMutex);
+        return _markedShaderHashes.contains(_activeHuntedShaderHash);
+    }
 
-        bool isHuntedShaderMarked()
-        {
-            std::shared_lock lock(_markedShaderHashMutex);
-            return _markedShaderHashes.contains(_activeHuntedShaderHash);
+    bool isHuntedShaderMarked(uint32_t hash) {
+        std::shared_lock lock(_markedShaderHashMutex);
+        return _markedShaderHashes.contains(hash);
+    }
+
+    std::unordered_set<uint32_t> getMarkedShaderHashes() {
+        std::shared_lock lock(_markedShaderHashMutex);
+        return _markedShaderHashes;
+    }
+
+    uint32_t getCollectedShaderHash(uint32_t index) {
+        if (index < 0 || _collectedActiveShaderHashes.size() <= 0 || index >= _collectedActiveShaderHashes.size()) {
+            return 0;
         }
 
-        bool isHuntedShaderMarked(uint32_t hash)
-        {
-            std::shared_lock lock(_markedShaderHashMutex);
-            return _markedShaderHashes.contains(hash);
-        }
+        // no lock needed, collecting phase is over
+        auto it = _collectedActiveShaderHashes.begin();
+        std::advance(it, index);
+        return *it;
+    }
 
-        std::unordered_set<uint32_t> getMarkedShaderHashes()
-        {
-            std::shared_lock lock(_markedShaderHashMutex);
-            return _markedShaderHashes;
-        }
+    size_t getMarkedShaderCount() {
+        std::shared_lock lock(_markedShaderHashMutex);
+        return _markedShaderHashes.size();
+    }
 
-        uint32_t getCollectedShaderHash(uint32_t index)
-        {
-            if (index < 0 || _collectedActiveShaderHashes.size() <= 0 || index >= _collectedActiveShaderHashes.size())
-            {
-                return 0;
-            }
+    bool isKnownHandle(uint64_t pipelineHandle) {
+        std::shared_lock lock(_hashHandlesMutex);
+        return _handleToShaderHash.contains(pipelineHandle);
+    }
 
-            // no lock needed, collecting phase is over
-            auto it = _collectedActiveShaderHashes.begin();
-            std::advance(it, index);
-            return *it;
-        }
+    inline uint32_t safeGetShaderHash(uint64_t pipelineHandle) {
+        std::shared_lock lock(_hashHandlesMutex);
+        const auto& it = _handleToShaderHash.find(pipelineHandle);
 
-        size_t getMarkedShaderCount()
-        {
-            std::shared_lock lock(_markedShaderHashMutex);
-            return _markedShaderHashes.size();
-        }
+        return it == _handleToShaderHash.end() ? 0 : it->second;
+    }
 
-        bool isKnownHandle(uint64_t pipelineHandle)
-        {
-            std::shared_lock lock(_hashHandlesMutex);
-            return _handleToShaderHash.contains(pipelineHandle);
-        }
+  private:
+    void setActiveHuntedShaderHandle();
 
-        inline uint32_t safeGetShaderHash(uint64_t pipelineHandle)
-        {
-            std::shared_lock lock(_hashHandlesMutex);
-            const auto& it = _handleToShaderHash.find(pipelineHandle);
+    std::unordered_set<uint32_t> _shaderHashes; // all shader hashes added through init pipeline
+    // std::unordered_map<uint64_t, uint32_t> _handleToShaderHash;		// pipeline handle per shader hash. Handle is removed when a pipeline is
+    // destroyed.
+    tsl::robin_map<uint64_t, uint32_t> _handleToShaderHash;
+    std::unordered_set<uint32_t> _collectedActiveShaderHashes; // shader hashes bound to pipeline handles which were collected during the collection phase after
+                                                               // hunting was enabled, which are the pipeline handles active during the last X frames
+    std::unordered_set<uint32_t> _markedShaderHashes;          // the hashes for shaders which are currently marked.
 
-            return it == _handleToShaderHash.end() ? 0 : it->second;
-        }
-
-    private:
-        void setActiveHuntedShaderHandle();
-
-        std::unordered_set<uint32_t> _shaderHashes;				// all shader hashes added through init pipeline
-        //std::unordered_map<uint64_t, uint32_t> _handleToShaderHash;		// pipeline handle per shader hash. Handle is removed when a pipeline is destroyed.
-        tsl::robin_map<uint64_t, uint32_t> _handleToShaderHash;
-        std::unordered_set<uint32_t> _collectedActiveShaderHashes;	// shader hashes bound to pipeline handles which were collected during the collection phase after hunting was enabled, which are the pipeline handles active during the last X frames
-        std::unordered_set<uint32_t> _markedShaderHashes;		// the hashes for shaders which are currently marked.
-
-        bool _isInHuntingMode = false;
-        int32_t _activeHuntedShaderIndex = -1;
-        uint32_t _activeHuntedShaderHash;
-        std::shared_mutex _collectedActiveHandlesMutex;
-        std::shared_mutex _hashHandlesMutex;
-        std::shared_mutex _markedShaderHashMutex;
-        bool _hideMarkedShaders = false;
-    };
+    bool _isInHuntingMode = false;
+    int32_t _activeHuntedShaderIndex = -1;
+    uint32_t _activeHuntedShaderHash;
+    std::shared_mutex _collectedActiveHandlesMutex;
+    std::shared_mutex _hashHandlesMutex;
+    std::shared_mutex _markedShaderHashMutex;
+    bool _hideMarkedShaders = false;
+};
 }
-

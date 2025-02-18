@@ -1,18 +1,26 @@
 #pragma once
 
-#include <vector>
-#include <unordered_map>
-#include <tuple>
-#include <shared_mutex>
-#include <chrono>
-#include "reshade.hpp"
 #include "CDataFile.h"
-#include "ToggleGroup.h"
 #include "EffectData.h"
+#include "ToggleGroup.h"
+#include "reshade.hpp"
+#include <chrono>
+#include <shared_mutex>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 struct __declspec(novtable) ResourceRenderData final {
-    constexpr ResourceRenderData() : group(nullptr), invocationLocation(0), resource({0}), format(reshade::api::format::unknown) { }
-    constexpr ResourceRenderData(ShaderToggler::ToggleGroup* g, uint64_t i, reshade::api::resource r, reshade::api::format f) : group(g), invocationLocation(i), resource(r), format(f) { }
+    constexpr ResourceRenderData()
+      : group(nullptr)
+      , invocationLocation(0)
+      , resource({ 0 })
+      , format(reshade::api::format::unknown) {}
+    constexpr ResourceRenderData(ShaderToggler::ToggleGroup* g, uint64_t i, reshade::api::resource r, reshade::api::format f)
+      : group(g)
+      , invocationLocation(i)
+      , resource(r)
+      , format(f) {}
 
     ShaderToggler::ToggleGroup* group;
     uint64_t invocationLocation;
@@ -32,10 +40,10 @@ struct __declspec(novtable) ShaderData final {
     const std::vector<ShaderToggler::ToggleGroup*>* blockedShaderGroups = nullptr;
     uint32_t id = 0;
 
-    ShaderData(uint32_t _id) : id(_id) { }
+    ShaderData(uint32_t _id)
+      : id(_id) {}
 
-    void Reset()
-    {
+    void Reset() {
         activeShaderHash = -1;
         bindingsToUpdate.clear();
         constantBuffersToUpdate.clear();
@@ -51,8 +59,7 @@ struct __declspec(uuid("222F7169-3C09-40DB-9BC9-EC53842CE537")) CommandListDataC
     ShaderData vs{ 1 };
     ShaderData cs{ 2 };
 
-    void Reset()
-    {
+    void Reset() {
         ps.Reset();
         vs.Reset();
         cs.Reset();
@@ -61,8 +68,7 @@ struct __declspec(uuid("222F7169-3C09-40DB-9BC9-EC53842CE537")) CommandListDataC
     }
 };
 
-struct __declspec(novtable) TextureBindingData final
-{
+struct __declspec(novtable) TextureBindingData final {
     reshade::api::resource res;
     reshade::api::format format;
     reshade::api::resource_view srv;
@@ -75,8 +81,7 @@ struct __declspec(novtable) TextureBindingData final
     bool reset = false;
 };
 
-struct __declspec(novtable) HuntPreview final
-{
+struct __declspec(novtable) HuntPreview final {
     reshade::api::resource target = reshade::api::resource{ 0 };
     bool matched = false;
     uint64_t target_invocation_location = 0;
@@ -87,8 +92,7 @@ struct __declspec(novtable) HuntPreview final
     reshade::api::resource_desc target_desc;
     bool recreate_preview = false;
 
-    void Reset()
-    {
+    void Reset() {
         matched = false;
         target = reshade::api::resource{ 0 };
         target_invocation_location = 0;
@@ -99,19 +103,39 @@ struct __declspec(novtable) HuntPreview final
     }
 };
 
-struct __declspec(novtable) SpecialEffect final
-{
+struct __declspec(novtable) SpecialEffect final {
     std::string name;
     reshade::api::effect_technique technique;
 };
 
-enum SpecialEffects : uint32_t
-{
-    REST_TONEMAP_TO_SDR = 0,
-    REST_TONEMAP_TO_HDR,
-    REST_FLIP,
-    REST_NOOP,
-    REST_EFFECTS_COUNT
+enum SpecialEffects : uint32_t { REST_TONEMAP_TO_SDR = 0, REST_TONEMAP_TO_HDR, REST_FLIP, REST_NOOP, REST_EFFECTS_COUNT };
+
+struct __declspec(novtable) CustomShaderInstance final {
+    reshade::api::pipeline pipeline = { 0 };
+    reshade::api::pipeline_layout pipelineLayout = { 0 };
+    reshade::api::sampler pipelineSampler = { 0 };
+};
+
+struct __declspec(novtable) CustomShader final {
+    CustomShaderInstance copyPipeline;
+    CustomShaderInstance alphaPreservingCopyPipeline;
+
+    reshade::api::resource fullscreenQuadVertexBuffer = { 0 };
+};
+
+struct __declspec(novtable) ResouceManagerData final {
+    reshade::api::resource preview_res[2] = { { 0 }, { 0 } };
+    reshade::api::resource_view preview_rtv[2] = { { 0 }, { 0 } };
+    reshade::api::resource_view preview_srv[2] = { { 0 }, { 0 } };
+
+    reshade::api::resource dummy_res = { 0 };
+    reshade::api::resource_view dummy_rtv = { 0 };
+};
+
+struct __declspec(novtable) BindingManagerData final {
+    reshade::api::resource empty_res = { 0 };
+    reshade::api::resource_view empty_srv = { 0 };
+    reshade::api::resource_view empty_rtv = { 0 };
 };
 
 struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContainer {
@@ -123,6 +147,9 @@ struct __declspec(uuid("C63E95B1-4E2F-46D6-A276-E8B4612C069A")) DeviceDataContai
     std::unordered_set<const ShaderToggler::ToggleGroup*> constantsUpdated;
     std::unordered_set<const ShaderToggler::ToggleGroup*> srvUpdated;
     HuntPreview huntPreview;
+    CustomShader customShader;
+    ResouceManagerData resourceManagerData;
+    BindingManagerData bindingManagerData;
 };
 
 struct __declspec(uuid("838BAF1D-95C0-4A7E-A517-052642879986")) RuntimeDataContainer {
@@ -132,10 +159,10 @@ struct __declspec(uuid("838BAF1D-95C0-4A7E-A517-052642879986")) RuntimeDataConta
     std::vector<EffectData*> allSortedTechniques;
 
     SpecialEffect specialEffects[4] = {
-        SpecialEffect{ "REST_TONEMAP_TO_SDR", reshade::api::effect_technique {0} },
-        SpecialEffect{ "REST_TONEMAP_TO_HDR", reshade::api::effect_technique {0} },
-        SpecialEffect{ "REST_FLIP", reshade::api::effect_technique {0} },
-        SpecialEffect{ "REST_NOOP", reshade::api::effect_technique {0} },
+        SpecialEffect{ "REST_TONEMAP_TO_SDR", reshade::api::effect_technique{ 0 } },
+        SpecialEffect{ "REST_TONEMAP_TO_HDR", reshade::api::effect_technique{ 0 } },
+        SpecialEffect{ "REST_FLIP", reshade::api::effect_technique{ 0 } },
+        SpecialEffect{ "REST_NOOP", reshade::api::effect_technique{ 0 } },
     };
     int32_t previousEnableCount = 0;
 };

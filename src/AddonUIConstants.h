@@ -1,34 +1,32 @@
 #pragma once
-
-#include <unordered_map>
+#include "AddonUIData.h"
+#include "CDataFile.h"
+#include "ShaderManager.h"
+#include "ToggleGroup.h"
+#include <imgui.h>
 #include <ranges>
 #include <reshade.hpp>
-#include "ShaderManager.h"
-#include "CDataFile.h"
-#include "ToggleGroup.h"
-#include "AddonUIData.h"
+#include <unordered_map>
 
-static const std::unordered_set<std::string> varExclusionSet({
-    "frametime",
-    "framecount",
-    "random",
-    "pingpong",
-    "date",
-    "timer",
-    "key",
-    "mousepoint",
-    "mousedelta",
-    "mousebutton",
-    "mousewheel",
-    "ui_open",
-    "overlay_open",
-    "ui_active",
-    "overlay_active",
-    "ui_hovered",
-    "overlay_hovered" });
+static const std::unordered_set<std::string> varExclusionSet({ "frametime",
+                                                               "framecount",
+                                                               "random",
+                                                               "pingpong",
+                                                               "date",
+                                                               "timer",
+                                                               "key",
+                                                               "mousepoint",
+                                                               "mousedelta",
+                                                               "mousebutton",
+                                                               "mousewheel",
+                                                               "ui_open",
+                                                               "overlay_open",
+                                                               "ui_active",
+                                                               "overlay_active",
+                                                               "ui_hovered",
+                                                               "overlay_hovered" });
 
-static void DisplayConstantSettings(ShaderToggler::ToggleGroup* group)
-{
+static void DisplayConstantSettings(ShaderToggler::ToggleGroup* group) {
     ImGui::TableNextColumn();
     ImGui::Text("槽");
     ImGui::TableNextColumn();
@@ -37,18 +35,15 @@ static void DisplayConstantSettings(ShaderToggler::ToggleGroup* group)
     ImGui::SameLine();
 
     ImGui::PushID(0);
-    if (ImGui::SmallButton("+"))
-    {
+    if (ImGui::SmallButton("+")) {
         group->setCBSlotIndex(group->getCBSlotIndex() + 1);
     }
     ImGui::PopID();
 
-    if (group->getCBSlotIndex() != 0)
-    {
+    if (group->getCBSlotIndex() != 0) {
         ImGui::SameLine();
 
-        if (ImGui::SmallButton("-"))
-        {
+        if (ImGui::SmallButton("-")) {
             group->setCBSlotIndex(group->getCBSlotIndex() - 1);
         }
     }
@@ -63,29 +58,24 @@ static void DisplayConstantSettings(ShaderToggler::ToggleGroup* group)
     ImGui::SameLine();
 
     ImGui::PushID(2);
-    if (ImGui::SmallButton("+"))
-    {
+    if (ImGui::SmallButton("+")) {
         group->dispatchCBCycle(ShaderToggler::CYCLE_UP);
     }
     ImGui::PopID();
 
-    if (group->getCBDescriptorIndex() != 0)
-    {
+    if (group->getCBDescriptorIndex() != 0) {
         ImGui::SameLine();
 
         ImGui::PushID(1);
-        if (ImGui::SmallButton("-"))
-        {
+        if (ImGui::SmallButton("-")) {
             group->dispatchCBCycle(ShaderToggler::CYCLE_DOWN);
         }
         ImGui::PopID();
     }
 }
 
-static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler::ToggleGroup* group, reshade::api::device* dev)
-{
-    if (instance.GetConstantHandler() == nullptr)
-    {
+static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler::ToggleGroup* group, reshade::api::device* dev) {
+    if (instance.GetConstantHandler() == nullptr) {
         return;
     }
 
@@ -115,17 +105,14 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
     bool extractionEnabled = group->getExtractConstants();
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-    if (ImGui::BeginChild("Constant Buffer Viewer##child", { 0, height / 1.5f }, true, ImGuiChildFlags_AlwaysAutoResize))
-    {
+    if (ImGui::BeginChild("Constant Buffer Viewer##child", { 0, height / 1.5f }, true, ImGuiChildFlags_AlwaysAutoResize)) {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
-        if (!instance.GetTrackDescriptors())
-        {
+        if (!instance.GetTrackDescriptors()) {
             ImGui::BeginDisabled();
         }
 
-        if (ImGui::BeginTable("ConstantBufferSettings", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody))
-        {
+        if (ImGui::BeginTable("ConstantBufferSettings", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody)) {
             ImGui::TableSetupColumn("##CBcolumnsetup", ImGuiTableColumnFlags_WidthFixed, ImGui::GetWindowWidth() / 3);
 
             ImGui::TableNextColumn();
@@ -133,8 +120,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::TableNextColumn();
             ImGui::Checkbox("##Extractconstantbuffer", &extractionEnabled);
 
-            if (!extractionEnabled)
-            {
+            if (!extractionEnabled) {
                 instance.GetConstantHandler()->RemoveGroup(group, dev);
                 ImGui::BeginDisabled();
             }
@@ -144,13 +130,10 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::TableNextColumn();
             ImGui::Text("视图模式");
             ImGui::TableNextColumn();
-            if (ImGui::BeginCombo("##Viewmode", typeSelectedItem, ImGuiComboFlags_None))
-            {
-                for (int n = 0; n < IM_ARRAYSIZE(typeItems); n++)
-                {
+            if (ImGui::BeginCombo("##Viewmode", typeSelectedItem, ImGuiComboFlags_None)) {
+                for (int n = 0; n < IM_ARRAYSIZE(typeItems); n++) {
                     bool is_selected = (typeSelectedItem == typeItems[n]);
-                    if (ImGui::Selectable(typeItems[n], is_selected))
-                    {
+                    if (ImGui::Selectable(typeItems[n], is_selected)) {
                         typeSelectionIndex = n;
                         typeSelectedItem = typeItems[n];
                     }
@@ -165,13 +148,10 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::TableNextColumn();
             ImGui::Text("着色器阶段");
             ImGui::TableNextColumn();
-            if (ImGui::BeginCombo("##ShaderStage", selectedStage, ImGuiComboFlags_None))
-            {
-                for (int n = 0; n < IM_ARRAYSIZE(stageItems); n++)
-                {
+            if (ImGui::BeginCombo("##ShaderStage", selectedStage, ImGuiComboFlags_None)) {
+                for (int n = 0; n < IM_ARRAYSIZE(stageItems); n++) {
                     bool is_selected = (selectedStage == stageItems[n]);
-                    if (ImGui::Selectable(stageItems[n], is_selected))
-                    {
+                    if (ImGui::Selectable(stageItems[n], is_selected)) {
                         selectedStageIndex = n;
                         selectedStage = stageItems[n];
                     }
@@ -186,13 +166,10 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::TableNextColumn();
             ImGui::Text("常量模式");
             ImGui::TableNextColumn();
-            if (ImGui::BeginCombo("##CBmode", cbModeSelection, ImGuiComboFlags_None))
-            {
-                for (int n = 0; n < IM_ARRAYSIZE(cbModeItems); n++)
-                {
+            if (ImGui::BeginCombo("##CBmode", cbModeSelection, ImGuiComboFlags_None)) {
+                for (int n = 0; n < IM_ARRAYSIZE(cbModeItems); n++) {
                     bool is_selected = (cbModeSelection == cbModeItems[n]);
-                    if (ImGui::Selectable(cbModeItems[n], is_selected))
-                    {
+                    if (ImGui::Selectable(cbModeItems[n], is_selected)) {
                         cbModeSelectionIndex = n;
                         cbModeSelection = cbModeItems[n];
                     }
@@ -214,19 +191,18 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
         ImGui::Separator();
 
-        if (bufferContent != nullptr && bufferSize > 0 && ImGui::BeginTable("Buffer View Grid##table", columns + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-        {
+        if (bufferContent != nullptr && bufferSize > 0 &&
+            ImGui::BeginTable("Buffer View Grid##table",
+                              columns + 1,
+                              ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Borders |
+                                ImGuiTableFlags_RowBg)) {
             size_t elements = bufferSize / typeSizes[typeSelectionIndex];
 
             ImGui::TableSetupScrollFreeze(0, 1);
-            for (int i = 0; i < columns + 1; i++)
-            {
-                if (i == 0)
-                {
+            for (int i = 0; i < columns + 1; i++) {
+                if (i == 0) {
                     ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 40);
-                }
-                else
-                {
+                } else {
                     ImGui::TableSetupColumn(std::format("{:#04x}", (i - 1) * typeSizes[typeSelectionIndex]).c_str(), ImGuiTableColumnFlags_None);
                 }
             }
@@ -235,16 +211,13 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
             ImGuiListClipper clipper;
 
-            double clipElements = (static_cast<double>(elements) + static_cast<double>(elements) / static_cast<double>(columns)) / static_cast<double>(columns + 1);
+            double clipElements =
+              (static_cast<double>(elements) + static_cast<double>(elements) / static_cast<double>(columns)) / static_cast<double>(columns + 1);
             clipper.Begin(static_cast<int>(std::ceil(clipElements)));
-            while (clipper.Step())
-            {
-                for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++)
-                {
-                    for (int i = row * (columns + 1); i < row * static_cast<ptrdiff_t>(columns + 1) + static_cast<ptrdiff_t>(columns + 1); i++)
-                    {
-                        if (i % (columns + 1) == 0)
-                        {
+            while (clipper.Step()) {
+                for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
+                    for (int i = row * (columns + 1); i < row * static_cast<ptrdiff_t>(columns + 1) + static_cast<ptrdiff_t>(columns + 1); i++) {
+                        if (i % (columns + 1) == 0) {
                             ImGui::TableNextColumn();
                             ImGui::TableHeader(std::format("{:#05x}", i / (columns + 1) * typeSizes[typeSelectionIndex] * columns).c_str());
                             continue;
@@ -254,22 +227,19 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
                         if (typeSelectionIndex == 0) {
                             sContent << std::format("{:02X}", bufferContent[i - i / (columns + 1) - 1]) << std::endl;
-                        }
-                        else
-                        {
+                        } else {
                             uint32_t bufferOffset = (i - i / (columns + 1) - 1) * typeSizes[typeSelectionIndex];
 
-                            switch (typeSelectionIndex)
-                            {
-                            case 1:
-                                sContent << std::format("{:.8f}", *(reinterpret_cast<const float*>(&bufferContent[bufferOffset]))) << std::endl;
-                                break;
-                            case 2:
-                                sContent << *(reinterpret_cast<const int32_t*>(&bufferContent[bufferOffset])) << std::endl;
-                                break;
-                            case 3:
-                                sContent << *(reinterpret_cast<const uint32_t*>(&bufferContent[bufferOffset])) << std::endl;
-                                break;
+                            switch (typeSelectionIndex) {
+                                case 1:
+                                    sContent << std::format("{:.8f}", *(reinterpret_cast<const float*>(&bufferContent[bufferOffset]))) << std::endl;
+                                    break;
+                                case 2:
+                                    sContent << *(reinterpret_cast<const int32_t*>(&bufferContent[bufferOffset])) << std::endl;
+                                    break;
+                                case 3:
+                                    sContent << *(reinterpret_cast<const uint32_t*>(&bufferContent[bufferOffset])) << std::endl;
+                                    break;
                             }
                         }
 
@@ -284,13 +254,11 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::EndTable();
         }
 
-        if (!extractionEnabled)
-        {
+        if (!extractionEnabled) {
             ImGui::EndDisabled();
         }
 
-        if (!instance.GetTrackDescriptors())
-        {
+        if (!instance.GetTrackDescriptors()) {
             ImGui::EndDisabled();
         }
 
@@ -304,46 +272,41 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
     if (ImGui::IsItemActive())
         height += ImGui::GetIO().MouseDelta.y;
 
-    if (ImGui::BeginChild("Constant Buffer Viewer##vars", { 0, 0 }, true, ImGuiChildFlags_AlwaysAutoResize))
-    {
+    if (ImGui::BeginChild("Constant Buffer Viewer##vars", { 0, 0 }, true, ImGuiChildFlags_AlwaysAutoResize)) {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3, 3));
 
-        if (!extractionEnabled)
-        {
+        if (!extractionEnabled) {
             instance.GetConstantHandler()->RemoveGroup(group, dev);
             ImGui::BeginDisabled();
         }
 
-        if (ImGui::Button("添加变量绑定"))
-        {
+        if (ImGui::Button("添加变量绑定")) {
             ImGui::OpenPopup("添加###const_variables");
         }
 
         ImGui::Separator();
 
-        if (ImGui::BeginPopupModal("添加###const_variables", nullptr, ImGuiWindowFlags_AlwaysAutoResize) && instance.GetRESTVariables()->size() > 0)
-        {
+        if (ImGui::BeginPopupModal("添加###const_variables", nullptr, ImGuiWindowFlags_AlwaysAutoResize) && instance.GetRESTVariables()->size() > 0) {
             ImGui::Text("添加常量缓冲区偏移量至变量绑定：");
 
             static int varSelectionIndex = 0;
             std::vector<std::string> varNames;
-            std::transform(instance.GetRESTVariables()->begin(), instance.GetRESTVariables()->end(), std::back_inserter(varNames),
-                [](const std::pair<std::string, std::tuple<Shim::Constants::constant_type, std::vector<reshade::api::effect_uniform_variable>>>& kV)
-                {
-                    return kV.first;
-                });
+            std::transform(
+              instance.GetRESTVariables()->begin(),
+              instance.GetRESTVariables()->end(),
+              std::back_inserter(varNames),
+              [](const std::pair<std::string, std::tuple<Shim::Constants::constant_type, std::vector<reshade::api::effect_uniform_variable>>>& kV) {
+                  return kV.first;
+              });
             std::vector<std::string> filteredVars;
             std::copy_if(varNames.begin(), varNames.end(), std::back_inserter(filteredVars), [](const std::string& s) { return !varExclusionSet.contains(s); });
 
             static std::string varSelectedItem = filteredVars.size() > 0 ? filteredVars[0] : "";
 
-            if (ImGui::BeginCombo("变量", varSelectedItem.c_str(), ImGuiComboFlags_None))
-            {
-                for (auto& v : filteredVars)
-                {
+            if (ImGui::BeginCombo("变量", varSelectedItem.c_str(), ImGuiComboFlags_None)) {
+                for (auto& v : filteredVars) {
                     bool is_selected = (varSelectedItem == v);
-                    if (ImGui::Selectable(v.c_str(), is_selected))
-                    {
+                    if (ImGui::Selectable(v.c_str(), is_selected)) {
                         varSelectedItem = v;
                     }
                     if (is_selected)
@@ -363,18 +326,15 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
             ImGui::Separator();
 
             ImGui::SetCursorPosX(ImGui::GetWindowWidth() / 2 - 120 - ImGui::GetStyle().ItemSpacing.x / 2 - ImGui::GetStyle().FramePadding.x / 2);
-            if (ImGui::Button("确认", ImVec2(120, 0)))
-            {
-                if (varSelectedItem.size() > 0)
-                {
+            if (ImGui::Button("确认", ImVec2(120, 0))) {
+                if (varSelectedItem.size() > 0) {
                     group->SetVarMapping(std::stoul(std::string(offsetInputBuf), nullptr, 16), varSelectedItem, prevValue);
                 }
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SetItemDefaultFocus();
             ImGui::SameLine();
-            if (ImGui::Button("取消", ImVec2(120, 0)))
-            {
+            if (ImGui::Button("取消", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
 
@@ -384,17 +344,17 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
         const char* varColumns[] = { "变量", "偏移", "类型", "使用前值" };
         std::vector<std::string> removal;
 
-        if (varMap.size() > 0 && ImGui::BeginTable("Buffer View Grid##vartable", IM_ARRAYSIZE(varColumns) + 1, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody))
-        {
-            for (int i = 0; i < IM_ARRAYSIZE(varColumns); i++)
-            {
+        if (varMap.size() > 0 &&
+            ImGui::BeginTable("Buffer View Grid##vartable",
+                              IM_ARRAYSIZE(varColumns) + 1,
+                              ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoBordersInBody)) {
+            for (int i = 0; i < IM_ARRAYSIZE(varColumns); i++) {
                 ImGui::TableSetupColumn(varColumns[i], ImGuiTableColumnFlags_None);
             }
 
             ImGui::TableHeadersRow();
 
-            for (const auto& [varName, varData] : varMap)
-            {
+            for (const auto& [varName, varData] : varMap) {
                 if (!instance.GetRESTVariables()->contains(varName))
                     continue;
                 const auto& [varOffset, varEnabled] = varData;
@@ -407,8 +367,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
                 ImGui::TableNextColumn();
                 ImGui::Text(std::format("{}", varEnabled).c_str());
                 ImGui::TableNextColumn();
-                if (ImGui::Button(std::format("移除##{}", varName).c_str()))
-                {
+                if (ImGui::Button(std::format("移除##{}", varName).c_str())) {
                     removal.push_back(varName);
                 }
             }
@@ -418,8 +377,7 @@ static void DisplayConstantTab(AddonImGui::AddonUIData& instance, ShaderToggler:
 
         std::for_each(removal.begin(), removal.end(), [&group](std::string& e) { group->RemoveVarMapping(e); });
 
-        if (!extractionEnabled)
-        {
+        if (!extractionEnabled) {
             ImGui::EndDisabled();
         }
 

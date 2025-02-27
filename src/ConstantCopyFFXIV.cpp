@@ -1,7 +1,7 @@
-#include <cstring>
-#include <intrin.h>
-#include <d3d11.h>
 #include "ConstantCopyFFXIV.h"
+#include <cstring>
+#include <d3d11.h>
+#include <intrin.h>
 
 using namespace Shim::Constants;
 using namespace reshade::api;
@@ -13,39 +13,34 @@ sig_ffxiv_memcpy* ConstantCopyFFXIV::org_ffxiv_memcpy = nullptr;
 vector<tuple<const void*, uint64_t, size_t, bool>> ConstantCopyFFXIV::_hostResourceBuffer;
 unordered_map<uint64_t, uint64_t> ConstantCopyFFXIV::_hostResourceBufferMap;
 
-ConstantCopyFFXIV::ConstantCopyFFXIV()
-{
-}
+ConstantCopyFFXIV::ConstantCopyFFXIV() {}
 
-ConstantCopyFFXIV::~ConstantCopyFFXIV()
-{
-}
+ConstantCopyFFXIV::~ConstantCopyFFXIV() {}
 
-bool ConstantCopyFFXIV::Init()
-{
+bool ConstantCopyFFXIV::Init() {
     return Shim::GameHookT<sig_ffxiv_cbload0>::Hook(&org_ffxiv_cbload0, detour_ffxiv_cbload0, ffxiv_cbload0) &&
-        /*Shim::GameHookT<sig_ffxiv_cbload1>::Hook(&org_ffxiv_cbload1, detour_ffxiv_cbload1, ffxiv_cbload1) &&*/
-        Shim::GameHookT<sig_ffxiv_memcpy>::Hook(&org_ffxiv_memcpy, detour_ffxiv_memcpy, ffxiv_memcpy);
+           /*Shim::GameHookT<sig_ffxiv_cbload1>::Hook(&org_ffxiv_cbload1, detour_ffxiv_cbload1, ffxiv_cbload1) &&*/
+           Shim::GameHookT<sig_ffxiv_memcpy>::Hook(&org_ffxiv_memcpy, detour_ffxiv_memcpy, ffxiv_memcpy);
 }
 
-bool ConstantCopyFFXIV::UnInit()
-{
+bool ConstantCopyFFXIV::UnInit() {
     return MH_Uninitialize() == MH_OK;
 }
 
-void ConstantCopyFFXIV::GetHostConstantBuffer(command_list* cmd_list, ShaderToggler::ToggleGroup* group, vector<uint8_t>& dest, size_t size, uint64_t resourceHandle)
-{
+void ConstantCopyFFXIV::GetHostConstantBuffer(command_list* cmd_list,
+                                              ShaderToggler::ToggleGroup* group,
+                                              vector<uint8_t>& dest,
+                                              size_t size,
+                                              uint64_t resourceHandle) {
     const auto& ff = _hostResourceBufferMap.find(resourceHandle);
-    if (ff != _hostResourceBufferMap.end())
-    {
+    if (ff != _hostResourceBufferMap.end()) {
         auto& [buffer, bufHandle, bufSize, mapped] = _hostResourceBuffer[ff->second];
         size_t minSize = std::min(size, bufSize);
         memcpy(dest.data(), buffer, minSize);
     }
 }
 
-inline void ConstantCopyFFXIV::set_host_resource_data_location(void* origin, size_t len, int64_t resource_handle, size_t index)
-{
+inline void ConstantCopyFFXIV::set_host_resource_data_location(void* origin, size_t len, int64_t resource_handle, size_t index) {
     if (_hostResourceBuffer.size() < index + 1)
         _hostResourceBuffer.resize(index + 1);
 
@@ -60,8 +55,7 @@ inline void ConstantCopyFFXIV::set_host_resource_data_location(void* origin, siz
     mapped = true;
 }
 
-void ConstantCopyFFXIV::detour_ffxiv_cbload0(uint64_t param_1, uint16_t* param_2, uint64_t param_3, D3D11_MAPPED_SUBRESOURCE* param_4)
-{
+void ConstantCopyFFXIV::detour_ffxiv_cbload0(uint64_t param_1, uint16_t* param_2, uint64_t param_3, D3D11_MAPPED_SUBRESOURCE* param_4) {
     uint32_t uVar3;
     int32_t iVar4;
     uint64_t uVar5;
@@ -85,8 +79,7 @@ void ConstantCopyFFXIV::detour_ffxiv_cbload0(uint64_t param_1, uint16_t* param_2
 
     if (*pauVar5 == *reinterpret_cast<uint64_t*>(param_1 + 0x10)) {
         *(uint8_t*)((param_3 & 0xff) + 8 + (int64_t)param_2) = 4;
-    }
-    else {
+    } else {
         pIVar2 = param_4->pData;
         auStack_28.RowPitch = param_4->RowPitch;
         auStack_28.DepthPitch = param_4->DepthPitch;
@@ -94,12 +87,14 @@ void ConstantCopyFFXIV::detour_ffxiv_cbload0(uint64_t param_1, uint16_t* param_2
         uVar5 = (uint64_t)((uint32_t)(param_3 >> 0x20) & 3);
         if (iVar4 + 1U < 0xc) {
             auStack_28.pData = pIVar2;
-            uVar5 = detour_ffxiv_cbload1(param_1 + 0x18 + (uVar5 + static_cast<uint64_t>(iVar4 + 1U) * 4) * 0x50, plVar2,
-                &auStack_28, reinterpret_cast<ID3D11Resource**>(&local_res8), 0x18 + (uVar5 + static_cast<uint64_t>(iVar4 + 1U) * 4) * 0x50);
+            uVar5 = detour_ffxiv_cbload1(param_1 + 0x18 + (uVar5 + static_cast<uint64_t>(iVar4 + 1U) * 4) * 0x50,
+                                         plVar2,
+                                         &auStack_28,
+                                         reinterpret_cast<ID3D11Resource**>(&local_res8),
+                                         0x18 + (uVar5 + static_cast<uint64_t>(iVar4 + 1U) * 4) * 0x50);
             pauVar5 = local_res8;
             *(uint8_t*)((param_3 & 0xff) + 8 + (int64_t)param_2) = (uint8_t)uVar5;
-        }
-        else {
+        } else {
             lVar1 = param_1 + uVar5 * 0x10;
             pauVar5 = *(uint64_t**)(lVar1 + 0xf18);
             if (*(void**)(lVar1 + 0xf20) != pIVar2) {
@@ -118,9 +113,11 @@ void ConstantCopyFFXIV::detour_ffxiv_cbload0(uint64_t param_1, uint16_t* param_2
     return;
 }
 
-
-uint64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload1(uintptr_t param_1, ID3D11DeviceContext* param_2, D3D11_MAPPED_SUBRESOURCE* param_3, ID3D11Resource** param_4, uint64_t index)
-{
+uint64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload1(uintptr_t param_1,
+                                                            ID3D11DeviceContext* param_2,
+                                                            D3D11_MAPPED_SUBRESOURCE* param_3,
+                                                            ID3D11Resource** param_4,
+                                                            uint64_t index) {
     void* pauVar1;
     ID3D11Resource* uVar2;
     uint32_t uVar3;
@@ -130,7 +127,7 @@ uint64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload1(uintptr_t param_1, I
     uint32_t uVar7;
     void** ppauVar8;
     D3D11_MAPPED_SUBRESOURCE apauStack_28;
-    
+
     pauVar1 = param_3->pData;
     ppauVar8 = (void**)(param_1 + 0x20);
     uVar5 = 0;
@@ -152,7 +149,8 @@ uint64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload1(uintptr_t param_1, I
     uVar4 = 0;
     do {
         uVar3 = 1 << ((uint8_t)(*(uint32_t*)(param_1 + 0x40) >> ((uint8_t)uVar7 & 0x1f)) & 3) | uVar4;
-        if (uVar3 == 0xf) break;
+        if (uVar3 == 0xf)
+            break;
         uVar7 = uVar7 + 3;
         uVar4 = uVar3;
     } while (uVar7 < 0x1e);
@@ -182,11 +180,10 @@ uint64_t __fastcall ConstantCopyFFXIV::detour_ffxiv_cbload1(uintptr_t param_1, I
     param_2->Map(uVar2, 0, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, 0, &apauStack_28);
     org_ffxiv_memcpy(apauStack_28.pData, param_3->pData, param_3->RowPitch * 16);
     param_2->Unmap(uVar2, 0);
-    
+
     return uVar5;
 }
 
-void __fastcall ConstantCopyFFXIV::detour_ffxiv_memcpy(void* param_1, void* param_2, size_t param_3)
-{
+void __fastcall ConstantCopyFFXIV::detour_ffxiv_memcpy(void* param_1, void* param_2, size_t param_3) {
     return org_ffxiv_memcpy(param_1, param_2, param_3);
 }

@@ -3,8 +3,7 @@
 using namespace Rendering;
 using namespace reshade::api;
 
-GlobalResourceView::GlobalResourceView(reshade::api::device* d, reshade::api::resource r, reshade::api::format format)
-{
+GlobalResourceView::GlobalResourceView(reshade::api::device* d, reshade::api::resource r, reshade::api::format format) {
     device = d;
     resource_handle = r.handle;
     rtv = { 0 };
@@ -15,63 +14,53 @@ GlobalResourceView::GlobalResourceView(reshade::api::device* d, reshade::api::re
 
     resource_desc desc = device->get_resource_desc(r);
 
-    if ((static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::render_target) || static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::shader_resource)) && desc.type == resource_type::texture_2d)
-    {
+    if ((static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::render_target) ||
+         static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::shader_resource)) &&
+        desc.type == resource_type::texture_2d) {
         reshade::api::format f = format == reshade::api::format::unknown ? desc.texture.format : format;
 
         reshade::api::format format_non_srgb = format_to_default_typed(f, 0);
         reshade::api::format format_srgb = format_to_default_typed(f, 1);
 
-        if (static_cast<uint32_t>(desc.usage & resource_usage::render_target))
-        {
+        if (static_cast<uint32_t>(desc.usage & resource_usage::render_target)) {
             device->create_resource_view(r, resource_usage::render_target, resource_view_desc(format_non_srgb), &rtv);
             device->create_resource_view(r, resource_usage::render_target, resource_view_desc(format_srgb), &rtv_srgb);
         }
 
-        if (static_cast<uint32_t>(desc.usage & resource_usage::shader_resource) && IsValidShaderResource(desc.texture.format))
-        {
+        if (static_cast<uint32_t>(desc.usage & resource_usage::shader_resource) && IsValidShaderResource(desc.texture.format)) {
             device->create_resource_view(r, resource_usage::shader_resource, resource_view_desc(format_non_srgb), &srv);
             device->create_resource_view(r, resource_usage::shader_resource, resource_view_desc(format_srgb), &srv_srgb);
         }
     }
 }
 
-GlobalResourceView::~GlobalResourceView()
-{
+GlobalResourceView::~GlobalResourceView() {
     Dispose();
 }
 
-inline bool GlobalResourceView::IsValidShaderResource(reshade::api::format format)
-{
+inline bool GlobalResourceView::IsValidShaderResource(reshade::api::format format) {
     return format != reshade::api::format::intz;
 }
 
-void GlobalResourceView::Dispose(bool deviceValid)
-{
-    if (device == nullptr)
-    {
+void GlobalResourceView::Dispose(bool deviceValid) {
+    if (device == nullptr) {
         return;
     }
 
-    if (deviceValid)
-    {
-        if (rtv != 0)
-        {
+    if (deviceValid) {
+        if (rtv != 0) {
             device->destroy_resource_view(rtv);
         }
 
-        if (rtv_srgb != 0)
-        {
+        if (rtv_srgb != 0) {
             device->destroy_resource_view(rtv_srgb);
         }
 
-        if (srv != 0)
-        {
+        if (srv != 0) {
             device->destroy_resource_view(srv);
         }
 
-        if (srv_srgb != 0)
-        {
+        if (srv_srgb != 0) {
             device->destroy_resource_view(srv_srgb);
         }
     }

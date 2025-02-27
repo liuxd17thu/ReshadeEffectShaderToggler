@@ -1,12 +1,8 @@
 #pragma once
 
-#include <reshade.hpp>
 #include "PipelinePrivateData.h"
+#include <reshade.hpp>
 
-namespace Util
-{
-    namespace Rendering
-    {
-        
-    }
+namespace Util {
+namespace Rendering {}
 }

@@ -6,12 +6,10 @@ using namespace std;
 bool GameHook::_hooked = false;
 
 template<typename T>
-string GameHookT<T>::GetExecutableName()
-{
+string GameHookT<T>::GetExecutableName() {
     char fileName[MAX_PATH + 1];
     DWORD charsWritten = GetModuleFileNameA(NULL, fileName, MAX_PATH + 1);
-    if (charsWritten != 0)
-    {
+    if (charsWritten != 0) {
         string ret(fileName);
         size_t found = ret.find_last_of("/\\");
         return ret.substr(found + 1);
@@ -21,8 +19,7 @@ string GameHookT<T>::GetExecutableName()
 }
 
 template<typename T>
-T* GameHookT<T>::InstallHook(void* target, T* callback)
-{
+T* GameHookT<T>::InstallHook(void* target, T* callback) {
     void* original_function = nullptr;
 
     if (MH_CreateHook(target, reinterpret_cast<void*>(callback), &original_function) != MH_OK)
@@ -32,8 +29,7 @@ T* GameHookT<T>::InstallHook(void* target, T* callback)
 }
 
 template<typename T>
-T* GameHookT<T>::InstallApiHook(LPCWSTR pszModule, LPCSTR pszProcName, T* callback)
-{
+T* GameHookT<T>::InstallApiHook(LPCWSTR pszModule, LPCSTR pszProcName, T* callback) {
     void* original_function = nullptr;
 
     if (MH_CreateHookApi(pszModule, pszProcName, reinterpret_cast<void*>(callback), &original_function) != MH_OK)
@@ -43,13 +39,10 @@ T* GameHookT<T>::InstallApiHook(LPCWSTR pszModule, LPCSTR pszProcName, T* callba
 }
 
 template<typename T>
-bool GameHookT<T>::Hook(T** original, T* detour, const sigmatch::signature& sig)
-{
-    if (!_hooked)
-    {
+bool GameHookT<T>::Hook(T** original, T* detour, const sigmatch::signature& sig) {
+    if (!_hooked) {
         // Initialize MinHook.
-        if (MH_Initialize() != MH_OK)
-        {
+        if (MH_Initialize() != MH_OK) {
             return false;
         }
 
@@ -75,10 +68,8 @@ bool GameHookT<T>::Hook(T** original, T* detour, const sigmatch::signature& sig)
 }
 
 template<typename T>
-bool GameHookT<T>::Unhook()
-{
-    if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK)
-    {
+bool GameHookT<T>::Unhook() {
+    if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK) {
         return false;
     }
 

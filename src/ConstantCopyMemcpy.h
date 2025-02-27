@@ -1,13 +1,13 @@
 #pragma once
 
+#include "ConstantCopyBase.h"
+#include "GameHookT.h"
 #include <reshade_api.hpp>
 #include <reshade_api_device.hpp>
 #include <reshade_api_pipeline.hpp>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
-#include <shared_mutex>
-#include "ConstantCopyBase.h"
-#include "GameHookT.h"
 
 using namespace sigmatch_literals;
 
@@ -35,59 +35,52 @@ static const std::vector<sigmatch::signature> memcpy_static = {
 };
 #endif
 
-struct memcopyData
-{
+struct memcopyData {
     std::wstring module;
     std::string procName;
 };
 
-static const std::vector<memcopyData> memcpy_dynamic = {
-    {L"vcruntime140", "memcpy"},
-    {L"msvcrt", "memcpy"},
-    {L"msvcr120", "memcpy"},
-    {L"msvcr110", "memcpy"},
-    {L"msvcr100", "memcpy"}
+static const std::vector<memcopyData> memcpy_dynamic = { { L"vcruntime140", "memcpy" },
+                                                         { L"msvcrt", "memcpy" },
+                                                         { L"msvcr120", "memcpy" },
+                                                         { L"msvcr110", "memcpy" },
+                                                         { L"msvcr100", "memcpy" } };
+
+namespace Shim {
+namespace Constants {
+struct BufferCopy {
+    uint64_t resource = 0;
+    void* destination = nullptr;
+    uint8_t* hostDestination = nullptr;
+    uint64_t offset = 0;
+    uint64_t size = 0;
+    uint64_t bufferSize = 0;
 };
 
-namespace Shim
-{
-    namespace Constants
-    {
-        struct BufferCopy
-        {
-            uint64_t resource = 0;
-            void* destination = nullptr;
-            uint8_t* hostDestination = nullptr;
-            uint64_t offset = 0;
-            uint64_t size = 0;
-            uint64_t bufferSize = 0;
-        };
+class ConstantCopyMemcpy : public virtual ConstantCopyBase {
+  public:
+    ConstantCopyMemcpy();
+    ~ConstantCopyMemcpy();
 
+    bool Init() override final;
+    bool UnInit() override final;
 
-        class ConstantCopyMemcpy: public virtual ConstantCopyBase {
-        public:
-            ConstantCopyMemcpy();
-            ~ConstantCopyMemcpy();
+    bool Hook(sig_memcpy** original, sig_memcpy* detour, const sigmatch::signature& sig);
+    bool Unhook();
 
-            bool Init() override final;
-            bool UnInit() override final;
+    void OnUpdateBufferRegion(reshade::api::device* device, const void* data, reshade::api::resource resource, uint64_t offset, uint64_t size) override final{};
 
-            bool Hook(sig_memcpy** original, sig_memcpy* detour, const sigmatch::signature& sig);
-            bool Unhook();
+    virtual void OnMemcpy(void* dest, void* src, size_t size) = 0;
 
-            void OnUpdateBufferRegion(reshade::api::device* device, const void* data, reshade::api::resource resource, uint64_t offset, uint64_t size) override final {};
+  protected:
+    static ConstantCopyMemcpy* _instance;
 
-            virtual void OnMemcpy(void* dest, void* src, size_t size) = 0;
+  private:
+    bool HookStatic(sig_memcpy** original, sig_memcpy* detour);
+    bool HookDynamic(sig_memcpy** original, sig_memcpy* detour);
 
-        protected:
-            static ConstantCopyMemcpy* _instance;
-
-        private:
-            bool HookStatic(sig_memcpy** original, sig_memcpy* detour);
-            bool HookDynamic(sig_memcpy** original, sig_memcpy* detour);
-
-            static sig_memcpy* org_memcpy;
-            static void* __fastcall detour_memcpy(void* dest, void* src, size_t size);
-        };
-    }
+    static sig_memcpy* org_memcpy;
+    static void* __fastcall detour_memcpy(void* dest, void* src, size_t size);
+};
+}
 }

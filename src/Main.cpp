@@ -125,6 +125,9 @@ static void onDestroyDevice(device* device) {
     resourceManager.OnDestroyDevice(device);
     renderingShaderManager.DestroyShaders(device);
 
+    // previously StateTracking::on_destroy_device()
+    //device->destroy_private_data<StateTracking::DeviceStateTracking>();
+
     device->destroy_private_data<DeviceDataContainer>();
 }
 
@@ -616,7 +619,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID) {
             g_addonUIData.SetBasePath(g_dllPath.parent_path());
             g_addonUIData.LoadShaderTogglerIniFile();
 
-            state_tracking::register_events(g_addonUIData.GetTrackDescriptors());
             Init();
 
             reshade::register_event<reshade::addon_event::create_swapchain>(onCreateSwapchain);
@@ -655,6 +657,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID) {
             reshade::register_event<reshade::addon_event::draw_indexed>(onDrawIndexed);
             reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(onDrawOrDispatchIndirect);
 
+            state_tracking::register_events(g_addonUIData.GetTrackDescriptors());
             reshade::register_overlay(nullptr, &displaySettings);
             break;
         case DLL_PROCESS_DETACH:

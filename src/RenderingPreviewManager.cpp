@@ -36,7 +36,13 @@ void RenderingPreviewManager::UpdatePreview(command_list* cmd_list, uint64_t cal
 
     RuntimeDataContainer& runtimeData = deviceData.current_runtime->get_private_data<RuntimeDataContainer>();
 
-    ToggleGroup& group = uiData.GetToggleGroups().at(uiData.GetToggleGroupIdShaderEditing());
+    auto& groups = uiData.GetToggleGroups();
+    auto groupIt = groups.find(uiData.GetToggleGroupIdShaderEditing());
+    if (groupIt == groups.end()) {
+        return;
+    }
+
+    ToggleGroup& group = groupIt->second;
 
     // Set views during draw call since we can be sure the correct ones are bound at that point
     if (!callLocation && deviceData.huntPreview.target == 0) {

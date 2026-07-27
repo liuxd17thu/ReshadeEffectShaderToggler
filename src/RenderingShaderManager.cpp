@@ -140,6 +140,8 @@ void RenderingShaderManager::InitShaders(reshade::api::device* device) {
 void RenderingShaderManager::DestroyShaders(reshade::api::device* device) {
     DeviceDataContainer& shader = device->get_private_data<DeviceDataContainer>();
 
+    std::unique_lock<std::shared_mutex> lock(shader.customShader.pipeline_mutex);
+
     if (shader.customShader.fullscreenQuadVertexBuffer != 0) {
         device->destroy_resource(shader.customShader.fullscreenQuadVertexBuffer);
         shader.customShader.fullscreenQuadVertexBuffer = { 0 };

@@ -142,11 +142,6 @@ void RenderingShaderManager::DestroyShaders(reshade::api::device* device) {
 
     std::unique_lock<std::shared_mutex> lock(shader.customShader.pipeline_mutex);
 
-    if (shader.customShader.fullscreenQuadVertexBuffer != 0) {
-        device->destroy_resource(shader.customShader.fullscreenQuadVertexBuffer);
-        shader.customShader.fullscreenQuadVertexBuffer = { 0 };
-    }
-
     if (shader.customShader.copyPipeline.pipeline != 0) {
         device->destroy_pipeline(shader.customShader.copyPipeline.pipeline);
         shader.customShader.copyPipeline.pipeline = { 0 };
@@ -189,6 +184,11 @@ void RenderingShaderManager::DestroyShaders(reshade::api::device* device) {
     if (shader.customShader.alphaPreservingCopyPipeline.pipelineSampler != 0) {
         device->destroy_sampler(shader.customShader.alphaPreservingCopyPipeline.pipelineSampler);
         shader.customShader.alphaPreservingCopyPipeline.pipelineSampler = { 0 };
+    }
+
+    if (shader.customShader.fullscreenQuadVertexBuffer != 0) {
+        device->destroy_resource(shader.customShader.fullscreenQuadVertexBuffer);
+        shader.customShader.fullscreenQuadVertexBuffer = { 0 };
     }
 }
 

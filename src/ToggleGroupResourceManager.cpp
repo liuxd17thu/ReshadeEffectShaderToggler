@@ -138,10 +138,13 @@ void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::device* devic
         for (uint32_t i = 0; i < GroupResourceTypeCount; i++) {
             GroupResource& resources = group.GetGroupResource(static_cast<GroupResourceType>(i));
 
-            if (!resources.owning)
-                continue;
+            resources.g_res.reset();
 
-            DisposeGroupResources(device, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+            if (resources.owning) {
+                DisposeGroupResources(device, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+            }
+
+            resources.state = GroupResourceState::RESOURCE_INVALID;
         }
     }
 }

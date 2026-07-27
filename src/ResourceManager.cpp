@@ -68,14 +68,14 @@ void ResourceManager::ClearBackbuffer(reshade::api::swapchain* runtime) {
 
     uint32_t count = runtime->get_back_buffer_count();
 
-    if (data.resourceManagerData.dummy_res != 0) {
-        runtime->get_device()->destroy_resource(data.resourceManagerData.dummy_res);
-        data.resourceManagerData.dummy_res = { 0 };
-    }
-
     if (data.resourceManagerData.dummy_rtv != 0) {
         runtime->get_device()->destroy_resource_view(data.resourceManagerData.dummy_rtv);
         data.resourceManagerData.dummy_rtv = { 0 };
+    }
+
+    if (data.resourceManagerData.dummy_res != 0) {
+        runtime->get_device()->destroy_resource(data.resourceManagerData.dummy_res);
+        data.resourceManagerData.dummy_res = { 0 };
     }
 }
 
@@ -147,7 +147,7 @@ void ResourceManager::OnDestroyDevice(device* device, bool validDevice) {
 
     global_resources.clear();
 
-    DisposePreview(nullptr);
+    DisposePreview(device);
 
     in_destroy_device = false;
 }

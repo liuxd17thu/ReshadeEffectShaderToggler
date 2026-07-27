@@ -32,11 +32,6 @@ void RenderingBindingManager::DisposeTextureBindings(device* device, std::unorde
 
     unique_lock<shared_mutex> lock(data.binding_mutex);
 
-    if (data.bindingManagerData.empty_res != 0) {
-        device->destroy_resource(data.bindingManagerData.empty_res);
-        data.bindingManagerData.empty_res = { 0 };
-    }
-
     if (data.bindingManagerData.empty_rtv != 0) {
         device->destroy_resource_view(data.bindingManagerData.empty_rtv);
         data.bindingManagerData.empty_rtv = { 0 };
@@ -45,6 +40,11 @@ void RenderingBindingManager::DisposeTextureBindings(device* device, std::unorde
     if (data.bindingManagerData.empty_srv != 0) {
         device->destroy_resource_view(data.bindingManagerData.empty_srv);
         data.bindingManagerData.empty_srv = { 0 };
+    }
+
+    if (data.bindingManagerData.empty_res != 0) {
+        device->destroy_resource(data.bindingManagerData.empty_res);
+        data.bindingManagerData.empty_res = { 0 };
     }
 
     effect_runtime* runtime = data.current_runtime;

@@ -302,7 +302,7 @@ void RenderingEffectManager::RenderEffects(command_list* cmd_list, uint64_t call
     vector<EffectData*> vsRemovalList;
     vector<EffectData*> csRemovalList;
 
-    if (psToRenderNames.size() == 0 && vsToRenderNames.size() == 0) {
+    if (psToRenderNames.size() == 0 && vsToRenderNames.size() == 0 && csToRenderNames.size() == 0) {
         return;
     }
 
@@ -312,12 +312,13 @@ void RenderingEffectManager::RenderEffects(command_list* cmd_list, uint64_t call
     }
 
     shared_lock<shared_mutex> techLock(runtimeData.technique_mutex);
-    rendered =
-      (psToRenderNames.size() > 0) &&
-        _RenderEffects(cmd_list, deviceData, runtimeData, commandListData.ps.techniquesToRender, psRemovalList, psToRenderNames) ||
-      (vsToRenderNames.size() > 0) &&
-        _RenderEffects(cmd_list, deviceData, runtimeData, commandListData.vs.techniquesToRender, vsRemovalList, vsToRenderNames) ||
-      (csToRenderNames.size() > 0) && _RenderEffects(cmd_list, deviceData, runtimeData, commandListData.cs.techniquesToRender, csRemovalList, csToRenderNames);
+    bool psRendered = (psToRenderNames.size() > 0) &&
+        _RenderEffects(cmd_list, deviceData, runtimeData, commandListData.ps.techniquesToRender, psRemovalList, psToRenderNames);
+    bool vsRendered = (vsToRenderNames.size() > 0) &&
+        _RenderEffects(cmd_list, deviceData, runtimeData, commandListData.vs.techniquesToRender, vsRemovalList, vsToRenderNames);
+    bool csRendered = (csToRenderNames.size() > 0) &&
+        _RenderEffects(cmd_list, deviceData, runtimeData, commandListData.cs.techniquesToRender, csRemovalList, csToRenderNames);
+    rendered = psRendered || vsRendered || csRendered;
     techLock.unlock();
 
     for (auto& g : psRemovalList) {

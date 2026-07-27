@@ -1,11 +1,30 @@
-# ReshadeEffectShaderToggler [![MSBuild](https://github.com/4lex4nder/ReshadeEffectShaderToggler/actions/workflows/msbuild.yml/badge.svg)](https://github.com/4lex4nder/ReshadeEffectShaderToggler/actions/workflows/msbuild.yml) [![Release](https://github.com/4lex4nder/ReshadeEffectShaderToggler/actions/workflows/release.yml/badge.svg)](https://github.com/4lex4nder/ReshadeEffectShaderToggler/actions/workflows/release.yml)
-Reshade 5.8+ addon to apply Reshade effects to render targets bound before specific, user-configurable, groups of shaders are 
+# ReshadeEffectShaderToggler [![MSBuild](https://github.com/BadassBaboon/ReshadeEffectShaderToggler/actions/workflows/msbuild.yml/badge.svg)](https://github.com/BadassBaboon/ReshadeEffectShaderToggler/actions/workflows/msbuild.yml) [![Release](https://github.com/BadassBaboon/ReshadeEffectShaderToggler/actions/workflows/release.yml/badge.svg)](https://github.com/BadassBaboon/ReshadeEffectShaderToggler/actions/workflows/release.yml)
+Reshade 6.0+ addon to apply Reshade effects to render targets bound before specific, user-configurable, groups of shaders are 
 encountered within a game's rendering pipeline.
 
-It's mainly for 64bit reshade. There's a 32bit version in the releases, but it's not actively maintained/tested.
-
 ## Fork notes
-This fork aims to resolve the issues of the REST add-on with DX12 and Vulkan. Crashes related to shader hunting and browsing, HDR targets, preview pipeline format and alpha prevervation are fixed while keeping the DX11 compatibility.
+This fork extends **ReshadeEffectShaderToggler (REST)** with support for **Direct3D 12**, **Vulkan**, **Direct3D 9 (32-bit `addon32`)**, updated **ReShade 6.x API** compatibility, and quality-of-life workflow improvements, while maintaining the Direct3D 10/11 compatibility.
+### Key Features & Improvements
+* **ReShade 6.x API Upgrade:**
+  * Updated SDK headers to ReShade 6.3+ (API 18 / ImGui 1.92.5).
+  * Updated private data access (`get_private_data<T>()`) to support pointer-return semantics (`T*`), ensuring compatibility across modern ReShade 6.x builds.
+* **Quality-of-Life (QoL) Enhancements:**
+  * **Working Group Hotkeys:** Fixed per-group shortcut key binding evaluation (`CheckHotkeys`), enabling functional real-time keybind toggling per group.
+  * **Global Toggle-All Keybind:** Added a configurable global shortcut key to toggle all active groups on or off simultaneously.
+  * **Group Duplication:** Added a "Duplicate Group" button to copy existing shader groups (including marked shader hashes, assigned effects, and settings).
+  * **INI Hot-Reload:** Added a "Reload from INI" button that tears down existing GPU resources safely and re-reads `ReshadeEffectShaderToggler.ini` without restarting the game.
+  * **Clean Keybind UI:** Replaced raw enum strings in the keybind selector with human-readable key labels.
+* **Direct3D 12 & Vulkan Stability:**
+  * **Format-Matched PSOs:** Dynamic Pipeline State Object (PSO) compilation per render target format. Eliminates `DXGI_ERROR_DEVICE_HUNG` crashes caused by baked PSO format mismatches in D3D12/Vulkan.
+  * **Thread-Safe Command Recording:** Thread-safe PSO map management using `std::shared_mutex` with double-checked locking to support asynchronous multi-threaded command list recording.
+  * **Alpha Preservation Fix:** Fixed GPU hangs when hunting or rendering with "Preserve target alpha channel" enabled in D3D12/Vulkan. Restricts alpha-preserving quad copies on explicit-barrier APIs to standard LDR typeless formats (`R8G8B8A8` / `B8G8R8A8`), bypassing unsafe copies on HDR/FP16 render targets while preserving full UI alpha masking.
+  * **Log Gating:** Throttled unsafe preview capture and render target size mismatch warnings to log only on distinct format/dimension changes, preventing `ReShade.log` file bloat.
+* **Direct3D 9 (`addon32`) Support:**
+  * **Surface Backbuffers:** Added `resource_type::surface` support in `GlobalResourceView`. In D3D9, ReShade exposes swap-chain backbuffers as standalone surfaces, allowing REST to bind and mask UI/effects in 32-bit D3D9 games (e.g., Battlefield 2, GTA SA, NFS Most Wanted).
+  * **Device Reset Safety:** Implemented D3D9 pre-reset teardown in `onDestroyEffectRuntime`. Releases default-pool resources, group buffers, and binding views before native `IDirect3DDevice9::Reset()` calls, preventing `D3DERR_INVALIDCALL` crashes when alt-tabbing, toggling windowed/fullscreen mode, or changing resolution.
+  * **Resource Destruction Order:** Reordered view teardown to ensure RTVs and SRVs are destroyed prior to parent resources, preventing resource handle leakage on D3D9 device resets.
+* **Multi-Stage Pipeline Rendering:**
+  * Resolved a C++ short-circuit evaluation bug in `_RenderEffects()` where simultaneous Pixel, Vertex, or Compute shader toggles at the same draw call invocation could cause secondary stages to be skipped. Active stages now evaluate independently.
 
 ## How to use
 Place the `ReshadeEffectShaderToggler.addon` in the same folder as where the game exe is located. This is in most cases the same folder as where the Reshade 5.8+ dll

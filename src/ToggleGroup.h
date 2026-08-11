@@ -52,7 +52,7 @@ enum SwapChainMatchMode : uint32_t {
     SWAPCHAIN_MATCH_MODE_NONE = 3
 };
 
-enum class GroupResourceType : uint32_t { RESOURCE_ALPHA = 0, RESOURCE_BINDING = 1, RESOURCE_CONSTANTS_COPY = 2 };
+enum class GroupResourceType : uint32_t { RESOURCE_ALPHA = 0, RESOURCE_BINDING = 1, RESOURCE_CONSTANTS_COPY = 2, RESOURCE_INTERMEDIATE_FULLRES = 3 };
 
 enum class GroupResourceState : uint32_t {
     RESOURCE_VALID = 1,
@@ -62,7 +62,7 @@ enum class GroupResourceState : uint32_t {
     RESOURCE_CLEARED = 8,
 };
 
-constexpr uint32_t GroupResourceTypeCount = 3;
+constexpr uint32_t GroupResourceTypeCount = 4;
 
 struct __declspec(novtable) GroupResource final {
     reshade::api::resource res;
@@ -117,6 +117,7 @@ class ToggleGroup {
     bool isEditing() { return _isEditing; }
     bool isEmpty() const { return _vertexShaderHashes.size() <= 0 && _pixelShaderHashes.size() <= 0; }
     int getId() const { return _id; }
+    void setId(int id) { _id = id; }
     const std::unordered_set<std::string>& preferredTechniques() const { return _preferredTechniques; }
     void setPreferredTechniques(std::unordered_set<std::string>& techniques) { _preferredTechniques = techniques; }
     std::unordered_set<uint32_t> getPixelShaderHashes() const { return _pixelShaderHashes; }
@@ -264,6 +265,6 @@ class ToggleGroup {
     DescriptorCycle _srvCycle;
     DescriptorCycle _rtCycle;
 
-    std::array<GroupResource, 3> _group_buffers;
+    std::array<GroupResource, 4> _group_buffers;
 };
 }

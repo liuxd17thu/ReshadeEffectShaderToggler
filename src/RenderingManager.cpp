@@ -144,11 +144,12 @@ const ResourceViewData RenderingManager::GetCurrentResourceView(command_list* cm
     state_tracking& state = cmd_list->get_private_data<state_tracking>();
     const vector<resource_view>& rtvs = state.render_targets;
 
-    size_t index = group->getRenderTargetIndex();
-    index = std::min(index, rtvs.size() - 1);
-
-    size_t bindingRTindex = group->getBindingRenderTargetIndex();
-    bindingRTindex = std::min(bindingRTindex, rtvs.size() - 1);
+    size_t index = 0;
+    size_t bindingRTindex = 0;
+    if (!rtvs.empty()) {
+        index = std::min<size_t>(group->getRenderTargetIndex(), rtvs.size() - 1);
+        bindingRTindex = std::min<size_t>(group->getBindingRenderTargetIndex(), rtvs.size() - 1);
+    }
 
     // Only return SRVs in case of bindings
     if (action & MATCH_BINDING && group->getExtractResourceViews()) {

@@ -138,10 +138,13 @@ void ToggleGroupResourceManager::DisposeGroupBuffers(reshade::api::device* devic
         for (uint32_t i = 0; i < GroupResourceTypeCount; i++) {
             GroupResource& resources = group.GetGroupResource(static_cast<GroupResourceType>(i));
 
-            if (!resources.owning)
-                continue;
+            resources.g_res.reset();
 
-            DisposeGroupResources(device, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+            if (resources.owning) {
+                DisposeGroupResources(device, resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
+            }
+
+            resources.state = GroupResourceState::RESOURCE_INVALID;
         }
     }
 }
@@ -172,7 +175,8 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
             DisposeGroupResources(runtime->get_device(), resources.res, resources.rtv, resources.rtv_srgb, resources.srv);
 
             if (static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_ALPHA ||
-                static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_BINDING) {
+                static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_BINDING ||
+                static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_INTERMEDIATE_FULLRES) {
                 reshade::api::resource_usage res_usage = resource_usage::copy_dest | resource_usage::copy_source | resource_usage::shader_resource;
 
                 bool validRT = isValidRenderTarget(resources.target_description.texture.format);
@@ -181,10 +185,23 @@ void ToggleGroupResourceManager::CheckGroupBuffers(reshade::api::effect_runtime*
                 }
 
                 resource_desc desc = resources.target_description;
-                resource_desc group_desc =
-                  resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_typeless(desc.texture.format), 1, memory_heap::gpu_only, res_usage);
+                
+                uint32_t buffer_width = desc.texture.width;
+                uint32_t buffer_height = desc.texture.height;
 
-                if (!runtime->get_device()->create_resource(group_desc, nullptr, resource_usage::copy_dest, &resources.res)) {
+                if (static_cast<GroupResourceType>(i) == GroupResourceType::RESOURCE_INTERMEDIATE_FULLRES) {
+                    uint32_t sw = 0, sh = 0;
+                    runtime->get_screenshot_width_and_height(&sw, &sh);
+                    if (sw != 0 && sh != 0) {
+                        buffer_width = sw;
+                        buffer_height = sh;
+                    }
+                }
+
+                resource_desc group_desc =
+                  resource_desc(buffer_width, buffer_height, 1, 1, format_to_typeless(desc.texture.format), 1, memory_heap::gpu_only, res_usage);
+
+                if (!runtime->get_device()->create_resource(group_desc, nullptr, resource_usage::shader_resource, &resources.res)) {
                     reshade::log::message(reshade::log::level::error, "Failed to create group render target!");
                 }
 
@@ -251,10 +268,16 @@ bool ToggleGroupResourceManager::IsCompatibleWithGroupFormat(reshade::api::devic
     resource_desc tdesc = device->get_resource_desc(res);
     resource_desc preview_desc = device->get_resource_desc(resources.res);
 
-    if (type == GroupResourceType::RESOURCE_ALPHA || type == GroupResourceType::RESOURCE_BINDING) {
-        if (format_to_typeless(tdesc.texture.format) == format_to_typeless(preview_desc.texture.format) && tdesc.texture.width == preview_desc.texture.width &&
-            tdesc.texture.height == preview_desc.texture.height && tdesc.texture.levels == preview_desc.texture.levels) {
-            return true;
+    if (type == GroupResourceType::RESOURCE_ALPHA || type == GroupResourceType::RESOURCE_BINDING || type == GroupResourceType::RESOURCE_INTERMEDIATE_FULLRES) {
+        bool format_match = format_to_typeless(tdesc.texture.format) == format_to_typeless(preview_desc.texture.format) &&
+                            tdesc.texture.levels == preview_desc.texture.levels;
+        
+        if (type == GroupResourceType::RESOURCE_INTERMEDIATE_FULLRES) {
+            // For the intermediate buffer, it's always created at swapchain dimensions, 
+            // so we don't demand it matches the off-size target dimensions.
+            return format_match;
+        } else {
+            return format_match && tdesc.texture.width == preview_desc.texture.width && tdesc.texture.height == preview_desc.texture.height;
         }
     } else if (type == GroupResourceType::RESOURCE_CONSTANTS_COPY) {
         if (tdesc.buffer.size == preview_desc.buffer.size) {

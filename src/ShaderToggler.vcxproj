@@ -94,7 +94,8 @@
   <ItemDefinitionGroup Condition="'$(GITHUB_REF_NAME)'==''">
     <PreBuildEvent>
       <Command>
-</Command>
+	    powershell.exe -File "$(ProjectDir)set_release_version.ps1" "1.4.2.0"
+	  </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(GITHUB_REF_NAME)'!=''">

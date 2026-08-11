@@ -14,9 +14,10 @@ GlobalResourceView::GlobalResourceView(reshade::api::device* d, reshade::api::re
 
     resource_desc desc = device->get_resource_desc(r);
 
+    // D3D9 exposes swap-chain back buffers as standalone surfaces.
     if ((static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::render_target) ||
          static_cast<uint32_t>(desc.usage) & static_cast<uint32_t>(resource_usage::shader_resource)) &&
-        desc.type == resource_type::texture_2d) {
+        (desc.type == resource_type::texture_2d || desc.type == resource_type::surface)) {
         reshade::api::format f = format == reshade::api::format::unknown ? desc.texture.format : format;
 
         reshade::api::format format_non_srgb = format_to_default_typed(f, 0);
@@ -65,8 +66,11 @@ void GlobalResourceView::Dispose(bool deviceValid) {
         }
     }
 
+    device = nullptr;
+    resource_handle = 0;
     rtv = { 0 };
     rtv_srgb = { 0 };
     srv = { 0 };
     srv_srgb = { 0 };
+    state = GlobalResourceState::RESOURCE_INVALID;
 }

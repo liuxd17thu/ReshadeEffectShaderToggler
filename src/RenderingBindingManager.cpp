@@ -32,11 +32,6 @@ void RenderingBindingManager::DisposeTextureBindings(device* device, std::unorde
 
     unique_lock<shared_mutex> lock(data.binding_mutex);
 
-    if (data.bindingManagerData.empty_res != 0) {
-        device->destroy_resource(data.bindingManagerData.empty_res);
-        data.bindingManagerData.empty_res = { 0 };
-    }
-
     if (data.bindingManagerData.empty_rtv != 0) {
         device->destroy_resource_view(data.bindingManagerData.empty_rtv);
         data.bindingManagerData.empty_rtv = { 0 };
@@ -45,6 +40,11 @@ void RenderingBindingManager::DisposeTextureBindings(device* device, std::unorde
     if (data.bindingManagerData.empty_srv != 0) {
         device->destroy_resource_view(data.bindingManagerData.empty_srv);
         data.bindingManagerData.empty_srv = { 0 };
+    }
+
+    if (data.bindingManagerData.empty_res != 0) {
+        device->destroy_resource(data.bindingManagerData.empty_res);
+        data.bindingManagerData.empty_res = { 0 };
     }
 
     effect_runtime* runtime = data.current_runtime;
@@ -223,8 +223,36 @@ void RenderingBindingManager::_UpdateTextureBindings(command_list* cmd_list,
 
                 resource target_res = bindingResource.res;
 
-                if (retUpdate && target_res != 0) {
+                // Only copy when the source is safely copyable. Multisampled / non-2D copies are
+                // invalid on every API. The HDR/FP16 live-buffer TDR is DX12/Vulkan-specific, so the
+                // format restriction is gated to those APIs - DX9/10/11 copy-binding keeps working for
+                // any format. The non-copy binding mode above is unaffected; this only gates "Copy binding".
+                const bool strict_bind = (runtime->get_device()->get_api() == device_api::d3d12 ||
+                                          runtime->get_device()->get_api() == device_api::vulkan);
+                const reshade::api::format bind_typeless = format_to_typeless(resDesc.texture.format);
+                const bool bind_copyable = resDesc.texture.samples <= 1 &&
+                                           resDesc.type == resource_type::texture_2d &&
+                                           (!strict_bind ||
+                                            bind_typeless == reshade::api::format::r8g8b8a8_typeless ||
+                                            bind_typeless == reshade::api::format::b8g8r8a8_typeless);
+
+                if (retUpdate && target_res != 0 && bind_copyable) {
+                    std::vector<reshade::api::resource_view> bound_rtvs;
+                    reshade::api::resource_view bound_dsv = { 0 };
+
+                    if (strict_bind) {
+                        bound_rtvs = cmd_list->get_private_data<state_tracking>().render_targets;
+                        bound_dsv = cmd_list->get_private_data<state_tracking>().depth_stencil;
+                        // Unbind render targets so we can safely transition them without DX12 validation errors
+                        cmd_list->bind_render_targets_and_depth_stencil(0, nullptr, { 0 });
+                    }
+
                     cmd_list->copy_resource(bindingData.resource, target_res);
+
+                    if (strict_bind) {
+                        // Rebind targets. ReShade's wrapper will automatically transition them back to RENDER_TARGET.
+                        cmd_list->bind_render_targets_and_depth_stencil(static_cast<uint32_t>(bound_rtvs.size()), bound_rtvs.data(), bound_dsv);
+                    }
 
                     if (group->getFlipBufferBinding() && bindingResource.rtv != 0 && runtimeData.specialEffects[REST_FLIP].technique != 0) {
                         deviceData.current_runtime->render_technique(

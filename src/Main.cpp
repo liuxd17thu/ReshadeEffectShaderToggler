@@ -239,24 +239,44 @@ static void onInitEffectRuntime(effect_runtime* runtime) {
 }
 
 static void onDestroyEffectRuntime(effect_runtime* runtime) {
-    DeviceDataContainer& data = runtime->get_device()->get_private_data<DeviceDataContainer>();
+    device* const device = runtime->get_device();
+    DeviceDataContainer& data = device->get_private_data<DeviceDataContainer>();
 
-    renderingBindingManager.DisposeTextureBindings(runtime->get_device(), g_addonUIData.GetToggleGroups());
+    const bool hasOtherRuntimeOnDevice = std::any_of(runtimes.begin(), runtimes.end(), [runtime, device](effect_runtime* candidate) {
+        return candidate != runtime && candidate->get_device() == device;
+    });
+
+    // A D3D9 Reset keeps the device object alive, but requires every default-pool
+    // resource and back-buffer view to be released before the native Reset call.
+    // ReShade invokes this callback before destroy_swapchain and destroy_device,
+    // so release REST's device-owned objects here while the runtime is still valid.
+    if (device->get_api() == device_api::d3d9 && !hasOtherRuntimeOnDevice) {
+        groupResourceManager.DisposeGroupBuffers(device, g_addonUIData.GetToggleGroups());
+        renderingBindingManager.DisposeTextureBindings(device, g_addonUIData.GetToggleGroups());
+        resourceManager.OnDestroyDevice(device, true);
+        renderingShaderManager.DestroyShaders(device);
+        reshade::log::message(reshade::log::level::info, "Released REST D3D9 resources before runtime reset");
+    } else {
+        renderingBindingManager.DisposeTextureBindings(device, g_addonUIData.GetToggleGroups());
+    }
 
     // Remove runtime from stack
     for (auto it = runtimes.begin(); it != runtimes.end();) {
         if (runtime == *it) {
             it = runtimes.erase(it);
-            continue;
+        } else {
+            ++it;
         }
-
-        it++;
     }
 
     // Pick the runtime on top of our stack if there are any
     if (runtime == data.current_runtime) {
-        if (runtimes.size() > 0) {
-            data.current_runtime = runtimes[runtimes.size() - 1];
+        const auto nextRuntime = std::find_if(runtimes.rbegin(), runtimes.rend(), [device](effect_runtime* candidate) {
+            return candidate->get_device() == device;
+        });
+
+        if (nextRuntime != runtimes.rend()) {
+            data.current_runtime = *nextRuntime;
 
             if (constantHandler != nullptr) {
                 constantHandler->ReloadConstantVariables(data.current_runtime);

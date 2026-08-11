@@ -201,7 +201,7 @@ static void DrawPreview(unsigned long long textureId, uint32_t srcWidth, uint32_
     auto centralizedCursorpos = ImVec2((width - new_width) * 0.5f, (height - new_height) * 0.5f);
     ImGui::SetCursorPos(centralizedCursorpos);
 
-    ImGui::Image(textureId, ImVec2(new_width, new_height));
+    ImGui::Image(textureId, ImVec2(new_width, new_height), ImVec2(0, 0), ImVec2(1, 1));
 
     ImGui::PopStyleVar();
 }
@@ -1001,6 +1001,46 @@ static void CheckHotkeys(AddonImGui::AddonUIData& instance, reshade::api::effect
     if (*instance.ActiveCollectorFrameCounter() > 0) {
         --(*instance.ActiveCollectorFrameCounter());
     }
+
+    // Don't process toggle hotkeys while the user is editing a binding in the
+    // overlay, otherwise the captured key would also flip groups.
+    if (instance.GetToggleGroupIdShaderEditing() >= 0) {
+        return;
+    }
+
+    auto& groups = instance.GetToggleGroups();
+
+    // Global "toggle all groups": flips every group to the opposite of the
+    // current majority state so a single press reliably hides/shows everything.
+    const uint32_t toggleAllKey = instance.GetKeybinding(AddonImGui::Keybind::TOGGLE_ALL_GROUPS);
+    if (toggleAllKey != 0 && ShaderToggler::areKeysPressed(toggleAllKey, runtime)) {
+        size_t activeCount = 0;
+        for (const auto& [_, group] : groups) {
+            if (group.isActive())
+                ++activeCount;
+        }
+        const bool targetActive = activeCount <= (groups.size() / 2);
+        for (auto& [_, group] : groups) {
+            if (group.isActive() != targetActive) {
+                group.toggleActive();
+                if (!targetActive && instance.GetConstantHandler() != nullptr) {
+                    instance.GetConstantHandler()->RemoveGroup(&group, runtime->get_device());
+                }
+            }
+        }
+    }
+
+    // Per-group toggle keys.
+    for (auto& [_, group] : groups) {
+        const uint32_t key = group.getToggleKey();
+        if (key != 0 && ShaderToggler::areKeysPressed(key, runtime)) {
+            const bool wasActive = group.isActive();
+            group.toggleActive();
+            if (wasActive && instance.GetConstantHandler() != nullptr) {
+                instance.GetConstantHandler()->RemoveGroup(&group, runtime->get_device());
+            }
+        }
+    }
 }
 
 static void ShowHelpMarker(const char* desc) {
@@ -1020,7 +1060,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
     if (ImGui::CollapsingHeader("一般信息与帮助")) {
         ImGui::PushTextWrapPos();
         ImGui::TextUnformatted("Shader Toggler允许你创建若干个分组，每个分组包含需要开关切换的着色器。你可以为每个分组指定键盘快捷键（可以包含Shift、Alt、Ctrl），以及方便的命名。每个分组可以有与之对应的若干个顶点着色器或像素着色器。按下对应的快捷键时，任何使用了这些游戏着色器的绘制调用会被禁用，有效地隐藏3D场景中的元素。");
-        ImGui::TextUnformatted("\n以下（硬编码的）键盘快捷键可以在单击分组的“更改着色器”按钮后使用。");
+        ImGui::TextUnformatted("\n以下默认的键盘快捷键可以在单击分组的“更改着色器”按钮后使用。它们可以重新修改快捷键。");
         ImGui::TextUnformatted("* [小键盘1] 和 [小键盘2]: 前一个/后一个像素着色器");
         ImGui::TextUnformatted("* [Ctrl + 小键盘1] 和 [Ctrl + 小键盘2]: 分组中前一个/后一个已标记的像素着色器");
         ImGui::TextUnformatted("* [小键盘3]: 标记/取消标记当前的像素着色器，控制是否置入该分组");
@@ -1090,7 +1130,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         for (uint32_t i = 0; i < IM_ARRAYSIZE(AddonImGui::KeybindNames); i++) {
             uint32_t keys = instance.GetKeybinding(static_cast<AddonImGui::Keybind>(i));
             ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.35f);
-            if (key_input_box(AddonImGui::KeybindNames[i], &keys, runtime)) {
+            if (key_input_box(AddonImGui::KeybindDisplayNames[i], &keys, runtime)) {
                 instance.SetKeybinding(static_cast<AddonImGui::Keybind>(i), keys);
             }
             ImGui::PopItemWidth();
@@ -1104,6 +1144,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         ImGui::Separator();
 
         std::vector<ShaderToggler::ToggleGroup*> toRemove;
+        std::vector<ShaderToggler::ToggleGroup*> toDuplicate;
         for (auto& [_, group] : instance.GetToggleGroups()) {
 
             ImGui::PushID(group.getId());
@@ -1128,6 +1169,14 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
             ImGui::SameLine();
             if (ImGui::Button("编辑")) {
                 group.setEditing(true);
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Dup")) {
+                toDuplicate.push_back(&group);
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Duplicate this group (copies shaders, effects and settings into a new group; clears its toggle key).");
             }
 
             ImGui::SameLine();
@@ -1204,11 +1253,37 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
             std::erase_if(instance.GetToggleGroups(), [&group](const auto& item) { return item.first == group->getId(); });
         }
 
-        if (toRemove.size() > 0) {
+        for (const auto& group : toDuplicate) {
+            ShaderToggler::ToggleGroup copy(*group);
+            copy.setId(ShaderToggler::ToggleGroup::getNewGroupId());
+            copy.setName(group->getName() + " (copy)");
+            copy.setToggleKey(0); // avoid two groups sharing the same hotkey
+            copy.setEditing(false);
+            instance.GetToggleGroups().emplace(copy.getId(), copy);
+        }
+
+        if (toRemove.size() > 0 || toDuplicate.size() > 0) {
             instance.UpdateToggleGroupsForShaderHashes();
         }
 
         ImGui::Separator();
+        if (ImGui::Button("Reload from ini")) {
+            // Tear down all current groups (free their GPU resources) before
+            // reloading, since LoadShaderTogglerIniFile assumes a clean slate.
+            instance.GetToggleGroupIdEffectEditing() = -1;
+            instance.GetToggleGroupIdShaderEditing() = -1;
+            instance.GetToggleGroupIdConstantEditing() = -1;
+            instance.StopHuntingMode();
+            for (auto& [_, group] : instance.GetToggleGroups()) {
+                instance.SignalToggleGroupRemoved(runtime, &group);
+            }
+            instance.GetToggleGroups().clear();
+            instance.LoadShaderTogglerIniFile();
+            instance.UpdateToggleGroupsForShaderHashes();
+        }
+        ImGui::SameLine();
+        ShowHelpMarker("Discards unsaved changes and reloads all toggle groups and keybindings from ReshadeEffectShaderToggler.ini.");
+
         if (instance.GetToggleGroups().size() > 0) {
             if (ImGui::Button("保存所有切换分组")) {
                 instance.SaveShaderTogglerIniFile();

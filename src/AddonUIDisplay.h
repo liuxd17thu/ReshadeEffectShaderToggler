@@ -1267,7 +1267,7 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
         }
 
         ImGui::Separator();
-        if (ImGui::Button("Reload from ini")) {
+        if (ImGui::Button("重载配置")) {
             // Tear down all current groups (free their GPU resources) before
             // reloading, since LoadShaderTogglerIniFile assumes a clean slate.
             instance.GetToggleGroupIdEffectEditing() = -1;
@@ -1282,10 +1282,10 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
             instance.UpdateToggleGroupsForShaderHashes();
         }
         ImGui::SameLine();
-        ShowHelpMarker("Discards unsaved changes and reloads all toggle groups and keybindings from ReshadeEffectShaderToggler.ini.");
+        ShowHelpMarker("丢弃未保存的设置，并从ReshadeEffectShaderToggler.ini重新加载所有分组和快捷键设置。");
 
         if (instance.GetToggleGroups().size() > 0) {
-            if (ImGui::Button("保存所有切换分组")) {
+            if (ImGui::Button("保存配置")) {
                 instance.SaveShaderTogglerIniFile();
             }
         }

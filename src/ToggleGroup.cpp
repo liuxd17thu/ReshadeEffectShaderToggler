@@ -147,11 +147,19 @@ const std::unordered_set<EffectData*>& ToggleGroup::GetPreferredTechniqueData() 
     return _preferredTechniqueData;
 }
 
-int ToggleGroup::getNewGroupId() {
+namespace {
+atomic_int& getGroupIdCounter() {
     static atomic_int s_groupId = 0;
-
-    ++s_groupId;
     return s_groupId;
+}
+} // namespace
+
+int ToggleGroup::getNewGroupId() {
+    return ++getGroupIdCounter();
+}
+
+void ToggleGroup::resetGroupIdCounter() {
+    getGroupIdCounter().store(0);
 }
 
 GroupResource& ToggleGroup::GetGroupResource(GroupResourceType type) {

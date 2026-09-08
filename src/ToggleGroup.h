@@ -85,6 +85,7 @@ class ToggleGroup {
     ToggleGroup(const ToggleGroup& other);
 
     static int getNewGroupId();
+    static void resetGroupIdCounter();
 
     void setToggleKey(uint32_t keybind) { _keybind = keybind; }
     void setName(std::string newName);

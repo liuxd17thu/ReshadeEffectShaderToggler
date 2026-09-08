@@ -124,6 +124,7 @@ class AddonUIData {
     const std::vector<ShaderToggler::ToggleGroup*>* GetToggleGroupsForComputeShaderHash(uint32_t hash);
     void UpdateToggleGroupsForShaderHashes();
     void AddDefaultGroup();
+    void RenumberToggleGroups();
     const std::atomic_int& GetToggleGroupIdShaderEditing() const;
     void EndShaderEditing(bool acceptCollectedShaderHashes, ShaderToggler::ToggleGroup& groupEditing);
     void StartShaderEditing(ShaderToggler::ToggleGroup& groupEditing);

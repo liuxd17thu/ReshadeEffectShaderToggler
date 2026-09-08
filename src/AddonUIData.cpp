@@ -30,8 +30,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /////////////////////////////////////////////////////////////////////////
 
+#include <algorithm>
 #include <format>
 #include <functional>
+#include <vector>
 #include "AddonUIData.h"
 #include "RenderingManager.h"
 
@@ -197,6 +199,52 @@ void AddonUIData::AddDefaultGroup()
     _toggleGroups.emplace(toAdd.getId(), toAdd);
 }
 
+/// <summary>
+/// Renumbers the surviving toggle groups to a contiguous 1..N range, so deleting a group
+/// releases its id for reuse. Groups are relocated via node extraction, which keeps each
+/// ToggleGroup object (and every cached pointer to it) stable.
+/// </summary>
+void AddonUIData::RenumberToggleGroups()
+{
+    std::vector<int> ids;
+    ids.reserve(_toggleGroups.size());
+    for (const auto& [id, _] : _toggleGroups)
+    {
+        ids.push_back(id);
+    }
+    std::sort(ids.begin(), ids.end());
+
+    int nextId = 1;
+    for (const int oldId : ids)
+    {
+        if (oldId == nextId)
+        {
+            ++nextId;
+            continue;
+        }
+
+        auto node = _toggleGroups.extract(oldId);
+        if (node.empty())
+        {
+            continue;
+        }
+        node.key() = nextId;
+        node.mapped().setId(nextId);
+        _toggleGroups.insert(std::move(node));
+        ++nextId;
+    }
+
+    // Keep the id counter in sync with the compacted range so future new/duplicate
+    // groups continue right after the highest current id instead of reusing stale values.
+    ToggleGroup::resetGroupIdCounter();
+    for (size_t i = 0; i < _toggleGroups.size(); i++)
+    {
+        ToggleGroup::getNewGroupId();
+    }
+
+    UpdateToggleGroupsForShaderHashes();
+}
+
 
 /// <summary>
 /// Loads the defined hashes and groups from the shaderToggler.ini file.
@@ -204,6 +252,9 @@ void AddonUIData::AddDefaultGroup()
 void AddonUIData::LoadShaderTogglerIniFile(const string& fileName)
 {
     // Will assume it's started at the start of the application and therefore no groups are present.
+    // Restart the group id counter so loaded groups are numbered from 1 on every load/reload.
+
+    ShaderToggler::ToggleGroup::resetGroupIdCounter();
 
     reshade::log::message(reshade::log::level::info, std::format("Loading config file from \"{}\"", (_basePath / fileName).string()).c_str());
 

@@ -1253,6 +1253,12 @@ static void DisplaySettings(AddonImGui::AddonUIData& instance, reshade::api::eff
             std::erase_if(instance.GetToggleGroups(), [&group](const auto& item) { return item.first == group->getId(); });
         }
 
+        // Compact the ids of the surviving groups so deleting a group releases its number.
+        // Duplicating afterwards then naturally continues from the new max id.
+        if (toRemove.size() > 0) {
+            instance.RenumberToggleGroups();
+        }
+
         for (const auto& group : toDuplicate) {
             ShaderToggler::ToggleGroup copy(*group);
             copy.setId(ShaderToggler::ToggleGroup::getNewGroupId());
